@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MetaPeek</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="meta">Meta Info</button>
+      <button class="tab-btn" data-tab="canonical">Canonical</button>
+      <button class="tab-btn" data-tab="previews">Previews</button>
+    </div>
+
+    <div class="tab-content">
+      <div id="meta" class="tab-pane active">
+        <h2>Meta Tags</h2>
+        <div id="meta-content"></div>
+      </div>
+
+      <div id="canonical" class="tab-pane">
+        <h2>Canonical URL</h2>
+        <div id="canonical-content"></div>
+      </div>
+
+      <div id="previews" class="tab-pane">
+        <h2>Social Media Previews</h2>
+        <div class="preview-cards">
+          <div class="preview-card facebook">
+            <h3>Facebook</h3>
+            <div id="facebook-preview"></div>
+          </div>
+          <div class="preview-card twitter">
+            <h3>Twitter</h3>
+            <div id="twitter-preview"></div>
+          </div>
+          <div class="preview-card linkedin">
+            <h3>LinkedIn</h3>
+            <div id="linkedin-preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="copy-meta" class="copy-btn">Copy Meta Tags</button>
+  </div>
+  <script src="utils.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html> 
