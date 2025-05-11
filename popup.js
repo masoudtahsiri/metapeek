@@ -393,13 +393,12 @@ function isPageSchema(obj, currentUrl) {
  */
 function createSeparatedMetaItem(item) {
   const statusClass = `status-${item.status}`;
-  const statusLabel = getStatusLabel(item.status);
-  
+  // Status icon only in badge, message outside
   return `
     <div class="meta-tag-card">
       <div class="meta-tag-header">
         <span class="meta-tag-name">${item.label}</span>
-        <span class="status-indicator status-${item.status}-badge">${statusLabel}</span>
+        <span class="status-indicator ${statusClass}-badge"></span>
       </div>
       <div class="meta-tag-content">
         <div class="meta-tag-value">${item.value}</div>
@@ -451,282 +450,67 @@ function populateDetailedSEOSummary(metadata) {
   const seoSummaryContent = document.getElementById('seo-summary-content');
   if (!seoSummaryContent) return;
   
-  // Count issues by type
-  let errorCount = 0;
-  let warningCount = 0;
-  let goodCount = 0;
-  
-  // Collect issues by category
-  let issuesByCategory = {
-    'Basic Meta': [],
-    'Open Graph': [],
-    'Twitter Card': [],
-    'Other': []
-  };
+  // Start with critical issues
+  const criticalIssues = [];
   
   // Check Title
   const title = metadata.basicMeta.find(tag => tag.label === 'Title');
-  if (title) {
-    if (title.status === 'good') {
-      goodCount++;
-    } else {
-      title.status === 'error' ? errorCount++ : warningCount++;
-      issuesByCategory['Basic Meta'].push({
-        label: 'Title',
-        value: title.value,
-        status: title.status,
-        message: title.value.length < 30 ? 'Too short (min 30 chars)' : 'Too long (max 60 chars)',
-        currentLength: title.value.length
-      });
-    }
+  if (title && title.status !== 'good') {
+    criticalIssues.push({
+      label: 'Title',
+      value: title.value,
+      status: title.status,
+      message: title.value.length < 30 ? 'Too short' : 'Too long'
+    });
   }
   
   // Check Description
   const description = metadata.basicMeta.find(tag => tag.label === 'Description');
-  if (description) {
-    if (description.status === 'good') {
-      goodCount++;
-    } else {
-      description.status === 'error' ? errorCount++ : warningCount++;
-      issuesByCategory['Basic Meta'].push({
-        label: 'Description',
-        value: description.value,
-        status: description.status,
-        message: description.value.length < 120 ? 'Too short (min 120 chars)' : 'Too long (max 160 chars)',
-        currentLength: description.value.length
-      });
-    }
-  }
-  
-  // Check Keywords
-  const keywords = metadata.basicMeta.find(tag => tag.label === 'Keywords');
-  if (keywords && keywords.status !== 'good') {
-    keywords.status === 'error' ? errorCount++ : warningCount++;
-    issuesByCategory['Basic Meta'].push({
-      label: 'Keywords',
-      status: keywords.status,
-      message: 'Missing or incomplete'
+  if (description && description.status !== 'good') {
+    criticalIssues.push({
+      label: 'Description',
+      value: description.value,
+      status: description.status,
+      message: description.value.length < 120 ? 'Too short' : 'Too long'
     });
-  } else if (keywords) {
-    goodCount++;
-  }
-  
-  // Check Viewport
-  const viewport = metadata.basicMeta.find(tag => tag.label === 'Viewport');
-  if (viewport && viewport.status !== 'good') {
-    viewport.status === 'error' ? errorCount++ : warningCount++;
-    issuesByCategory['Basic Meta'].push({
-      label: 'Viewport',
-      status: viewport.status,
-      message: 'Missing or improperly configured'
-    });
-  } else if (viewport) {
-    goodCount++;
-  }
-  
-  // Check Robots
-  const robots = metadata.basicMeta.find(tag => tag.label === 'Robots');
-  if (robots && robots.status !== 'good') {
-    robots.status === 'error' ? errorCount++ : warningCount++;
-    issuesByCategory['Basic Meta'].push({
-      label: 'Robots',
-      status: robots.status,
-      message: 'Missing or improperly configured'
-    });
-  } else if (robots) {
-    goodCount++;
   }
   
   // Check Canonical
   if (!metadata.canonicalUrl) {
-    errorCount++;
-    issuesByCategory['Other'].push({
+    criticalIssues.push({
       label: 'Canonical URL',
       status: 'error',
-      message: 'Missing canonical URL'
+      message: 'Missing'
     });
-  } else {
-    goodCount++;
   }
   
-  // Check Open Graph tags
-  metadata.ogMeta.forEach(tag => {
-    if (tag.status === 'good') {
-      goodCount++;
-    } else {
-      tag.status === 'error' ? errorCount++ : warningCount++;
-      issuesByCategory['Open Graph'].push({
-        label: tag.label,
-        value: tag.value !== 'Missing' ? tag.value : '',
-        status: tag.status,
-        message: tag.status === 'error' ? 'Missing required tag' : tag.message || 'Issue detected'
-      });
-    }
-  });
+  // Create HTML for issues
+  let html = '';
   
-  // Check Twitter Card tags
-  metadata.twitterMeta.forEach(tag => {
-    if (tag.status === 'good') {
-      goodCount++;
-    } else {
-      tag.status === 'error' ? errorCount++ : warningCount++;
-      issuesByCategory['Twitter Card'].push({
-        label: tag.label,
-        value: tag.value !== 'Missing' ? tag.value : '',
-        status: tag.status,
-        message: tag.status === 'error' ? 'Missing required tag' : tag.message || 'Issue detected'
-      });
-    }
-  });
-  
-  // Check Schema
-  if (!metadata.schemaData || metadata.schemaData.length === 0) {
-    warningCount++;
-    issuesByCategory['Other'].push({
-      label: 'Schema.org Data',
-      status: 'warning',
-      message: 'No structured data found'
+  if (criticalIssues.length > 0) {
+    html += `<div class="seo-issues-list">`;
+    criticalIssues.forEach(issue => {
+      html += `
+        <div class="seo-issue-item status-${issue.status}">\n          <div class="seo-issue-header">\n            <span class="seo-issue-label">${issue.label}</span>\n            <span class="status-${issue.status}-badge"></span>\n          </div>\n          <div class="seo-issue-message">${issue.message}</div>\n        </div>\n      `;
     });
-  } else if (!metadata.schemaData[0].valid) {
-    errorCount++;
-    issuesByCategory['Other'].push({
-      label: 'Schema.org Data',
-      status: 'error',
-      message: 'Invalid schema structure'
-    });
-  } else {
-    goodCount++;
-  }
-  
-  // Calculate SEO score
-  const totalChecks = goodCount + warningCount + errorCount;
-  const seoScore = Math.round((goodCount / totalChecks) * 100);
-  
-  // Determine overall status
-  let overallStatus = 'good';
-  if (errorCount > 0) {
-    overallStatus = 'error';
-  } else if (warningCount > 0) {
-    overallStatus = 'warning';
-  }
-  
-  // Create HTML for the header
-  let html = `
-    <div class="seo-summary-header">
-      <div class="seo-summary-score">
-        <span class="seo-summary-score-value status-${overallStatus}">${seoScore}</span>
-        <span class="seo-summary-score-label">/ 100</span>
-      </div>
-      <div class="seo-summary-counts">
-        <span class="status-good-badge">${goodCount} Good</span>
-        ${warningCount > 0 ? `<span class="status-warning-badge">${warningCount} Warnings</span>` : ''}
-        ${errorCount > 0 ? `<span class="status-error-badge">${errorCount} Errors</span>` : ''}
-      </div>
-    </div>
-  `;
-  
-  // If there are issues, display them by category with accordion behavior
-  const hasIssues = Object.values(issuesByCategory).some(issues => issues.length > 0);
-  
-  if (hasIssues) {
-    // Add each category that has issues
-    let isFirst = true; // Track if it's the first category with issues
-    
-    Object.entries(issuesByCategory).forEach(([category, issues]) => {
-      if (issues.length > 0) {
-        // Determine if this category should be expanded (only first one)
-        const isExpanded = isFirst;
-        
-        html += `
-          <div class="seo-issues-category ${isExpanded ? 'expanded' : 'collapsed'}" data-category="${category}">
-            <div class="seo-category-header" role="button" tabindex="0">
-              <div class="seo-category-title">
-                <svg class="seo-category-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-                ${category} Issues
-              </div>
-              <div class="seo-category-count">${issues.length} ${issues.length === 1 ? 'issue' : 'issues'}</div>
-            </div>
-            <div class="seo-issues-list">
-        `;
-        
-        // Add each issue in this category
-        issues.forEach(issue => {
-          const statusClass = `status-${issue.status}`;
-          const statusBadge = issue.status === 'error' ? 'Error' : 'Warning';
-          
-          html += `
-            <div class="seo-issue-item ${statusClass}">
-              <div class="seo-issue-header">
-                <span class="seo-issue-label">${issue.label}</span>
-                <span class="status-${issue.status}-badge">${statusBadge}</span>
-              </div>
-              ${issue.currentLength !== undefined ? 
-                `<div class="seo-issue-detail">Current length: ${issue.currentLength} characters</div>` : ''}
-              <div class="seo-issue-message">${issue.message}</div>
-            </div>
-          `;
-        });
-        
-        html += `
-            </div>
-          </div>
-        `;
-        
-        // Only the first category with issues should be expanded
-        if (isFirst) {
-          isFirst = false;
-        }
-      }
-    });
+    html += `</div>`;
   } else {
     // Show success message
     html += `
       <div class="seo-perfect">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--status-good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--status-good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
         <div>
-          <div class="seo-perfect-title">Perfect SEO</div>
-          <div class="seo-perfect-message">All SEO checks passed! Your page is well-optimized.</div>
+          <div class="seo-perfect-title">Good SEO</div>
+          <div class="seo-perfect-message">All critical SEO checks passed</div>
         </div>
       </div>
     `;
   }
   
   seoSummaryContent.innerHTML = html;
-  
-  // Add click handlers for category headers
-  const categoryHeaders = seoSummaryContent.querySelectorAll('.seo-category-header');
-  categoryHeaders.forEach(header => {
-    header.addEventListener('click', () => {
-      const category = header.closest('.seo-issues-category');
-      const isExpanded = category.classList.contains('expanded');
-      
-      // First, collapse all categories
-      document.querySelectorAll('.seo-issues-category').forEach(cat => {
-        cat.classList.remove('expanded');
-        cat.classList.add('collapsed');
-      });
-      
-      // If clicking on a collapsed category, expand it
-      // If clicking on an already expanded category, it remains collapsed
-      if (!isExpanded) {
-        category.classList.remove('collapsed');
-        category.classList.add('expanded');
-      }
-    });
-    
-    // Add keyboard support
-    header.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        header.click();
-      }
-    });
-  });
 }
 
 /**
@@ -765,13 +549,13 @@ function populateMetadata(metadata) {
 function getStatusLabel(status) {
   switch (status) {
     case 'good':
-      return '✓ Good';
+      return '✓'; // Icon only
     case 'warning':
-      return '⚠ Warning';
+      return '⚠'; // Icon only
     case 'error':
-      return '✕ Error';
+      return '✕'; // Icon only
     default:
-      return status;
+      return '';
   }
 }
 
@@ -815,8 +599,52 @@ function attachCopyButtonListeners() {
 }
 
 /**
- * Enhanced function to populate all social media previews
+ * Improved function to populate canonical URL with better accessibility
  */
+function populateCanonicalUrl(metadata) {
+  const canonicalContent = document.getElementById('canonical-content');
+  if (!canonicalContent) return;
+  
+  canonicalContent.innerHTML = `
+    <div class="canonical-container">
+      <span class="canonical-label">URL:</span>
+      <div class="canonical-value">${metadata.canonicalUrl || 'Not set'}</div>
+      <button class="btn btn-icon canonical-copy" title="Copy canonical URL">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+  `;
+  
+  // Add click handler for the copy button
+  const copyButton = canonicalContent.querySelector('.canonical-copy');
+  if (copyButton && metadata.canonicalUrl) {
+    copyButton.addEventListener('click', () => {
+      navigator.clipboard.writeText(metadata.canonicalUrl)
+        .then(() => showToast('Canonical URL copied!'))
+        .catch(err => console.error('Failed to copy text: ', err));
+    });
+  }
+}
+
+// Function to show a toast notification
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  if (toast) {
+    const toastMessage = toast.querySelector('span');
+    if (toastMessage) {
+      toastMessage.textContent = message;
+    }
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+}
+
 function populateComprehensivePreviews(metadata) {
   const ogTitle = metadata.ogMeta.find(tag => tag.label === 'og:title')?.value || 
                   metadata.basicMeta.find(tag => tag.label === 'Title')?.value || '';
@@ -834,99 +662,6 @@ function populateComprehensivePreviews(metadata) {
     hostname = ogUrl || 'example.com';
   }
 
-  // Create HTML for preview grid
-  const previewGrid = document.getElementById('previews');
-  if (!previewGrid) return;
-  
-  previewGrid.innerHTML = `
-    <div class="preview-grid">
-      <!-- Facebook Preview -->
-      <div class="preview-card">
-        <div class="preview-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-          </svg>
-          Facebook
-        </div>
-        <div class="preview-content">
-          <div id="facebook-preview"></div>
-        </div>
-      </div>
-      
-      <!-- Twitter Preview -->
-      <div class="preview-card">
-        <div class="preview-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
-          </svg>
-          Twitter
-        </div>
-        <div class="preview-content">
-          <div id="twitter-preview"></div>
-        </div>
-      </div>
-      
-      <!-- LinkedIn Preview -->
-      <div class="preview-card">
-        <div class="preview-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-            <rect x="2" y="9" width="4" height="12"></rect>
-            <circle cx="4" cy="4" r="2"></circle>
-          </svg>
-          LinkedIn
-        </div>
-        <div class="preview-content">
-          <div id="linkedin-preview"></div>
-        </div>
-      </div>
-      
-      <!-- Pinterest Preview -->
-      <div class="preview-card">
-        <div class="preview-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a10 10 0 0 0-3.16 19.5c-.07-.63-.13-1.6.03-2.3.14-.6.92-3.8.92-3.8s-.23-.48-.23-1.2c0-1.1.64-1.93 1.44-1.93.68 0 1 .5 1 1.1 0 .67-.43 1.67-.65 2.6-.18.77.38 1.4 1.15 1.4 1.38 0 2.43-1.45 2.43-3.56 0-1.86-1.33-3.16-3.23-3.16a3.38 3.38 0 0 0-3.54 3.45c0 .67.27 1.4.61 1.82.07.08.08.15.06.24l-.24.96c-.03.14-.14.18-.26.13-1-.45-1.6-1.9-1.6-3.05 0-2.45 1.78-4.7 5.1-4.7 2.67 0 4.76 1.9 4.76 4.46 0 2.66-1.66 4.82-3.93 4.82-.77 0-1.5-.4-1.74-.85l-.47 1.8c-.18.64-.5 1.44-.8 1.96A10 10 0 1 0 12 2z"></path>
-          </svg>
-          Pinterest
-        </div>
-        <div class="preview-content">
-          <div id="pinterest-preview"></div>
-        </div>
-      </div>
-      
-      <!-- Instagram Preview -->
-      <div class="preview-card">
-        <div class="preview-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-          </svg>
-          Instagram
-        </div>
-        <div class="preview-content">
-          <div id="instagram-preview"></div>
-        </div>
-      </div>
-      
-      <!-- Google Search Preview -->
-      <div class="preview-card">
-        <div class="preview-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          Google Search
-        </div>
-        <div class="preview-content">
-          <div id="google-preview"></div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Now populate each platform's preview
-  
   // Facebook Preview
   const facebookPreview = document.getElementById('facebook-preview');
   if (facebookPreview) {
@@ -988,42 +723,6 @@ function populateComprehensivePreviews(metadata) {
     `;
   }
   
-  // Pinterest Preview
-  const pinterestPreview = document.getElementById('pinterest-preview');
-  if (pinterestPreview) {
-    pinterestPreview.innerHTML = `
-      <div class="preview-card-inner pinterest-card">
-        ${ogImage ? `
-          <div class="preview-image pinterest-image" style="background-image: url('${ogImage}')"></div>
-        ` : `
-          <div class="preview-image-placeholder">No image available</div>
-        `}
-        <div class="preview-content-wrapper">
-          <div class="preview-title">${ogTitle || 'No title available'}</div>
-          <div class="preview-hostname">${hostname}</div>
-        </div>
-      </div>
-    `;
-  }
-  
-  // Instagram Preview
-  const instagramPreview = document.getElementById('instagram-preview');
-  if (instagramPreview) {
-    instagramPreview.innerHTML = `
-      <div class="preview-card-inner instagram-card">
-        ${ogImage ? `
-          <div class="preview-image instagram-image" style="background-image: url('${ogImage}')"></div>
-        ` : `
-          <div class="preview-image-placeholder">No image available</div>
-        `}
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname">@${hostname.split('.')[0]}</div>
-          <div class="preview-description" style="max-height: 2.8em;">${ogDescription ? ogDescription.substring(0, 120) + (ogDescription.length > 120 ? '...' : '') : 'No description available'}</div>
-        </div>
-      </div>
-    `;
-  }
-  
   // Google Search Preview
   const googlePreview = document.getElementById('google-preview');
   if (googlePreview) {
@@ -1053,17 +752,9 @@ function createMetaItem(name, value, validation) {
   let isMissing = value === undefined || value === null || value === '' || value === 'Not set';
   let statusClass = !validation.valid || isMissing
     ? (validation.message === 'Missing' || isMissing ? 'status-error' : 'status-warning')
-    : 'status-success';
-  statusSpan.className = `meta-status ${statusClass}`;
-
-  const statusIcon = document.createElement('span');
-  statusIcon.className = 'status-icon';
-  statusIcon.textContent = !validation.valid || isMissing
-    ? (validation.message === 'Missing' || isMissing ? '❌' : '⚠️')
-    : '✅';
-
-  statusSpan.appendChild(statusIcon);
-  statusSpan.appendChild(document.createTextNode(validation.message));
+    : 'status-good';
+  statusSpan.className = `meta-status ${statusClass}-badge`;
+  statusSpan.textContent = validation.message;
 
   labelDiv.appendChild(nameSpan);
   labelDiv.appendChild(statusSpan);
@@ -1289,51 +980,4 @@ function populateSchemaWithSeparatedCards(metadata) {
   
   container.appendChild(validationEl);
   schemaContent.appendChild(container);
-}
-
-/**
- * Improved function to populate canonical URL with better accessibility
- */
-function populateCanonicalUrl(metadata) {
-  const canonicalContent = document.getElementById('canonical-content');
-  if (!canonicalContent) return;
-  
-  canonicalContent.innerHTML = `
-    <div class="canonical-container">
-      <span class="canonical-label">URL:</span>
-      <div class="canonical-value">${metadata.canonicalUrl || 'Not set'}</div>
-      <button class="btn btn-icon canonical-copy" title="Copy canonical URL">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-        </svg>
-      </button>
-    </div>
-  `;
-  
-  // Add click handler for the copy button
-  const copyButton = canonicalContent.querySelector('.canonical-copy');
-  if (copyButton && metadata.canonicalUrl) {
-    copyButton.addEventListener('click', () => {
-      navigator.clipboard.writeText(metadata.canonicalUrl)
-        .then(() => showToast('Canonical URL copied!'))
-        .catch(err => console.error('Failed to copy text: ', err));
-    });
-  }
-}
-
-// Function to show a toast notification
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  if (toast) {
-    const toastMessage = toast.querySelector('span');
-    if (toastMessage) {
-      toastMessage.textContent = message;
-    }
-    toast.classList.add('show');
-    
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
-  }
 } 
