@@ -172,7 +172,8 @@ function getPageMetadata() {
     ogMeta: [],
     twitterMeta: [],
     canonicalUrl: '',
-    schemaData: []
+    schemaData: [],
+    performance: {}
   };
   
   try {
@@ -529,6 +530,9 @@ function populateMetadata(metadata) {
   
   // Populate previews
   populateComprehensivePreviews(metadata);
+  
+  // Populate performance metrics
+  displayPerformanceMetrics(metadata);
 }
 
 // Helper function to get status label
@@ -1014,4 +1018,54 @@ function populateSchemaWithSeparatedCards(metadata) {
   
   container.appendChild(validationEl);
   schemaContent.appendChild(container);
+}
+
+function displayPerformanceMetrics(metadata) {
+  const metrics = metadata.performance;
+  if (!metrics) return;
+  
+  // Create metrics section
+  const html = `
+    <div class="performance-metrics">
+      <h3>Core Web Vitals</h3>
+      <div class="metrics-grid">
+        ${metrics.lcp ? `
+          <div class="metric-item ${getMetricClass(metrics.lcp, 2500, 4000)}">
+            <div class="metric-name">Largest Contentful Paint</div>
+            <div class="metric-value">${(metrics.lcp/1000).toFixed(2)}s</div>
+          </div>
+        ` : ''}
+        ${metrics.cls ? `
+          <div class="metric-item ${getMetricClass(metrics.cls, 0.1, 0.25, true)}">
+            <div class="metric-name">Cumulative Layout Shift</div>
+            <div class="metric-value">${metrics.cls.toFixed(3)}</div>
+          </div>
+        ` : ''}
+        ${metrics.inp ? `
+          <div class="metric-item ${getMetricClass(metrics.inp, 200, 500)}">
+            <div class="metric-name">Interaction to Next Paint</div>
+            <div class="metric-value">${metrics.inp.toFixed(0)}ms</div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+  
+  // Add to your performance section in the UI
+  const container = document.getElementById('performance-container');
+  if (container) {
+    container.innerHTML = html;
+  }
+}
+
+function getMetricClass(value, good, poor, lowerIsBetter = true) {
+  if (lowerIsBetter) {
+    return value <= good ? 'metric-good' : 
+           value <= poor ? 'metric-warning' : 
+           'metric-poor';
+  } else {
+    return value >= good ? 'metric-good' : 
+           value >= poor ? 'metric-warning' : 
+           'metric-poor';
+  }
 } 

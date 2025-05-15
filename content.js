@@ -57,7 +57,11 @@ function calculateSEOHealthScore(metadata) {
   
   // Default content and performance scores
   scores.content = 0.7;
-  scores.performance = 0.8;
+  if (metadata.performance) {
+    scores.performance = calculatePerformanceScore(metadata.performance);
+  } else {
+    scores.performance = 0.5; // Default fallback
+  }
   
   // Calculate overall weighted score
   const overallScore = Object.entries(weights).reduce(
@@ -226,32 +230,53 @@ if (!window.MetaPeek.initialized) {
   initializeObserver();
 }
 
-// Capture Core Web Vitals when available
-function captureWebVitals() {
-  const performanceMetrics = {};
+// Initialize core web vitals collection
+function initWebVitals() {
+  // Create storage for metrics
+  window.metaPeekMetrics = {
+    lcp: null,
+    cls: null,
+    inp: null,
+    fcp: null, 
+    ttfb: null
+  };
   
-  // Observer for LCP
-  new PerformanceObserver((list) => {
-    const entries = list.getEntries();
-    const lastEntry = entries[entries.length - 1];
-    performanceMetrics.lcp = lastEntry.startTime;
-  }).observe({type: 'largest-contentful-paint', buffered: true});
-  
-  // Observer for CLS
-  let clsValue = 0;
-  new PerformanceObserver((list) => {
-    const entries = list.getEntries();
-    entries.forEach(entry => {
-      if (!entry.hadRecentInput) {
-        clsValue += entry.value;
-      }
+  // Only run if web-vitals is available
+  if (typeof webVitals !== 'undefined') {
+    // Collect LCP (Largest Contentful Paint)
+    webVitals.onLCP(metric => {
+      window.metaPeekMetrics.lcp = metric.value;
+      console.log('MetaPeek: LCP collected', metric.value);
     });
-    performanceMetrics.cls = clsValue;
-  }).observe({type: 'layout-shift', buffered: true});
-  
-  // Return the metrics object that will be populated
-  return performanceMetrics;
+    
+    // Collect CLS (Cumulative Layout Shift)
+    webVitals.onCLS(metric => {
+      window.metaPeekMetrics.cls = metric.value;
+      console.log('MetaPeek: CLS collected', metric.value);
+    });
+    
+    // Collect INP (Interaction to Next Paint)
+    webVitals.onINP(metric => {
+      window.metaPeekMetrics.inp = metric.value;
+      console.log('MetaPeek: INP collected', metric.value);
+    });
+    
+    // Collect FCP (First Contentful Paint)
+    webVitals.onFCP(metric => {
+      window.metaPeekMetrics.fcp = metric.value;
+      console.log('MetaPeek: FCP collected', metric.value);
+    });
+    
+    // Collect TTFB (Time to First Byte)
+    webVitals.onTTFB(metric => {
+      window.metaPeekMetrics.ttfb = metric.value;
+      console.log('MetaPeek: TTFB collected', metric.value);
+    });
+  }
 }
+
+// Initialize web vitals collection when the page loads
+initWebVitals();
 
 // Function to extract metadata from the page
 function getPageMetadata() {
@@ -417,6 +442,11 @@ function getPageMetadata() {
       }))
     );
 
+    // Add performance metrics to the metadata
+    if (window.metaPeekMetrics) {
+      metadata.performance = window.metaPeekMetrics;
+    }
+
     return metadata;
   } catch (error) {
     console.error('Error in getPageMetadata:', error);
@@ -490,4 +520,102 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     
     return true; // Keep the messaging channel open for async response
   }
-}); 
+});
+
+// Calculate performance score based on Core Web Vitals
+function calculatePerformanceScore(metrics) {
+  // No metrics available
+  if (!metrics || (!metrics.lcp && !metrics.cls && !metrics.inp)) {
+    return 0.5; // Default score when metrics aren't available
+  }
+
+  let score = 0;
+  let weightSum = 0;
+  
+  // LCP scoring (25% of score)
+  if (metrics.lcp !== null) {
+    const lcpWeight = 0.25;
+    weightSum += lcpWeight;
+    
+    // Good: <= 2.5s, Poor: > 4s
+    if (metrics.lcp <= 2500) {
+      score += lcpWeight;
+    } else if (metrics.lcp <= 4000) {
+      // Linear scale between 2500-4000ms
+      const lcpScore = 1 - ((metrics.lcp - 2500) / 1500);
+      score += lcpWeight * lcpScore;
+    }
+    // Otherwise score is 0 for this metric
+  }
+  
+  // CLS scoring (15% of score)
+  if (metrics.cls !== null) {
+    const clsWeight = 0.15;
+    weightSum += clsWeight;
+    
+    // Good: <= 0.1, Poor: > 0.25
+    if (metrics.cls <= 0.1) {
+      score += clsWeight;
+    } else if (metrics.cls <= 0.25) {
+      // Linear scale between 0.1-0.25
+      const clsScore = 1 - ((metrics.cls - 0.1) / 0.15);
+      score += clsWeight * clsScore;
+    }
+    // Otherwise score is 0 for this metric
+  }
+  
+  // INP scoring (15% of score)
+  if (metrics.inp !== null) {
+    const inpWeight = 0.15;
+    weightSum += inpWeight;
+    
+    // Good: <= 200ms, Poor: > 500ms
+    if (metrics.inp <= 200) {
+      score += inpWeight;
+    } else if (metrics.inp <= 500) {
+      // Linear scale between 200-500ms
+      const inpScore = 1 - ((metrics.inp - 200) / 300);
+      score += inpWeight * inpScore;
+    }
+    // Otherwise score is 0 for this metric
+  }
+  
+  // FCP scoring (10% of score)
+  if (metrics.fcp !== null) {
+    const fcpWeight = 0.10;
+    weightSum += fcpWeight;
+    
+    // Good: <= 1.8s, Poor: > 3s
+    if (metrics.fcp <= 1800) {
+      score += fcpWeight;
+    } else if (metrics.fcp <= 3000) {
+      // Linear scale between 1800-3000ms
+      const fcpScore = 1 - ((metrics.fcp - 1800) / 1200);
+      score += fcpWeight * fcpScore;
+    }
+    // Otherwise score is 0 for this metric
+  }
+  
+  // TTFB scoring (10% of score)
+  if (metrics.ttfb !== null) {
+    const ttfbWeight = 0.10;
+    weightSum += ttfbWeight;
+    
+    // Good: <= 800ms, Poor: > 1800ms
+    if (metrics.ttfb <= 800) {
+      score += ttfbWeight;
+    } else if (metrics.ttfb <= 1800) {
+      // Linear scale between 800-1800ms
+      const ttfbScore = 1 - ((metrics.ttfb - 800) / 1000);
+      score += ttfbWeight * ttfbScore;
+    }
+    // Otherwise score is 0 for this metric
+  }
+  
+  // For remaining 25%, use a default good score since we can't measure more metrics
+  const remainingWeight = 1 - weightSum;
+  score += remainingWeight * 0.7;
+  
+  // Return score between 0-1
+  return score;
+} 

@@ -34,7 +34,7 @@
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["content.js"]
+      "js": ["lib/web-vitals.js", "content.js"]
     }
   ],
   "web_accessible_resources": [
