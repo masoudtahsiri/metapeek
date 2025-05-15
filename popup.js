@@ -450,28 +450,59 @@ function populateSEOHealth(metadata) {
   const seoSummaryContent = document.getElementById('seo-summary-content');
   if (!seoSummaryContent) return;
   
-  // Get the SEO score data
-  const seoScoreData = metadata.seoScore || calculateSEOHealthScore(metadata);
+  // Show loading state
+  seoSummaryContent.innerHTML = `
+    <div class="seo-loading">
+      <div class="seo-loading-spinner"></div>
+      <div class="seo-loading-message">Analyzing SEO metrics...</div>
+    </div>
+  `;
   
-  // Use the HTML generator function
-  seoSummaryContent.innerHTML = generateSEOReportHTML(seoScoreData);
-  
-  // Add animations after rendering
-  setTimeout(() => {
-    // Ensure smooth transition for the score circle fill
-    const scoreCircle = document.querySelector('.score-circle');
-    if (scoreCircle) {
-      scoreCircle.style.transition = 'stroke-dasharray 1.5s ease-in-out';
-    }
-    
-    // Staggered animation for category bars
-    const categoryBars = document.querySelectorAll('.category-bar');
-    categoryBars.forEach((bar, index) => {
-      setTimeout(() => {
-        bar.style.width = bar.getAttribute('data-width') || '0%';
-      }, index * 150);
+  // Request SEO analysis from the content script
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    chrome.tabs.sendMessage(tabs[0].id, {
+      action: "getSEOHealth",
+      metadata: metadata
+    }, function(response) {
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError);
+        seoSummaryContent.innerHTML = `
+          <div class="seo-perfect">
+            <div class="seo-perfect-title">SEO Analysis Unavailable</div>
+            <div class="seo-perfect-message">Please try again.</div>
+          </div>
+        `;
+        return;
+      }
+      
+      if (response && response.seoReport) {
+        // Got HTML directly from content script
+        seoSummaryContent.innerHTML = response.seoReport;
+        
+        // Add animations after rendering
+        setTimeout(() => {
+          const scoreCircle = document.querySelector('.score-circle');
+          if (scoreCircle) {
+            scoreCircle.style.transition = 'stroke-dasharray 1.5s ease-in-out';
+          }
+          
+          const categoryBars = document.querySelectorAll('.category-bar');
+          categoryBars.forEach((bar, index) => {
+            setTimeout(() => {
+              bar.style.width = bar.getAttribute('data-width') || '0%';
+            }, index * 150);
+          });
+        }, 100);
+      } else {
+        seoSummaryContent.innerHTML = `
+          <div class="seo-perfect">
+            <div class="seo-perfect-title">SEO Analysis Failed</div>
+            <div class="seo-perfect-message">Unable to analyze SEO metrics.</div>
+          </div>
+        `;
+      }
     });
-  }, 100);
+  });
 }
 
 /**

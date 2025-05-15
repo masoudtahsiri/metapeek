@@ -1,8 +1,21 @@
 {
   "manifest_version": 3,
   "name": "MetaPeek",
-  "version": "1.0",
-  "description": "Audit webpage meta tags and preview social media cards",
+  "version": "1.0.0",
+  "description": "Analyze and optimize your page's meta tags and SEO.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
   "permissions": [
     "activeTab",
     "scripting",
@@ -15,25 +28,23 @@
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
   "content_scripts": [
     {
       "matches": [
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["content.js", "seo-standards.js"]
+      "js": ["content.js"]
     }
   ],
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  }
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 } 
