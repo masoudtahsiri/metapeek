@@ -133,13 +133,27 @@ document.addEventListener('DOMContentLoaded', function() {
 function fetchMetaData() {
   // Get the active tab
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (chrome.runtime.lastError) {
+      console.error('Error querying tabs:', chrome.runtime.lastError);
+      return;
+    }
+
     const activeTab = tabs[0];
+    if (!activeTab) {
+      console.error('No active tab found');
+      return;
+    }
     
     // First inject the content script
     chrome.scripting.executeScript({
       target: {tabId: activeTab.id},
       files: ['content.js']
-    }, () => {
+    }, (injectionResults) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error injecting content script:', chrome.runtime.lastError);
+        return;
+      }
+
       // Then execute the function to get metadata
       chrome.scripting.executeScript({
         target: {tabId: activeTab.id},
@@ -150,12 +164,22 @@ function fetchMetaData() {
           return;
         }
         
-        if (results && results[0]) {
+        if (results && results[0] && results[0].result) {
           const metadata = results[0].result;
           console.log('Fetched metadata:', metadata); // Debug log
           populateMetadata(metadata);
         } else {
           console.error('No results returned from content script');
+          // Show error state in UI
+          const seoSummaryContent = document.getElementById('seo-summary-content');
+          if (seoSummaryContent) {
+            seoSummaryContent.innerHTML = `
+              <div class="seo-perfect">
+                <div class="seo-perfect-title">Metadata Analysis Failed</div>
+                <div class="seo-perfect-message">Unable to analyze page metadata. Please try refreshing the page.</div>
+              </div>
+            `;
+          }
         }
       });
     });
@@ -950,122 +974,129 @@ function createSeparatedSchemaProperty(key, value) {
 }
 
 /**
- * Function to populate schema content with separated cards
- * Includes improved property sorting and pagination
+ * Function to populate schema data with separated cards
+ * Includes error handling and empty state
  */
 function populateSchemaWithSeparatedCards(metadata) {
-  const schemaContent = document.getElementById('schema-content');
-  if (!schemaContent || !metadata.schemaData || metadata.schemaData.length === 0) {
-    schemaContent.innerHTML = `
-      <div class="schema-empty">
-        <svg class="schema-empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-        <h3 class="schema-empty-title">No Schema.org Data Found</h3>
-        <p class="schema-empty-message">
-          This page doesn't contain any structured data. Adding Schema.org markup can help search engines better understand your content.
-        </p>
+  const schemaGrid = document.getElementById('schema-grid');
+  if (!schemaGrid) return;
+  
+  if (!metadata.schemaData || metadata.schemaData.length === 0) {
+    schemaGrid.innerHTML = `
+      <div class="schema-tag-card">
+        <div class="schema-tag-header">
+          <span class="schema-tag-name">No Schema.org Data Found</span>
+          <span class="status-indicator status-warning-badge">Warning</span>
+        </div>
+        <div class="schema-tag-content">
+          <div class="schema-tag-value">No schema.org data was found on this page.</div>
+          <div class="schema-tag-message">Consider adding relevant schema.org data to improve SEO.</div>
+        </div>
       </div>
     `;
     return;
   }
   
-  schemaContent.innerHTML = '';
+  let html = '';
   
-  // Create container
-  const container = document.createElement('div');
-  container.className = 'schema-container';
-  
-  // Get the schema
-  const schema = metadata.schemaData[0];
-  
-  // Important properties to display - prioritize date information
-  const priorityProps = ['@type', '@id', 'name', 'headline', 'description', 'url', 'datePublished', 'dateModified', 'author'];
-  
-  // Filter and sort properties - display only the priority properties
-  const allProps = Object.entries(schema.data)
-    .filter(([key]) => key !== '@context' && priorityProps.includes(key))
-    .sort((a, b) => {
-      const aIndex = priorityProps.indexOf(a[0]);
-      const bIndex = priorityProps.indexOf(b[0]);
-      return aIndex - bIndex;
-    });
-  
-  // Create display for each property
-  allProps.forEach(([key, value]) => {
-    container.appendChild(createSeparatedSchemaProperty(key, value));
+  metadata.schemaData.forEach(obj => {
+    const key = Object.keys(obj.data)[0];
+    const value = obj.data[key];
+    html += createSeparatedSchemaProperty(key, value);
   });
   
-  // Add validation status
-  const validationEl = document.createElement('div');
-  validationEl.className = `schema-validation ${schema.valid ? 'schema-valid' : 'schema-invalid'}`;
-  validationEl.innerHTML = schema.valid 
-    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-      <span>Valid Schema.org Structure</span>`
-    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span>Invalid Schema.org Structure</span>`;
-  
-  container.appendChild(validationEl);
-  schemaContent.appendChild(container);
+  schemaGrid.innerHTML = html;
 }
 
 function displayPerformanceMetrics(metadata) {
-  const metrics = metadata.performance;
-  if (!metrics) return;
-  
-  // Create metrics section
-  const html = `
-    <div class="performance-metrics">
-      <h3>Core Web Vitals</h3>
-      <div class="metrics-grid">
-        ${metrics.lcp ? `
-          <div class="metric-item ${getMetricClass(metrics.lcp, 2500, 4000)}">
-            <div class="metric-name">Largest Contentful Paint</div>
-            <div class="metric-value">${(metrics.lcp/1000).toFixed(2)}s</div>
-          </div>
-        ` : ''}
-        ${metrics.cls ? `
-          <div class="metric-item ${getMetricClass(metrics.cls, 0.1, 0.25, true)}">
-            <div class="metric-name">Cumulative Layout Shift</div>
-            <div class="metric-value">${metrics.cls.toFixed(3)}</div>
-          </div>
-        ` : ''}
-        ${metrics.inp ? `
-          <div class="metric-item ${getMetricClass(metrics.inp, 200, 500)}">
-            <div class="metric-name">Interaction to Next Paint</div>
-            <div class="metric-value">${metrics.inp.toFixed(0)}ms</div>
-          </div>
-        ` : ''}
+  const performanceContainer = document.querySelector('.performance-metrics');
+  if (!performanceContainer) return;
+
+  // Check if we have performance metrics
+  if (!metadata.performance) {
+    performanceContainer.innerHTML = `
+      <div class="metrics-loading">
+        <div class="metrics-spinner"></div>
+        <div class="metrics-message">Collecting performance metrics...</div>
       </div>
-    </div>
-  `;
-  
-  // Add to your performance section in the UI
-  const container = document.getElementById('performance-container');
-  if (container) {
-    container.innerHTML = html;
+    `;
+    return;
   }
+
+  const metrics = metadata.performance;
+  
+  // If metrics are still being collected, show loading state
+  if (!metrics.metricsCollected || metrics.collectionTime < 3000) {
+    performanceContainer.innerHTML = `
+      <div class="metrics-loading">
+        <div class="metrics-spinner"></div>
+        <div class="metrics-message">Collecting performance metrics...</div>
+      </div>
+    `;
+    
+    // Set up a refresh mechanism to check for metrics every 2 seconds
+    setTimeout(() => {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (chrome.runtime.lastError) {
+          console.error('Error querying tabs:', chrome.runtime.lastError);
+          return;
+        }
+        
+        chrome.tabs.sendMessage(tabs[0].id, {type: 'getMetadata'}, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Error getting metadata:', chrome.runtime.lastError);
+            return;
+          }
+          
+          if (response) {
+            displayPerformanceMetrics(response);
+          }
+        });
+      });
+    }, 2000);
+    
+    return;
+  }
+
+  // Create metrics grid
+  const metricsGrid = document.createElement('div');
+  metricsGrid.className = 'metrics-grid';
+
+  // Add each metric
+  const metricItems = [
+    { name: 'LCP', value: metrics.lcp, unit: 'ms', thresholds: { good: 2500, poor: 4000 } },
+    { name: 'CLS', value: metrics.cls, unit: '', thresholds: { good: 0.1, poor: 0.25 } },
+    { name: 'INP', value: metrics.inp, unit: 'ms', thresholds: { good: 200, poor: 500 } },
+    { name: 'FCP', value: metrics.fcp, unit: 'ms', thresholds: { good: 1800, poor: 3000 } },
+    { name: 'TTFB', value: metrics.ttfb, unit: 'ms', thresholds: { good: 800, poor: 1800 } }
+  ];
+
+  metricItems.forEach(metric => {
+    if (metric.value !== null) {
+      const metricItem = document.createElement('div');
+      metricItem.className = 'metric-item';
+      
+      const statusClass = getMetricClass(metric.value, metric.thresholds);
+      
+      metricItem.innerHTML = `
+        <div class="metric-header">
+          <span class="metric-name">${metric.name}</span>
+          <span class="status-indicator ${statusClass}-badge"></span>
+        </div>
+        <div class="metric-value">${metric.value.toFixed(2)}${metric.unit}</div>
+      `;
+      
+      metricsGrid.appendChild(metricItem);
+    }
+  });
+
+  // Clear and update container
+  performanceContainer.innerHTML = '';
+  performanceContainer.appendChild(metricsGrid);
 }
 
-function getMetricClass(value, good, poor, lowerIsBetter = true) {
-  if (lowerIsBetter) {
-    return value <= good ? 'metric-good' : 
-           value <= poor ? 'metric-warning' : 
-           'metric-poor';
-  } else {
-    return value >= good ? 'metric-good' : 
-           value >= poor ? 'metric-warning' : 
-           'metric-poor';
-  }
-} 
+function getMetricClass(value, thresholds) {
+  if (value <= thresholds.good) return 'status-good';
+  if (value <= thresholds.poor) return 'status-warning';
+  return 'status-error';
+}

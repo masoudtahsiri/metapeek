@@ -57,8 +57,10 @@ function calculateSEOHealthScore(metadata) {
   
   // Default content and performance scores
   scores.content = 0.7;
-  if (metadata.performance) {
-    scores.performance = calculatePerformanceScore(metadata.performance);
+  // Handle performance score - show different behavior when metrics are still being collected
+  if (metadata.performance && metadata.performance.metricsCollected) {
+    const perfScore = calculatePerformanceScore(metadata.performance);
+    scores.performance = perfScore !== null ? perfScore : 0.5;
   } else {
     scores.performance = 0.5; // Default fallback
   }
@@ -238,40 +240,55 @@ function initWebVitals() {
     cls: null,
     inp: null,
     fcp: null, 
-    ttfb: null
+    ttfb: null,
+    metricsCollected: false,  // Add flag to track if any metrics were collected
+    timestamp: Date.now()     // Add timestamp for when collection started
   };
   
   // Only run if web-vitals is available
   if (typeof webVitals !== 'undefined') {
-    // Collect LCP (Largest Contentful Paint)
-    webVitals.onLCP(metric => {
-      window.metaPeekMetrics.lcp = metric.value;
-      console.log('MetaPeek: LCP collected', metric.value);
-    });
-    
-    // Collect CLS (Cumulative Layout Shift)
-    webVitals.onCLS(metric => {
-      window.metaPeekMetrics.cls = metric.value;
-      console.log('MetaPeek: CLS collected', metric.value);
-    });
-    
-    // Collect INP (Interaction to Next Paint)
-    webVitals.onINP(metric => {
-      window.metaPeekMetrics.inp = metric.value;
-      console.log('MetaPeek: INP collected', metric.value);
-    });
-    
-    // Collect FCP (First Contentful Paint)
-    webVitals.onFCP(metric => {
-      window.metaPeekMetrics.fcp = metric.value;
-      console.log('MetaPeek: FCP collected', metric.value);
-    });
-    
-    // Collect TTFB (Time to First Byte)
-    webVitals.onTTFB(metric => {
-      window.metaPeekMetrics.ttfb = metric.value;
-      console.log('MetaPeek: TTFB collected', metric.value);
-    });
+    try {
+      // Collect LCP (Largest Contentful Paint)
+      webVitals.onLCP(metric => {
+        window.metaPeekMetrics.lcp = metric.value;
+        window.metaPeekMetrics.metricsCollected = true;
+        console.log('MetaPeek: LCP collected', metric.value);
+      });
+      
+      // Collect CLS (Cumulative Layout Shift)
+      webVitals.onCLS(metric => {
+        window.metaPeekMetrics.cls = metric.value;
+        window.metaPeekMetrics.metricsCollected = true;
+        console.log('MetaPeek: CLS collected', metric.value);
+      });
+      
+      // Collect INP (Interaction to Next Paint)
+      webVitals.onINP(metric => {
+        window.metaPeekMetrics.inp = metric.value;
+        window.metaPeekMetrics.metricsCollected = true;
+        console.log('MetaPeek: INP collected', metric.value);
+      });
+      
+      // Collect FCP (First Contentful Paint)
+      webVitals.onFCP(metric => {
+        window.metaPeekMetrics.fcp = metric.value;
+        window.metaPeekMetrics.metricsCollected = true;
+        console.log('MetaPeek: FCP collected', metric.value);
+      });
+      
+      // Collect TTFB (Time to First Byte)
+      webVitals.onTTFB(metric => {
+        window.metaPeekMetrics.ttfb = metric.value;
+        window.metaPeekMetrics.metricsCollected = true;
+        console.log('MetaPeek: TTFB collected', metric.value);
+      });
+      
+      console.log('MetaPeek: Web Vitals initialized successfully');
+    } catch (error) {
+      console.error('MetaPeek: Error initializing Web Vitals', error);
+    }
+  } else {
+    console.warn('MetaPeek: Web Vitals library not available');
   }
 }
 
@@ -442,9 +459,15 @@ function getPageMetadata() {
       }))
     );
 
-    // Add performance metrics to the metadata
+    // Add performance metrics to the metadata with more context
     if (window.metaPeekMetrics) {
       metadata.performance = window.metaPeekMetrics;
+      metadata.performance.collectionTime = Date.now() - window.metaPeekMetrics.timestamp;
+    } else {
+      metadata.performance = {
+        metricsCollected: false,
+        collectionTime: 0
+      };
     }
 
     return metadata;
@@ -487,46 +510,38 @@ function isPageSchema(obj, currentUrl) {
   return objUrl && (objUrl === pageUrl);
 }
 
-// Listen for messages from the popup
+// Add message listener for popup requests
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'getMetadata') {
-    const metadata = getPageMetadata();
-    sendResponse(metadata);
-  }
-});
-
-// Listen for SEO analysis requests from popup
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === "getSEOHealth") {
     try {
-      // Use the data sent from popup or get new data
-      const metadata = request.metadata || getPageMetadata();
-      
-      // Use the local functions directly 
-      const seoScore = calculateSEOHealthScore(metadata);
-      const seoReport = generateSEOReportHTML(seoScore);
-      
-      sendResponse({
-        success: true,
-        seoReport: seoReport
-      });
+      const metadata = getPageMetadata();
+      sendResponse(metadata);
     } catch (error) {
-      console.error("Error generating SEO report:", error);
-      sendResponse({
-        success: false,
-        error: error.message
-      });
+      console.error('Error getting metadata:', error);
+      sendResponse({ error: error.message });
     }
-    
-    return true; // Keep the messaging channel open for async response
+    return true; // Keep the message channel open for async response
+  }
+  
+  if (request.action === 'getSEOHealth') {
+    try {
+      const seoData = calculateSEOHealthScore(request.metadata);
+      const seoReport = generateSEOReportHTML(seoData);
+      sendResponse({ seoReport });
+    } catch (error) {
+      console.error('Error generating SEO report:', error);
+      sendResponse({ error: error.message });
+    }
+    return true; // Keep the message channel open for async response
   }
 });
 
 // Calculate performance score based on Core Web Vitals
 function calculatePerformanceScore(metrics) {
-  // No metrics available
-  if (!metrics || (!metrics.lcp && !metrics.cls && !metrics.inp)) {
-    return 0.5; // Default score when metrics aren't available
+  // Return null if metrics collection hasn't had enough time (at least 3 seconds)
+  // or if no actual metrics have been collected yet
+  if (!metrics || !metrics.metricsCollected || metrics.collectionTime < 3000) {
+    return null; // Indicate metrics aren't ready yet instead of default 0.5
   }
 
   let score = 0;
