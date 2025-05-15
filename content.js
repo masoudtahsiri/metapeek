@@ -57,24 +57,8 @@ function calculateSEOHealthScore(metadata) {
   
   // Default content and performance scores
   scores.content = 0.7;
-  // Handle performance score - show different behavior when metrics are still being collected
-  if (metadata.performance && metadata.performance.metricsCollected) {
-    const perfScore = calculatePerformanceScore(metadata.performance);
-    scores.performance = perfScore !== null ? perfScore : 0.5;
-  } else {
-    scores.performance = 0.5; // Default fallback
-  }
   
-  // Calculate overall weighted score
-  const overallScore = Object.entries(weights).reduce(
-    (total, [category, weight]) => total + (scores[category] * weight),
-    0
-  );
-  
-  // Scale to 0-100
-  const scaledScore = Math.round(overallScore * 100);
-  
-  // Create recommendation list
+  // Handle performance score and recommendations
   const recommendations = [];
   
   // Add basic recommendations based on metadata
@@ -90,6 +74,79 @@ function calculateSEOHealthScore(metadata) {
         }))
     });
   }
+  
+  // Add performance recommendations if metrics are available
+  if (metadata.performance && metadata.performance.metricsCollected) {
+    const perfScore = calculatePerformanceScore(metadata.performance);
+    scores.performance = perfScore !== null ? perfScore : 0.5;
+    
+    // Add performance recommendations
+    const performanceIssues = [];
+    
+    // LCP recommendations
+    if (metadata.performance.lcp > 4000) {
+      performanceIssues.push({
+        issue: 'Improve Largest Contentful Paint (LCP)',
+        details: `Current LCP is ${(metadata.performance.lcp/1000).toFixed(2)}s. Aim for under 2.5s.`,
+        impact: 'High'
+      });
+    } else if (metadata.performance.lcp > 2500) {
+      performanceIssues.push({
+        issue: 'Optimize Largest Contentful Paint (LCP)',
+        details: `Current LCP is ${(metadata.performance.lcp/1000).toFixed(2)}s. Consider optimizing for better performance.`,
+        impact: 'Medium'
+      });
+    }
+    
+    // CLS recommendations
+    if (metadata.performance.cls > 0.25) {
+      performanceIssues.push({
+        issue: 'Fix Cumulative Layout Shift (CLS)',
+        details: `Current CLS is ${metadata.performance.cls.toFixed(3)}. Aim for under 0.1.`,
+        impact: 'High'
+      });
+    } else if (metadata.performance.cls > 0.1) {
+      performanceIssues.push({
+        issue: 'Improve Cumulative Layout Shift (CLS)',
+        details: `Current CLS is ${metadata.performance.cls.toFixed(3)}. Consider optimizing for better stability.`,
+        impact: 'Medium'
+      });
+    }
+    
+    // INP recommendations
+    if (metadata.performance.inp > 500) {
+      performanceIssues.push({
+        issue: 'Fix Interaction to Next Paint (INP)',
+        details: `Current INP is ${metadata.performance.inp.toFixed(0)}ms. Aim for under 200ms.`,
+        impact: 'High'
+      });
+    } else if (metadata.performance.inp > 200) {
+      performanceIssues.push({
+        issue: 'Improve Interaction to Next Paint (INP)',
+        details: `Current INP is ${metadata.performance.inp.toFixed(0)}ms. Consider optimizing for better interactivity.`,
+        impact: 'Medium'
+      });
+    }
+    
+    // Add performance category if there are issues
+    if (performanceIssues.length > 0) {
+      recommendations.push({
+        category: 'Performance',
+        items: performanceIssues
+      });
+    }
+  } else {
+    scores.performance = 0.5; // Default fallback
+  }
+  
+  // Calculate overall weighted score
+  const overallScore = Object.entries(weights).reduce(
+    (total, [category, weight]) => total + (scores[category] * weight),
+    0
+  );
+  
+  // Scale to 0-100
+  const scaledScore = Math.round(overallScore * 100);
   
   // Return combined score data
   return {
@@ -510,30 +567,23 @@ function isPageSchema(obj, currentUrl) {
   return objUrl && (objUrl === pageUrl);
 }
 
-// Add message listener for popup requests
+// Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'getMetadata') {
-    try {
+  try {
+    if (request.type === 'getMetadata') {
       const metadata = getPageMetadata();
       sendResponse(metadata);
-    } catch (error) {
-      console.error('Error getting metadata:', error);
-      sendResponse({ error: error.message });
+    } else if (request.type === 'getSEOHealth') {
+      const metadata = getPageMetadata();
+      const seoHealth = calculateSEOHealthScore(metadata);
+      sendResponse(seoHealth);
     }
-    return true; // Keep the message channel open for async response
+  } catch (error) {
+    console.error('Error handling message:', error);
+    sendResponse({ error: error.message });
   }
-  
-  if (request.action === 'getSEOHealth') {
-    try {
-      const seoData = calculateSEOHealthScore(request.metadata);
-      const seoReport = generateSEOReportHTML(seoData);
-      sendResponse({ seoReport });
-    } catch (error) {
-      console.error('Error generating SEO report:', error);
-      sendResponse({ error: error.message });
-    }
-    return true; // Keep the message channel open for async response
-  }
+  // Keep the message channel open for async responses
+  return true;
 });
 
 // Calculate performance score based on Core Web Vitals
@@ -633,4 +683,71 @@ function calculatePerformanceScore(metrics) {
   
   // Return score between 0-1
   return score;
+}
+
+function captureWebVitals() {
+  const vitals = {
+    lcp: null,
+    cls: null,
+    inp: null,
+    fcp: null,
+    ttfb: null,
+    metricsCollected: false,
+    collectionTime: 0
+  };
+
+  const startTime = performance.now();
+
+  // Capture LCP
+  new PerformanceObserver((entryList) => {
+    const entries = entryList.getEntries();
+    const lastEntry = entries[entries.length - 1];
+    vitals.lcp = lastEntry.startTime;
+    vitals.metricsCollected = true;
+    vitals.collectionTime = performance.now() - startTime;
+  }).observe({ entryTypes: ['largest-contentful-paint'] });
+
+  // Capture CLS
+  new PerformanceObserver((entryList) => {
+    let clsValue = 0;
+    for (const entry of entryList.getEntries()) {
+      if (!entry.hadRecentInput) {
+        clsValue += entry.value;
+      }
+    }
+    vitals.cls = clsValue;
+    vitals.metricsCollected = true;
+    vitals.collectionTime = performance.now() - startTime;
+  }).observe({ entryTypes: ['layout-shift'] });
+
+  // Capture INP using event timing
+  new PerformanceObserver((entryList) => {
+    const entries = entryList.getEntries();
+    const lastEntry = entries[entries.length - 1];
+    if (lastEntry && lastEntry.interactionId) {
+      vitals.inp = lastEntry.duration;
+      vitals.metricsCollected = true;
+      vitals.collectionTime = performance.now() - startTime;
+    }
+  }).observe({ entryTypes: ['event'] });
+
+  // Capture FCP
+  new PerformanceObserver((entryList) => {
+    const entries = entryList.getEntries();
+    const firstEntry = entries[0];
+    vitals.fcp = firstEntry.startTime;
+    vitals.metricsCollected = true;
+    vitals.collectionTime = performance.now() - startTime;
+  }).observe({ entryTypes: ['paint'] });
+
+  // Capture TTFB
+  new PerformanceObserver((entryList) => {
+    const entries = entryList.getEntries();
+    const firstEntry = entries[0];
+    vitals.ttfb = firstEntry.responseStart - firstEntry.requestStart;
+    vitals.metricsCollected = true;
+    vitals.collectionTime = performance.now() - startTime;
+  }).observe({ entryTypes: ['resource'] });
+
+  return vitals;
 } 

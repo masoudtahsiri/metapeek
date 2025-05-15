@@ -144,44 +144,29 @@ function fetchMetaData() {
       return;
     }
     
-    // First inject the content script
-    chrome.scripting.executeScript({
-      target: {tabId: activeTab.id},
-      files: ['content.js']
-    }, (injectionResults) => {
+    // Only send a message to the content script to get metadata
+    chrome.tabs.sendMessage(activeTab.id, { type: 'getMetadata' }, function(response) {
       if (chrome.runtime.lastError) {
-        console.error('Error injecting content script:', chrome.runtime.lastError);
+        console.error('Error getting metadata:', chrome.runtime.lastError);
         return;
       }
-
-      // Then execute the function to get metadata
-      chrome.scripting.executeScript({
-        target: {tabId: activeTab.id},
-        function: getPageMetadata
-      }, (results) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error executing script:', chrome.runtime.lastError);
-          return;
+      
+      if (response) {
+        console.log('Fetched metadata:', response); // Debug log
+        populateMetadata(response);
+      } else {
+        console.error('No results returned from content script');
+        // Show error state in UI
+        const seoSummaryContent = document.getElementById('seo-summary-content');
+        if (seoSummaryContent) {
+          seoSummaryContent.innerHTML = `
+            <div class="seo-perfect">
+              <div class="seo-perfect-title">Metadata Analysis Failed</div>
+              <div class="seo-perfect-message">Unable to analyze page metadata. Please try refreshing the page.</div>
+            </div>
+          `;
         }
-        
-        if (results && results[0] && results[0].result) {
-          const metadata = results[0].result;
-          console.log('Fetched metadata:', metadata); // Debug log
-          populateMetadata(metadata);
-        } else {
-          console.error('No results returned from content script');
-          // Show error state in UI
-          const seoSummaryContent = document.getElementById('seo-summary-content');
-          if (seoSummaryContent) {
-            seoSummaryContent.innerHTML = `
-              <div class="seo-perfect">
-                <div class="seo-perfect-title">Metadata Analysis Failed</div>
-                <div class="seo-perfect-message">Unable to analyze page metadata. Please try refreshing the page.</div>
-              </div>
-            `;
-          }
-        }
-      });
+      }
     });
   });
 }
@@ -485,44 +470,64 @@ function populateSEOHealth(metadata) {
   
   // Request SEO analysis from the content script
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, {
-      action: "getSEOHealth",
-      metadata: metadata
+    if (chrome.runtime.lastError) {
+      console.error('Error querying tabs:', chrome.runtime.lastError);
+      seoSummaryContent.innerHTML = `
+        <div class="seo-error">
+          <div class="seo-error-title">Error</div>
+          <div class="seo-error-message">Failed to access page data. Please try refreshing the page.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const activeTab = tabs[0];
+    if (!activeTab) {
+      console.error('No active tab found');
+      seoSummaryContent.innerHTML = `
+        <div class="seo-error">
+          <div class="seo-error-title">Error</div>
+          <div class="seo-error-message">No active tab found. Please try again.</div>
+        </div>
+      `;
+      return;
+    }
+
+    chrome.tabs.sendMessage(activeTab.id, {
+      type: "getSEOHealth"
     }, function(response) {
       if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError);
+        console.error('Error getting SEO health:', chrome.runtime.lastError);
         seoSummaryContent.innerHTML = `
-          <div class="seo-perfect">
-            <div class="seo-perfect-title">SEO Analysis Unavailable</div>
-            <div class="seo-perfect-message">Please try again.</div>
+          <div class="seo-error">
+            <div class="seo-error-title">Error</div>
+            <div class="seo-error-message">Failed to analyze SEO metrics. Please try refreshing the page.</div>
           </div>
         `;
         return;
       }
       
-      if (response && response.seoReport) {
-        // Got HTML directly from content script
-        seoSummaryContent.innerHTML = response.seoReport;
-        
-        // Add animations after rendering
-        setTimeout(() => {
-          const scoreCircle = document.querySelector('.score-circle');
-          if (scoreCircle) {
-            scoreCircle.style.transition = 'stroke-dasharray 1.5s ease-in-out';
-          }
-          
-          const categoryBars = document.querySelectorAll('.category-bar');
-          categoryBars.forEach((bar, index) => {
-            setTimeout(() => {
-              bar.style.width = bar.getAttribute('data-width') || '0%';
-            }, index * 150);
-          });
-        }, 100);
-      } else {
+      if (!response) {
+        console.error('No response received from content script');
         seoSummaryContent.innerHTML = `
-          <div class="seo-perfect">
-            <div class="seo-perfect-title">SEO Analysis Failed</div>
-            <div class="seo-perfect-message">Unable to analyze SEO metrics.</div>
+          <div class="seo-error">
+            <div class="seo-error-title">Error</div>
+            <div class="seo-error-message">No data received. Please try refreshing the page.</div>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        // Generate HTML for the SEO report
+        const seoReportHTML = generateSEOReportHTML(response);
+        seoSummaryContent.innerHTML = seoReportHTML;
+      } catch (error) {
+        console.error('Error generating SEO report:', error);
+        seoSummaryContent.innerHTML = `
+          <div class="seo-error">
+            <div class="seo-error-title">Error</div>
+            <div class="seo-error-message">Failed to generate SEO report. Please try again.</div>
           </div>
         `;
       }
@@ -1009,94 +1014,235 @@ function populateSchemaWithSeparatedCards(metadata) {
 }
 
 function displayPerformanceMetrics(metadata) {
-  const performanceContainer = document.querySelector('.performance-metrics');
-  if (!performanceContainer) return;
-
-  // Check if we have performance metrics
-  if (!metadata.performance) {
-    performanceContainer.innerHTML = `
-      <div class="metrics-loading">
-        <div class="metrics-spinner"></div>
-        <div class="metrics-message">Collecting performance metrics...</div>
+  const container = document.getElementById('performance-container');
+  if (!container) return;
+  
+  const metrics = metadata.performance;
+  if (!metrics) {
+    container.innerHTML = `
+      <div class="performance-unavailable">
+        <p>Performance metrics unavailable.</p>
       </div>
     `;
     return;
   }
-
-  const metrics = metadata.performance;
   
-  // If metrics are still being collected, show loading state
+  // Show collection status if metrics are still being gathered
   if (!metrics.metricsCollected || metrics.collectionTime < 3000) {
-    performanceContainer.innerHTML = `
-      <div class="metrics-loading">
-        <div class="metrics-spinner"></div>
-        <div class="metrics-message">Collecting performance metrics...</div>
+    container.innerHTML = `
+      <div class="performance-loading">
+        <div class="performance-loading-spinner"></div>
+        <div class="performance-loading-message">
+          Collecting performance metrics...<br>
+          <small>Some metrics (like LCP and CLS) may take a few seconds to finalize after the page loads. Please wait…</small>
+        </div>
       </div>
     `;
-    
-    // Set up a refresh mechanism to check for metrics every 2 seconds
+    // Set up a refresh after 2 seconds to check again
     setTimeout(() => {
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (chrome.runtime.lastError) {
-          console.error('Error querying tabs:', chrome.runtime.lastError);
-          return;
-        }
-        
-        chrome.tabs.sendMessage(tabs[0].id, {type: 'getMetadata'}, function(response) {
+      try {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
           if (chrome.runtime.lastError) {
-            console.error('Error getting metadata:', chrome.runtime.lastError);
+            console.error('Error querying tabs:', chrome.runtime.lastError);
             return;
           }
-          
-          if (response) {
-            displayPerformanceMetrics(response);
+          if (!tabs || tabs.length === 0) {
+            console.error('No tabs found');
+            return;
+          }
+          try {
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'getMetadata' }, function(response) {
+              if (chrome.runtime.lastError) {
+                console.error('Error getting metadata:', chrome.runtime.lastError);
+                return;
+              }
+              if (response && response.performance) {
+                displayPerformanceMetrics(response);
+              }
+            });
+          } catch (e) {
+            console.error('Exception sending message:', e);
           }
         });
-      });
+      } catch (e) {
+        console.error('Exception in timeout handler:', e);
+      }
     }, 2000);
-    
     return;
   }
+  
+  // Create metrics section
+  let html = `
+    <div class="performance-metrics">
+      <h3>Core Web Vitals</h3>
+      <div class="metrics-grid">`;
 
-  // Create metrics grid
-  const metricsGrid = document.createElement('div');
-  metricsGrid.className = 'metrics-grid';
+  // Helper for spinner icon
+  const spinner = '<span class="metric-spinner" title="Collecting…"><svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#ccc" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 31.4" transform="rotate(-90 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg></span>';
 
-  // Add each metric
-  const metricItems = [
-    { name: 'LCP', value: metrics.lcp, unit: 'ms', thresholds: { good: 2500, poor: 4000 } },
-    { name: 'CLS', value: metrics.cls, unit: '', thresholds: { good: 0.1, poor: 0.25 } },
-    { name: 'INP', value: metrics.inp, unit: 'ms', thresholds: { good: 200, poor: 500 } },
-    { name: 'FCP', value: metrics.fcp, unit: 'ms', thresholds: { good: 1800, poor: 3000 } },
-    { name: 'TTFB', value: metrics.ttfb, unit: 'ms', thresholds: { good: 800, poor: 1800 } }
-  ];
+  // Add LCP metric
+  html += `
+    <div class="metric-item ${metrics.lcp !== null ? getMetricClass(metrics.lcp, 2500, 4000) : ''}">
+      <div class="metric-name">Largest Contentful Paint</div>
+      <div class="metric-value">${metrics.lcp !== null ? (metrics.lcp/1000).toFixed(2) + 's' : spinner}</div>
+    </div>`;
 
-  metricItems.forEach(metric => {
-    if (metric.value !== null) {
-      const metricItem = document.createElement('div');
-      metricItem.className = 'metric-item';
-      
-      const statusClass = getMetricClass(metric.value, metric.thresholds);
-      
-      metricItem.innerHTML = `
-        <div class="metric-header">
-          <span class="metric-name">${metric.name}</span>
-          <span class="status-indicator ${statusClass}-badge"></span>
-        </div>
-        <div class="metric-value">${metric.value.toFixed(2)}${metric.unit}</div>
-      `;
-      
-      metricsGrid.appendChild(metricItem);
-    }
-  });
+  // Add CLS metric
+  html += `
+    <div class="metric-item ${metrics.cls !== null ? getMetricClass(metrics.cls, 0.1, 0.25, true) : ''}">
+      <div class="metric-name">Cumulative Layout Shift</div>
+      <div class="metric-value">${metrics.cls !== null ? metrics.cls.toFixed(3) : spinner}</div>
+    </div>`;
 
-  // Clear and update container
-  performanceContainer.innerHTML = '';
-  performanceContainer.appendChild(metricsGrid);
+  // Add INP metric
+  html += `
+    <div class="metric-item ${metrics.inp !== null ? getMetricClass(metrics.inp, 200, 500) : ''}">
+      <div class="metric-name">Interaction to Next Paint</div>
+      <div class="metric-value">${metrics.inp !== null ? metrics.inp.toFixed(0) + 'ms' : spinner}</div>
+    </div>`;
+
+  // Add FCP metric
+  html += `
+    <div class="metric-item ${metrics.fcp !== null ? getMetricClass(metrics.fcp, 1800, 3000) : ''}">
+      <div class="metric-name">First Contentful Paint</div>
+      <div class="metric-value">${metrics.fcp !== null ? (metrics.fcp/1000).toFixed(2) + 's' : spinner}</div>
+    </div>`;
+
+  // Add TTFB metric
+  html += `
+    <div class="metric-item ${metrics.ttfb !== null ? getMetricClass(metrics.ttfb, 800, 1800) : ''}">
+      <div class="metric-name">Time to First Byte</div>
+      <div class="metric-value">${metrics.ttfb !== null ? (metrics.ttfb/1000).toFixed(2) + 's' : spinner}</div>
+    </div>`;
+
+  // Close the container divs
+  html += `
+      </div>
+      <div class="performance-note">
+        <small>Some metrics (like LCP and CLS) may take a few seconds to finalize after the page loads.</small>
+      </div>
+    </div>`;
+
+  // If no metrics were found, show a message
+  if (!metrics.lcp && !metrics.cls && !metrics.inp && !metrics.fcp && !metrics.ttfb) {
+    html = `
+      <div class="performance-unavailable">
+        <p>No performance metrics available yet. Try refreshing the page and opening the extension again.</p>
+      </div>`;
+  }
+  
+  container.innerHTML = html;
 }
 
-function getMetricClass(value, thresholds) {
-  if (value <= thresholds.good) return 'status-good';
-  if (value <= thresholds.poor) return 'status-warning';
-  return 'status-error';
+function getMetricClass(value, good, poor, lowerIsBetter = true) {
+  if (lowerIsBetter) {
+    return value <= good ? 'metric-good' : 
+           value <= poor ? 'metric-warning' : 
+           'metric-poor';
+  } else {
+    return value >= good ? 'metric-good' : 
+           value >= poor ? 'metric-warning' : 
+           'metric-poor';
+  }
+}
+
+/**
+ * Function to generate HTML for the SEO report
+ */
+function generateSEOReportHTML(seoData) {
+  let html = `<div class="seo-report">
+    <div class="seo-score-container">
+      <div class="seo-score-circle status-${seoData.status}">
+        <svg viewBox="0 0 36 36">
+          <path class="score-circle-bg"
+            d="M18 2.0845 
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke-width="3"
+            stroke-dasharray="100, 100"
+          />
+          <path class="score-circle"
+            d="M18 2.0845 
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke-width="3"
+            stroke-dasharray="${seoData.score}, 100"
+          />
+          <text x="18" y="20.5" class="score-text">${seoData.score}</text>
+        </svg>
+      </div>
+      <div class="seo-score-details">
+        <h3>SEO Health Score</h3>
+        <div class="seo-score-breakdown">`;
+  
+  // Add category breakdown
+  Object.entries(seoData.categoryScores).forEach(([category, score]) => {
+    const formattedCategory = category
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase());
+      
+    html += `
+      <div class="score-category">
+        <span class="category-name">${formattedCategory}</span>
+        <div class="category-bar-container">
+          <div class="category-bar" style="width: ${score * 100}%"></div>
+        </div>
+        <span class="category-score">${Math.round(score * 100)}</span>
+      </div>`;
+  });
+  
+  html += `
+      </div>
+    </div>
+  </div>`;
+  
+  // Add recommendations if there are any
+  if (seoData.recommendations && seoData.recommendations.length > 0) {
+    html += `
+    <div class="seo-recommendations">
+      <h3>Recommended Improvements</h3>`;
+      
+    seoData.recommendations.forEach(category => {
+      html += `
+        <div class="recommendation-category">
+          <div class="recommendation-header">
+            <h4>${category.category}</h4>
+          </div>
+          <ul class="recommendation-items">`;
+            
+      category.items.forEach(item => {
+        const impactClass = `impact-${item.impact ? item.impact.toLowerCase() : 'medium'}`;
+        
+        html += `
+            <li class="recommendation-item ${impactClass}">
+              <div class="recommendation-title">${item.issue}</div>
+              <div class="recommendation-details">${item.details}</div>
+            </li>`;
+      });
+            
+      html += `
+          </ul>
+        </div>`;
+    });
+      
+    html += `
+    </div>`;
+  } else {
+    // No recommendations - everything looks good
+    html += `
+    <div class="seo-perfect">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--status-good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <div>
+        <div class="seo-perfect-title">Excellent SEO</div>
+        <div class="seo-perfect-message">All critical SEO factors look good</div>
+      </div>
+    </div>`;
+  }
+  
+  return html;
 }
