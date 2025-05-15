@@ -446,103 +446,58 @@ function populateMetaItemsWithSeparatedCards(elementId, items) {
 /**
  * Function to populate a detailed SEO health summary with collapsible categories
  */
-function populateDetailedSEOSummary(metadata) {
+function populateSEOHealth(metadata) {
   const seoSummaryContent = document.getElementById('seo-summary-content');
   if (!seoSummaryContent) return;
   
-  // Start with critical issues
-  const criticalIssues = [];
+  // Get the SEO score data
+  const seoScoreData = metadata.seoScore || calculateSEOHealthScore(metadata);
   
-  // Check Title
-  const title = metadata.basicMeta.find(tag => tag.label === 'Title');
-  if (title && title.status !== 'good') {
-    criticalIssues.push({
-      label: 'Title',
-      value: title.value,
-      status: title.status,
-      message: title.value.length < 30 ? 'Too short' : 'Too long'
+  // Use the HTML generator function
+  seoSummaryContent.innerHTML = generateSEOReportHTML(seoScoreData);
+  
+  // Add animations after rendering
+  setTimeout(() => {
+    // Ensure smooth transition for the score circle fill
+    const scoreCircle = document.querySelector('.score-circle');
+    if (scoreCircle) {
+      scoreCircle.style.transition = 'stroke-dasharray 1.5s ease-in-out';
+    }
+    
+    // Staggered animation for category bars
+    const categoryBars = document.querySelectorAll('.category-bar');
+    categoryBars.forEach((bar, index) => {
+      setTimeout(() => {
+        bar.style.width = bar.getAttribute('data-width') || '0%';
+      }, index * 150);
     });
-  }
-  
-  // Check Description
-  const description = metadata.basicMeta.find(tag => tag.label === 'Description');
-  if (description && description.status !== 'good') {
-    criticalIssues.push({
-      label: 'Description',
-      value: description.value,
-      status: description.status,
-      message: description.value.length < 120 ? 'Too short' : 'Too long'
-    });
-  }
-  
-  // Check Canonical
-  if (!metadata.canonicalUrl) {
-    criticalIssues.push({
-      label: 'Canonical URL',
-      status: 'error',
-      message: 'Missing'
-    });
-  }
-  
-  // Create HTML for issues
-  let html = '';
-  
-  if (criticalIssues.length > 0) {
-    html += `<div class="seo-issues-list">`;
-    criticalIssues.forEach(issue => {
-      html += `
-        <div class="seo-issue-item status-${issue.status}">\n          <div class="seo-issue-header">\n            <span class="seo-issue-label">${issue.label}</span>\n            <span class="status-${issue.status}-badge"></span>\n          </div>\n          <div class="seo-issue-message">${issue.message}</div>\n        </div>\n      `;
-    });
-    html += `</div>`;
-  } else {
-    // Show success message
-    html += `
-      <div class="seo-perfect">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--status-good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-        <div>
-          <div class="seo-perfect-title">Good SEO</div>
-          <div class="seo-perfect-message">All critical SEO checks passed</div>
-        </div>
-      </div>
-    `;
-  }
-  
-  seoSummaryContent.innerHTML = html;
+  }, 100);
 }
 
 /**
  * Main function to populate all metadata sections with improved error handling and UI
  */
 function populateMetadata(metadata) {
-  try {
-    // Populate SEO Summary
-    populateDetailedSEOSummary(metadata);
-    
-    // Populate Meta Items
-    populateMetaItemsWithSeparatedCards('basic-meta-content', metadata.basicMeta);
-    populateMetaItemsWithSeparatedCards('og-meta-content', metadata.ogMeta);
-    populateMetaItemsWithSeparatedCards('twitter-meta-content', metadata.twitterMeta);
-    
-    // Populate Canonical URL
-    populateCanonicalUrl(metadata);
-    
-    // Populate Schema
-    populateSchemaWithSeparatedCards(metadata);
-    
-    // Populate Social Media Previews
-    populateComprehensivePreviews(metadata);
-    
-    // Reattach copy button listeners after a short delay
-    setTimeout(() => {
-      attachCopyButtonListeners();
-    }, 100);
-  } catch (error) {
-    console.error('Error populating metadata:', error);
-    showToast('Error loading metadata. Please try again.');
-  }
+  // Populate SEO health score first
+  populateSEOHealth(metadata);
+  
+  // Populate basic meta tags
+  populateMetaItemsWithSeparatedCards('basic-meta-content', metadata.basicMeta);
+  
+  // Populate Open Graph tags
+  populateMetaItemsWithSeparatedCards('og-meta-content', metadata.ogMeta);
+  
+  // Populate Twitter Card tags
+  populateMetaItemsWithSeparatedCards('twitter-meta-content', metadata.twitterMeta);
+  
+  // Populate canonical URL
+  populateCanonicalUrl(metadata);
+  
+  // Populate schema data
+  populateSchemaWithSeparatedCards(metadata);
+  
+  // Populate previews
+  populateComprehensivePreviews(metadata);
 }
 
 // Helper function to get status label
@@ -645,7 +600,99 @@ function showToast(message) {
   }
 }
 
+// Helper to extract hostname
+function extractHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (e) {
+    return url || 'example.com';
+  }
+}
+
+function populateAccuratePreview(platform, data) {
+  const containerSelector = `#${platform}-preview`;
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+  
+  // Get metadata with appropriate fallbacks
+  const title = data.title || '';
+  const description = data.description || '';
+  const image = data.image || '';
+  const url = data.url || '';
+  
+  // Handle platform-specific truncation
+  const truncate = (text, limit) => {
+    if (!text) return '';
+    return text.length > limit ? text.substring(0, limit - 1) + '…' : text;
+  };
+  
+  // Platform-specific templates
+  const templates = {
+    google: () => `
+      <div class="preview-card-inner google-card">
+        <div class="preview-content-wrapper">
+          <div class="preview-hostname google-url">${extractHostname(url)}</div>
+          <div class="preview-title google-title">${truncate(title, 65)}</div>
+          <div class="preview-description google-snippet">${truncate(description, 160)}</div>
+        </div>
+      </div>
+    `,
+    
+    facebook: () => `
+      <div class="preview-card-inner facebook-card">
+        ${image ? 
+          `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
+          `<div class="preview-image-placeholder">No image</div>`
+        }
+        <div class="preview-content-wrapper">
+          <div class="preview-hostname">${extractHostname(url)}</div>
+          <div class="preview-title">${truncate(title, 80)}</div>
+          <div class="preview-description">${truncate(description, 200)}</div>
+        </div>
+      </div>
+    `,
+    
+    twitter: () => {
+      const isLargeCard = data.cardType === 'summary_large_image';
+      return `
+        <div class="preview-card-inner twitter-card ${isLargeCard ? 'twitter-large-card' : ''}">
+          ${image ? 
+            `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
+            `<div class="preview-image-placeholder">No image</div>`
+          }
+          <div class="preview-content-wrapper">
+            <div class="preview-account">${data.site || extractHostname(url)}</div>
+            <div class="preview-title">${truncate(title, isLargeCard ? 70 : 55)}</div>
+            <div class="preview-description">${truncate(description, isLargeCard ? 200 : 125)}</div>
+            <div class="preview-hostname">${extractHostname(url)}</div>
+          </div>
+        </div>
+      `;
+    },
+    
+    linkedin: () => `
+      <div class="preview-card-inner linkedin-card">
+        ${image ? 
+          `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
+          `<div class="preview-image-placeholder">No image</div>`
+        }
+        <div class="preview-content-wrapper">
+          <div class="preview-hostname">${extractHostname(url)}</div>
+          <div class="preview-title">${truncate(title, 70)}</div>
+          <div class="preview-description">${truncate(description, 100)}</div>
+        </div>
+      </div>
+    `
+  };
+  
+  // Render the template
+  if (templates[platform]) {
+    container.innerHTML = templates[platform]();
+  }
+}
+
 function populateComprehensivePreviews(metadata) {
+  // Extract common metadata
   const ogTitle = metadata.ogMeta.find(tag => tag.label === 'og:title')?.value || 
                   metadata.basicMeta.find(tag => tag.label === 'Title')?.value || '';
   const ogDescription = metadata.ogMeta.find(tag => tag.label === 'og:description')?.value || 
@@ -654,88 +701,44 @@ function populateComprehensivePreviews(metadata) {
   const ogUrl = metadata.ogMeta.find(tag => tag.label === 'og:url')?.value || 
                 metadata.canonicalUrl || '';
   
-  // Extract hostname safely
-  let hostname = '';
-  try {
-    hostname = ogUrl ? new URL(ogUrl).hostname : 'example.com';
-  } catch (e) {
-    hostname = ogUrl || 'example.com';
-  }
-
+  // Google Preview
+  populateAccuratePreview('google', {
+    title: ogTitle,
+    description: ogDescription,
+    url: ogUrl
+  });
+  
   // Facebook Preview
-  const facebookPreview = document.getElementById('facebook-preview');
-  if (facebookPreview) {
-    facebookPreview.innerHTML = `
-      <div class="preview-card-inner">
-        ${ogImage ? `
-          <div class="preview-image" style="background-image: url('${ogImage}')"></div>
-        ` : `
-          <div class="preview-image-placeholder">No image available</div>
-        `}
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname">${hostname}</div>
-          <div class="preview-title">${ogTitle || 'No title available'}</div>
-          <div class="preview-description">${ogDescription || 'No description available'}</div>
-        </div>
-      </div>
-    `;
-  }
+  populateAccuratePreview('facebook', {
+    title: ogTitle,
+    description: ogDescription,
+    image: ogImage,
+    url: ogUrl
+  });
   
   // Twitter Preview
-  const twitterPreview = document.getElementById('twitter-preview');
-  if (twitterPreview) {
-    const twitterTitle = metadata.twitterMeta.find(tag => tag.label === 'twitter:title')?.value || ogTitle;
-    const twitterDescription = metadata.twitterMeta.find(tag => tag.label === 'twitter:description')?.value || ogDescription;
-    const twitterImage = metadata.twitterMeta.find(tag => tag.label === 'twitter:image')?.value || ogImage;
-    
-    twitterPreview.innerHTML = `
-      <div class="preview-card-inner">
-        ${twitterImage ? `
-          <div class="preview-image" style="background-image: url('${twitterImage}')"></div>
-        ` : `
-          <div class="preview-image-placeholder">No image available</div>
-        `}
-        <div class="preview-content-wrapper">
-          <div class="preview-title">${twitterTitle || 'No title available'}</div>
-          <div class="preview-description">${twitterDescription || 'No description available'}</div>
-          <div class="preview-hostname">${hostname}</div>
-        </div>
-      </div>
-    `;
-  }
+  const twitterCard = metadata.twitterMeta.find(tag => tag.label === 'twitter:card')?.value || 'summary';
+  const twitterSite = metadata.twitterMeta.find(tag => tag.label === 'twitter:site')?.value || '';
+  const twitterTitle = metadata.twitterMeta.find(tag => tag.label === 'twitter:title')?.value || ogTitle;
+  const twitterDescription = metadata.twitterMeta.find(tag => tag.label === 'twitter:description')?.value || ogDescription;
+  const twitterImage = metadata.twitterMeta.find(tag => tag.label === 'twitter:image')?.value || ogImage;
+  
+  populateAccuratePreview('twitter', {
+    title: twitterTitle,
+    description: twitterDescription,
+    image: twitterImage,
+    url: ogUrl,
+    cardType: twitterCard,
+    site: twitterSite
+  });
   
   // LinkedIn Preview
-  const linkedinPreview = document.getElementById('linkedin-preview');
-  if (linkedinPreview) {
-    linkedinPreview.innerHTML = `
-      <div class="preview-card-inner">
-        ${ogImage ? `
-          <div class="preview-image" style="background-image: url('${ogImage}')"></div>
-        ` : `
-          <div class="preview-image-placeholder">No image available</div>
-        `}
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname">${hostname}</div>
-          <div class="preview-title">${ogTitle || 'No title available'}</div>
-          <div class="preview-description">${ogDescription || 'No description available'}</div>
-        </div>
-      </div>
-    `;
-  }
-  
-  // Google Search Preview
-  const googlePreview = document.getElementById('google-preview');
-  if (googlePreview) {
-    googlePreview.innerHTML = `
-      <div class="preview-card-inner google-card">
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname google-url">${hostname}${ogUrl.replace(/^https?:\/\/[^\/]+/, '') || '/'}</div>
-          <div class="preview-title google-title">${ogTitle || 'No title available'}</div>
-          <div class="preview-description google-snippet">${ogDescription || 'No description available'}</div>
-        </div>
-      </div>
-    `;
-  }
+  populateAccuratePreview('linkedin', {
+    title: ogTitle,
+    description: ogDescription,
+    image: ogImage,
+    url: ogUrl
+  });
 }
 
 function createMetaItem(name, value, validation) {

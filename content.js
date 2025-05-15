@@ -20,6 +20,33 @@ function initializeObserver() {
 // Initialize the observer when the script loads
 initializeObserver();
 
+// Capture Core Web Vitals when available
+function captureWebVitals() {
+  const performanceMetrics = {};
+  
+  // Observer for LCP
+  new PerformanceObserver((list) => {
+    const entries = list.getEntries();
+    const lastEntry = entries[entries.length - 1];
+    performanceMetrics.lcp = lastEntry.startTime;
+  }).observe({type: 'largest-contentful-paint', buffered: true});
+  
+  // Observer for CLS
+  let clsValue = 0;
+  new PerformanceObserver((list) => {
+    const entries = list.getEntries();
+    entries.forEach(entry => {
+      if (!entry.hadRecentInput) {
+        clsValue += entry.value;
+      }
+    });
+    performanceMetrics.cls = clsValue;
+  }).observe({type: 'layout-shift', buffered: true});
+  
+  // Return the metrics object that will be populated
+  return performanceMetrics;
+}
+
 // Function to extract metadata from the page
 function getPageMetadata() {
   const metadata = {
@@ -28,7 +55,8 @@ function getPageMetadata() {
     ogMeta: [],
     twitterMeta: [],
     canonicalUrl: '',
-    schemaData: []
+    schemaData: [],
+    performance: captureWebVitals() // Add performance metrics
   };
   
   try {
@@ -39,73 +67,71 @@ function getPageMetadata() {
     const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
     const robots = document.querySelector('meta[name="robots"]')?.content || '';
     
-    // Validate and add basic meta tags
+    // Validate and add basic meta tags using new standards
     metadata.basicMeta = [
       { 
         label: 'Title', 
         value: title,
-        status: title.length >= 30 && title.length <= 60 ? 'good' : 'warning',
-        message: title.length < 30 ? 'Too short' : title.length > 60 ? 'Too long' : 'Good length'
+        status: SEO_STANDARDS.meta.title.validation(title).status,
+        message: SEO_STANDARDS.meta.title.validation(title).message
       },
       { 
         label: 'Description', 
         value: description,
-        status: description.length >= 120 && description.length <= 160 ? 'good' : 'warning',
-        message: description.length < 120 ? 'Too short' : description.length > 160 ? 'Too long' : 'Good length'
+        status: SEO_STANDARDS.meta.description.validation(description).status,
+        message: SEO_STANDARDS.meta.description.validation(description).message
       },
       { 
         label: 'Keywords', 
         value: keywords,
-        status: keywords ? 'good' : 'warning',
-        message: keywords ? 'Well defined' : 'Missing'
+        status: SEO_STANDARDS.meta.keywords.validation(keywords).status,
+        message: SEO_STANDARDS.meta.keywords.validation(keywords).message
       },
       { 
         label: 'Viewport', 
         value: viewport,
-        status: viewport ? 'good' : 'error',
-        message: viewport ? 'Properly configured' : 'Missing'
+        status: SEO_STANDARDS.meta.viewport.validation(viewport).status,
+        message: SEO_STANDARDS.meta.viewport.validation(viewport).message
       },
       { 
         label: 'Robots', 
         value: robots,
-        status: robots ? 'good' : 'warning',
-        message: robots ? 'Properly set' : 'Not specified'
+        status: SEO_STANDARDS.meta.robots.validation(robots).status,
+        message: SEO_STANDARDS.meta.robots.validation(robots).message
       }
     ];
     
     // Get Open Graph tags
     const ogTags = document.querySelectorAll('meta[property^="og:"]');
-    const requiredOgTags = ['og:title', 'og:description', 'og:type', 'og:url', 'og:image', 'og:site_name'];
+    const requiredOgTags = Object.keys(SEO_STANDARDS.openGraph);
     
     metadata.ogMeta = requiredOgTags.map(tag => {
       const element = document.querySelector(`meta[property="${tag}"]`);
-      const value = element?.content || 'Missing';
-      const status = value === 'Missing' ? 'error' : 'good';
-      const message = value === 'Missing' ? 'Required tag missing' : 'Present';
+      const value = element?.content || '';
+      const validation = SEO_STANDARDS.openGraph[tag].validation(value);
       
       return {
         label: tag,
         value: value,
-        status: status,
-        message: message
+        status: validation.status,
+        message: validation.message
       };
     });
     
     // Get Twitter Card tags
     const twitterTags = document.querySelectorAll('meta[name^="twitter:"]');
-    const requiredTwitterTags = ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:image', 'twitter:site'];
+    const requiredTwitterTags = Object.keys(SEO_STANDARDS.twitterCard);
     
     metadata.twitterMeta = requiredTwitterTags.map(tag => {
       const element = document.querySelector(`meta[name="${tag}"]`);
-      const value = element?.content || 'Missing';
-      const status = value === 'Missing' ? 'error' : 'good';
-      const message = value === 'Missing' ? 'Required tag missing' : 'Present';
+      const value = element?.content || '';
+      const validation = SEO_STANDARDS.twitterCard[tag].validation(value);
       
       return {
         label: tag,
         value: value,
-        status: status,
-        message: message
+        status: validation.status,
+        message: validation.message
       };
     });
     
@@ -170,41 +196,18 @@ function getPageMetadata() {
     
     metadata.schemaData = best ? [best] : [];
     
-    // Generate SEO summary
-    metadata.seoSummary = [
-      {
-        label: 'Title',
-        value: title ? `Title is ${title.length} characters` : 'Title is missing',
-        status: title.length >= 30 && title.length <= 60 ? 'good' : 'warning'
-      },
-      {
-        label: 'Description',
-        value: description ? `Description is ${description.length} characters` : 'Description is missing',
-        status: description.length >= 120 && description.length <= 160 ? 'good' : 'warning'
-      },
-      {
-        label: 'Canonical URL',
-        value: canonical ? 'Canonical URL is properly set' : 'Canonical URL is missing',
-        status: canonical ? 'good' : 'error'
-      },
-      {
-        label: 'Open Graph Tags',
-        value: `${metadata.ogMeta.filter(tag => tag.status === 'good').length}/${requiredOgTags.length} Open Graph tags present`,
-        status: metadata.ogMeta.every(tag => tag.status === 'good') ? 'good' : 'warning'
-      },
-      {
-        label: 'Twitter Card Tags',
-        value: `${metadata.twitterMeta.filter(tag => tag.status === 'good').length}/${requiredTwitterTags.length} Twitter Card tags present`,
-        status: metadata.twitterMeta.every(tag => tag.status === 'good') ? 'good' : 'warning'
-      },
-      {
-        label: 'Schema Data',
-        value: metadata.schemaData.length > 0 
-          ? `Found ${metadata.schemaData.length} schema${metadata.schemaData.length > 1 ? 's' : ''} (${metadata.schemaData.map(s => s.data['@type']).join(', ')})`
-          : 'No Schema.org data found',
-        status: metadata.schemaData.length > 0 && metadata.schemaData.every(s => s.valid) ? 'good' : 'warning'
-      }
-    ];
+    // Calculate the health score using the new function
+    const seoHealthScore = calculateSEOHealthScore(metadata);
+    metadata.seoScore = seoHealthScore;
+    
+    // Generate summary based on the health score
+    metadata.seoSummary = seoHealthScore.recommendations.flatMap(cat => 
+      cat.items.map(item => ({
+        label: item.issue,
+        value: item.details,
+        status: item.impact === 'High' ? 'error' : 'warning'
+      }))
+    );
     
     return metadata;
   } catch (error) {

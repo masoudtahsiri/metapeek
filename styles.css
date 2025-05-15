@@ -1480,3 +1480,391 @@ body {
 .meta-tag-card {
   box-shadow: none !important;
 }
+
+/* SEO Score Circle and Container Styles */
+.seo-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.seo-score-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.seo-score-circle {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.seo-score-circle svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.score-circle-bg {
+  stroke: var(--color-bg-tertiary);
+}
+
+.score-circle {
+  stroke-linecap: round;
+  transition: stroke-dasharray 1.5s ease-in-out;
+}
+
+.status-good .score-circle {
+  stroke: var(--status-good);
+}
+
+.status-warning .score-circle {
+  stroke: var(--status-warning);
+}
+
+.status-error .score-circle {
+  stroke: var(--status-error);
+}
+
+.score-text {
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  fill: var(--color-text);
+  text-anchor: middle;
+  transform: rotate(90deg);
+  dominant-baseline: middle;
+}
+
+.status-good .score-text {
+  fill: var(--status-good);
+}
+
+.status-warning .score-text {
+  fill: var(--status-warning);
+}
+
+.status-error .score-text {
+  fill: var(--status-error);
+}
+
+.seo-score-details {
+  flex: 1;
+}
+
+.seo-score-details h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+}
+
+.seo-score-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.score-category {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  gap: var(--space-2);
+}
+
+.category-name {
+  flex-basis: 120px;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.category-bar-container {
+  flex: 1;
+  height: 8px;
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.category-bar {
+  height: 100%;
+  width: 0; /* Will be set by JS */
+  border-radius: var(--radius-full);
+  background: linear-gradient(to right, var(--status-good), #4ade80);
+  transition: width 1s ease-in-out;
+}
+
+.category-score {
+  min-width: 30px;
+  text-align: right;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+/* SEO Recommendations Styles */
+.seo-recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.seo-recommendations h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-1);
+  color: var(--color-text);
+}
+
+.recommendation-category {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: var(--color-surface);
+}
+
+.recommendation-header {
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recommendation-header h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.recommendation-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recommendation-item {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+.recommendation-item:last-child {
+  border-bottom: none;
+}
+
+.recommendation-item:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.recommendation-title {
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-1);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+}
+
+/* Add impact indicators */
+.impact-high .recommendation-title::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--status-error);
+  margin-right: var(--space-2);
+}
+
+.impact-medium .recommendation-title::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--status-warning);
+  margin-right: var(--space-2);
+}
+
+.impact-low .recommendation-title::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-text-tertiary);
+  margin-right: var(--space-2);
+}
+
+.recommendation-details {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Perfect SEO State */
+.seo-perfect {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background-color: var(--status-good-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  border: 1px solid var(--status-good);
+}
+
+.seo-perfect svg {
+  width: 24px;
+  height: 24px;
+  color: var(--status-good);
+  flex-shrink: 0;
+}
+
+.seo-perfect-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--status-good);
+  margin-bottom: var(--space-1);
+}
+
+.seo-perfect-message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .score-circle-bg {
+  stroke: var(--color-bg-tertiary);
+  opacity: 0.4;
+}
+
+[data-theme="dark"] .category-bar-container {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .recommendation-header {
+  background-color: var(--color-bg-tertiary);
+}
+
+[data-theme="dark"] .recommendation-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .seo-perfect {
+  background-color: rgba(56, 178, 172, 0.15);  /* Dark mode teal background */
+  border-color: var(--status-good);
+}
+
+/* Individual SEO Issue Items */
+.seo-issue-item {
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+  border-left: 3px solid transparent;
+}
+
+.seo-issue-item.status-error {
+  background-color: var(--status-error-bg);
+  border-left-color: var(--status-error);
+}
+
+.seo-issue-item.status-warning {
+  background-color: var(--status-warning-bg);
+  border-left-color: var(--status-warning);
+}
+
+.seo-issue-item.status-good {
+  background-color: var(--status-good-bg);
+  border-left-color: var(--status-good);
+}
+
+.seo-issue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-1);
+}
+
+.seo-issue-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.seo-issue-message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* SEO Meta Tag Status Indicators */
+.meta-tag-card .meta-tag-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  margin-left: var(--space-2);
+}
+
+.meta-tag-card .status-good-badge {
+  background-color: var(--status-good-bg);
+  color: var(--status-good);
+}
+
+.meta-tag-card .status-warning-badge {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+
+.meta-tag-card .status-error-badge {
+  background-color: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+/* Animation for score circle */
+@keyframes scoreCircleFill {
+  0% {
+    stroke-dasharray: 0, 100;
+  }
+}
+
+.score-circle {
+  animation: scoreCircleFill 1.5s ease-out forwards;
+}
+
+/* Animation for category bars */
+@keyframes categoryBarFill {
+  0% {
+    width: 0;
+  }
+}
+
+.category-bar {
+  animation: categoryBarFill 1s ease-out forwards;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .seo-score-container {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .seo-score-circle {
+    margin-bottom: var(--space-3);
+  }
+  
+  .score-category {
+    flex-wrap: wrap;
+  }
+  
+  .category-name {
+    flex-basis: 100%;
+    margin-bottom: var(--space-1);
+  }
+}

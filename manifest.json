@@ -28,7 +28,7 @@
         "http://*/*",
         "https://*/*"
       ],
-      "js": ["content.js"]
+      "js": ["content.js", "seo-standards.js"]
     }
   ],
   "icons": {
