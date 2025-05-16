@@ -1,3 +1,119 @@
+// Add more detailed logging to content.js
+console.log('MetaPeek content script loaded');
+
+// Add this to the top of the content script
+window.MetaPeek = window.MetaPeek || {
+  initialized: false,
+  observer: null,
+  webVitalsInitialized: false,
+  cachedMetrics: null,
+  lastMetricsUpdate: 0
+};
+
+// Add more robust initialization
+console.log('Initializing MetaPeek...');
+if (!window.MetaPeek.initialized) {
+  console.log('First initialization of MetaPeek');
+  window.MetaPeek.initialized = true;
+  
+  // Initialize observer and metadata immediately
+  window.MetaPeek.observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        const metadata = getPageMetadata();
+        window.MetaPeek.metadata = metadata;
+        chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata });
+      }
+    });
+  });
+  
+  // Start observing immediately
+  try {
+    window.MetaPeek.observer.observe(document.documentElement, { 
+      childList: true, 
+      subtree: true 
+    });
+    console.log('MetaPeek observer started');
+  } catch (e) {
+    console.error('Failed to start MetaPeek observer', e);
+  }
+  
+  // Collect initial metadata
+  try {
+    console.log('Collecting initial metadata');
+    const metadata = getPageMetadata();
+    window.MetaPeek.metadata = metadata;
+    console.log('Initial metadata collected:', metadata);
+  } catch (e) {
+    console.error('Error collecting initial metadata', e);
+  }
+}
+
+// Enhance the message listener with better debugging
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Message received in content script:', request);
+  
+  try {
+    if (request.type === 'getMetadata') {
+      console.log('Processing getMetadata request');
+      
+      // Always collect fresh metadata when requested
+      const metadata = getPageMetadata();
+      
+      // Cache it for later use
+      window.MetaPeek.metadata = metadata;
+      
+      console.log('Sending metadata response:', metadata);
+      sendResponse(metadata);
+    } else if (request.type === 'getSEOHealth') {
+      console.log('Processing getSEOHealth request');
+      
+      const metadata = getPageMetadata();
+      const seoHealth = calculateSEOHealthScore(metadata);
+      
+      console.log('Sending SEO health response:', seoHealth);
+      sendResponse(seoHealth);
+    } else if (request.type === 'initWebVitals') {
+      console.log('Processing initWebVitals request');
+      
+      const metrics = initWebVitals();
+      
+      console.log('Sending web vitals init response');
+      sendResponse({ 
+        status: 'initialized',
+        hasCachedMetrics: !!window.MetaPeek.cachedMetrics,
+        metrics: metrics
+      });
+    } else if (request.type === 'getWebVitals') {
+      console.log('Processing getWebVitals request');
+      
+      if (window.MetaPeek.webVitalsInitialized) {
+        console.log('Using cached web vitals');
+        sendResponse({
+          status: 'available',
+          metrics: window.MetaPeek.cachedMetrics || window.metaPeekMetrics
+        });
+      } else {
+        console.log('Initializing web vitals on demand');
+        const metrics = initWebVitals();
+        sendResponse({
+          status: 'initialized',
+          metrics: metrics
+        });
+      }
+    } else {
+      console.warn('Unknown message type received:', request.type);
+      sendResponse({ error: 'Unknown message type' });
+    }
+  } catch (error) {
+    console.error('Error handling message:', error);
+    sendResponse({ error: error.message });
+  }
+  
+  // Keep the message channel open for async responses
+  return true;
+});
+
 // SEO Health Score calculation function
 function calculateSEOHealthScore(metadata) {
   // Define scoring weights for different categories
@@ -635,47 +751,6 @@ function isPageSchema(obj, currentUrl) {
   
   return objUrl && (objUrl === pageUrl);
 }
-
-// Listen for messages from the popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  try {
-    if (request.type === 'getMetadata') {
-      const metadata = getPageMetadata();
-      sendResponse(metadata);
-    } else if (request.type === 'getSEOHealth') {
-      const metadata = getPageMetadata();
-      const seoHealth = calculateSEOHealthScore(metadata);
-      sendResponse(seoHealth);
-    } else if (request.type === 'initWebVitals') {
-      // OPTIMIZATION: Only initialize web vitals when explicitly requested
-      const metrics = initWebVitals();
-      sendResponse({ 
-        status: 'initialized',
-        hasCachedMetrics: !!window.MetaPeek.cachedMetrics,
-        metrics: metrics
-      });
-    } else if (request.type === 'getWebVitals') {
-      // Return current metrics or initialize if not already done
-      if (window.MetaPeek.webVitalsInitialized) {
-        sendResponse({
-          status: 'available',
-          metrics: window.MetaPeek.cachedMetrics || window.metaPeekMetrics
-        });
-      } else {
-        const metrics = initWebVitals();
-        sendResponse({
-          status: 'initialized',
-          metrics: metrics
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Error handling message:', error);
-    sendResponse({ error: error.message });
-  }
-  // Keep the message channel open for async responses
-  return true;
-});
 
 // Calculate performance score based on Core Web Vitals
 function calculatePerformanceScore(metrics) {
