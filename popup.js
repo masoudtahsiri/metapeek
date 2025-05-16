@@ -235,7 +235,7 @@ function populateUI(metadata) {
     // Update priority issues
     updatePriorityIssues(metadata);
     
-    // Update meta tag summary in Overview tab
+    // Update meta tag status summary in Overview tab
     updateMetaTagSummary(metadata);
     
     // Update meta tags in Meta Tags tab
@@ -375,157 +375,100 @@ function updatePriorityIssues(metadata) {
 }
 
 /**
- * Update meta tag summary in Overview tab
+ * Update meta tag status summary in Overview tab
  * @param {Object} metadata - Metadata from content script
  */
 function updateMetaTagSummary(metadata) {
-  const summaryGrid = document.querySelector('.summary-grid');
-  if (!summaryGrid) return;
+  const statusGrid = document.querySelector('.status-grid');
+  if (!statusGrid) return;
   
-  const cards = summaryGrid.querySelectorAll('.summary-card');
+  const statusItems = statusGrid.querySelectorAll('.status-item');
   
-  // Update description card
-  if (cards[1]) {
-    const description = metadata.basicMeta?.find(tag => tag.label === 'Description') || { 
-      value: '', 
-      status: 'error',
-      message: 'Missing description tag' 
-    };
-    
-    // Replace icon with text status indicator
-    const headerElement = cards[1].querySelector('.summary-header');
-    if (headerElement) {
-      // Map status to display text
-      const statusText = description.status === 'good' ? 'Good' : 
-                         description.status === 'warning' ? 'Warning' : 'Error';
-      
-      headerElement.innerHTML = `
-        <h4>Description</h4>
-        <span class="status-badge ${description.status}">${statusText}</span>
-      `;
-    }
-    
-    // Update content
-    const contentElement = cards[1].querySelector('.summary-content');
-    if (contentElement) {
-      if (description.value) {
-        contentElement.textContent = description.value;
-        contentElement.classList.remove('empty');
-      } else {
-        contentElement.textContent = 'No description found';
-        contentElement.classList.add('empty');
-      }
-    }
-    
-    // Add warning banner with smaller text if needed
-    if (description.status !== 'good') {
-      let warningBanner = cards[1].querySelector('.warning-banner');
-      if (!warningBanner) {
-        warningBanner = document.createElement('div');
-        warningBanner.className = 'warning-banner';
-        cards[1].appendChild(warningBanner);
-      }
-      
-      warningBanner.className = `warning-banner ${description.status}`;
-      warningBanner.innerHTML = `<span>${description.message}</span>`;
-    } else {
-      const existingBanner = cards[1].querySelector('.warning-banner');
-      if (existingBanner) {
-        existingBanner.remove();
-      }
-    }
-  }
-  
-  // Update title card
-  if (cards[0]) {
+  // Update title status
+  if (statusItems[0]) {
     const title = metadata.basicMeta?.find(tag => tag.label === 'Title') || { 
-      value: '', 
-      status: 'error',
-      message: 'Missing title tag' 
+      status: 'error'
     };
     
-    const headerElement = cards[0].querySelector('.summary-header');
-    if (headerElement) {
+    const badge = statusItems[0].querySelector('.status-badge');
+    if (badge) {
       const statusText = title.status === 'good' ? 'Good' : 
                          title.status === 'warning' ? 'Warning' : 'Error';
-      
-      headerElement.innerHTML = `
-        <h4>Title</h4>
-        <span class="status-badge ${title.status}">${statusText}</span>
-      `;
-    }
-    
-    const contentElement = cards[0].querySelector('.summary-content');
-    if (contentElement) {
-      if (title.value) {
-        contentElement.textContent = title.value;
-        contentElement.classList.remove('empty');
-      } else {
-        contentElement.textContent = 'No title found';
-        contentElement.classList.add('empty');
-      }
-    }
-    
-    if (title.status !== 'good') {
-      let warningBanner = cards[0].querySelector('.warning-banner');
-      if (!warningBanner) {
-        warningBanner = document.createElement('div');
-        warningBanner.className = 'warning-banner';
-        cards[0].appendChild(warningBanner);
-      }
-      
-      warningBanner.className = `warning-banner ${title.status}`;
-      warningBanner.innerHTML = `<span>${title.message}</span>`;
-    } else {
-      const existingBanner = cards[0].querySelector('.warning-banner');
-      if (existingBanner) {
-        existingBanner.remove();
-      }
+      badge.className = `status-badge ${title.status}`;
+      badge.textContent = statusText;
     }
   }
   
-  // Update canonical URL card
-  if (cards[2]) {
-    const canonical = metadata.canonicalUrl || '';
+  // Update description status
+  if (statusItems[1]) {
+    const description = metadata.basicMeta?.find(tag => tag.label === 'Description') || { 
+      status: 'error'
+    };
+    
+    const badge = statusItems[1].querySelector('.status-badge');
+    if (badge) {
+      const statusText = description.status === 'good' ? 'Good' : 
+                         description.status === 'warning' ? 'Warning' : 'Error';
+      badge.className = `status-badge ${description.status}`;
+      badge.textContent = statusText;
+    }
+  }
+  
+  // Update canonical status
+  if (statusItems[2]) {
+    const canonical = metadata.canonicalUrl;
     const status = canonical ? 'good' : 'error';
-    const message = canonical ? 'Canonical URL properly defined' : 'Missing canonical URL';
     
-    const headerElement = cards[2].querySelector('.summary-header');
-    if (headerElement) {
+    const badge = statusItems[2].querySelector('.status-badge');
+    if (badge) {
       const statusText = status === 'good' ? 'Good' : 'Error';
-      
-      headerElement.innerHTML = `
-        <h4>Canonical URL</h4>
-        <span class="status-badge ${status}">${statusText}</span>
-      `;
+      badge.className = `status-badge ${status}`;
+      badge.textContent = statusText;
     }
+  }
+  
+  // Update OG status
+  if (statusItems[3]) {
+    const ogTags = metadata.ogMeta || [];
+    const hasErrors = ogTags.some(tag => tag.status === 'error');
+    const hasWarnings = ogTags.some(tag => tag.status === 'warning');
+    const status = hasErrors ? 'error' : hasWarnings ? 'warning' : ogTags.length > 0 ? 'good' : 'error';
     
-    const contentElement = cards[2].querySelector('.summary-content');
-    if (contentElement) {
-      if (canonical) {
-        contentElement.textContent = canonical;
-        contentElement.classList.remove('empty');
-      } else {
-        contentElement.textContent = 'No canonical URL found';
-        contentElement.classList.add('empty');
-      }
+    const badge = statusItems[3].querySelector('.status-badge');
+    if (badge) {
+      const statusText = status === 'good' ? 'Good' : 
+                         status === 'warning' ? 'Warning' : 'Error';
+      badge.className = `status-badge ${status}`;
+      badge.textContent = statusText;
     }
+  }
+  
+  // Update Twitter Card status
+  if (statusItems[4]) {
+    const twitterTags = metadata.twitterMeta || [];
+    const hasErrors = twitterTags.some(tag => tag.status === 'error');
+    const hasWarnings = twitterTags.some(tag => tag.status === 'warning');
+    const status = hasErrors ? 'error' : hasWarnings ? 'warning' : twitterTags.length > 0 ? 'good' : 'error';
     
-    if (status !== 'good') {
-      let warningBanner = cards[2].querySelector('.warning-banner');
-      if (!warningBanner) {
-        warningBanner = document.createElement('div');
-        warningBanner.className = 'warning-banner';
-        cards[2].appendChild(warningBanner);
-      }
-      
-      warningBanner.className = `warning-banner ${status}`;
-      warningBanner.innerHTML = `<span>${message}</span>`;
-    } else {
-      const existingBanner = cards[2].querySelector('.warning-banner');
-      if (existingBanner) {
-        existingBanner.remove();
-      }
+    const badge = statusItems[4].querySelector('.status-badge');
+    if (badge) {
+      const statusText = status === 'good' ? 'Good' : 
+                         status === 'warning' ? 'Warning' : 'Error';
+      badge.className = `status-badge ${status}`;
+      badge.textContent = statusText;
+    }
+  }
+  
+  // Update Schema.org status
+  if (statusItems[5]) {
+    const schemaData = metadata.schemaData || [];
+    const status = schemaData.length > 0 ? 'good' : 'error';
+    
+    const badge = statusItems[5].querySelector('.status-badge');
+    if (badge) {
+      const statusText = status === 'good' ? 'Good' : 'Error';
+      badge.className = `status-badge ${status}`;
+      badge.textContent = statusText;
     }
   }
 }
