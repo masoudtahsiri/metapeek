@@ -191,22 +191,19 @@ function showError(message) {
  */
 function populateUI(metadata) {
   console.log('Populating UI with metadata');
-  
   try {
-    // Update SEO score
-    updateSEOScore(metadata.seoScore);
-    
-    // Update meta tags
-    updateMetaTags(metadata);
-    
-    // Update previews
-    updatePreviews(metadata);
-    
-    // Update performance if available
+    // Update priority issues section
+    updatePriorityIssues(metadata);
+    // Update meta tag summary in Overview tab
+    updateMetaTagSummary(metadata);
+    // Update meta tags in Meta Tags tab
+    updateDetailedMetaTags(metadata);
+    // Update previews in Social Preview tab
+    updateSocialPreviews(metadata);
+    // Update performance in Performance tab
     if (metadata.performance && metadata.performance.partialMetricsAvailable) {
-      updatePerformance(metadata.performance);
+      updatePerformanceMetrics(metadata.performance);
     }
-    
     console.log('UI update complete');
   } catch (error) {
     console.error('Error populating UI:', error);
@@ -651,157 +648,265 @@ function initCustomStyles() {
 }
 
 /**
- * Update SEO score display
- * @param {Object} scoreData - SEO score data
+ * Update priority issues section
+ * @param {Object} metadata - Metadata from content script
  */
-function updateSEOScore(scoreData) {
-  console.log('Updating SEO score');
-  if (!scoreData) return;
+function updatePriorityIssues(metadata) {
+  const issuesContainer = document.querySelector('.issues-list');
+  if (!issuesContainer) return;
   
-  const scoreSection = document.querySelector('.score-section');
-  if (!scoreSection) return;
+  // Clear existing issues
+  issuesContainer.innerHTML = '';
   
-  // Get score value and determine status
-  const score = scoreData.score || 0;
-  let status = 'warning';
-  let description = 'Needs improvement';
+  // Get recommendations from metadata
+  const recommendations = metadata.seoScore?.recommendations || [];
   
-  if (score >= 80) {
-    status = 'good';
-    description = 'Good, well optimized';
-  } else if (score < 50) {
-    status = 'error';
-    description = 'Poor, needs urgent attention';
+  // Filter to get only high and medium impact items
+  const priorityIssues = [];
+  
+  recommendations.forEach(category => {
+    if (category.items) {
+      category.items.forEach(item => {
+        if (item.impact === 'High' || item.impact === 'Medium') {
+          priorityIssues.push({
+            title: item.issue,
+            description: item.details,
+            impact: item.impact
+          });
+        }
+      });
+    }
+  });
+  
+  // Update counter badge
+  const issueBadge = document.querySelector('.section-title .badge');
+  if (issueBadge) {
+    issueBadge.textContent = priorityIssues.length;
   }
   
-  // Update HTML with score data
-  scoreSection.innerHTML = `
-    <div class="score-wrapper">
-      <div class="score-circle">
-        <svg viewBox="0 0 36 36">
-          <path class="score-bg"
-            d="M18 2.0845 
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-            fill="none"
-            stroke-width="3"
-            stroke-dasharray="100, 100"
-          />
-          <path class="score-fill"
-            d="M18 2.0845 
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-            fill="none"
-            stroke-width="3"
-            stroke-dasharray="${score}, 100"
-          />
-          <text x="18" y="20.5" class="score-text">${score}</text>
-        </svg>
+  // Add issues to container
+  if (priorityIssues.length > 0) {
+    priorityIssues.forEach(issue => {
+      const issueElement = document.createElement('div');
+      issueElement.className = `issue-item ${issue.impact.toLowerCase()}`;
+      
+      issueElement.innerHTML = `
+        <div class="issue-header">
+          <h4>${issue.title}</h4>
+          <span class="issue-impact ${issue.impact.toLowerCase()}">${issue.impact} Impact</span>
+        </div>
+        <p class="issue-description">${issue.description}</p>
+        <button class="btn-text">${issue.impact === 'High' ? 'Fix This →' : 'Learn More →'}</button>
+      `;
+      
+      issuesContainer.appendChild(issueElement);
+    });
+  } else {
+    // Show no issues message
+    issuesContainer.innerHTML = `
+      <div class="empty-state">
+        <p>No priority issues found. Your page is looking good!</p>
       </div>
-      <div class="score-details">
-        <h2>SEO Health</h2>
-        <p class="score-description">${description}</p>
+    `;
+  }
+}
+
+/**
+ * Update meta tag summary in Overview tab
+ * @param {Object} metadata - Metadata from content script
+ */
+function updateMetaTagSummary(metadata) {
+  const summaryGrid = document.querySelector('.summary-grid');
+  if (!summaryGrid) return;
+  
+  // Find title and description meta tags
+  const title = metadata.basicMeta?.find(tag => tag.label === 'Title') || { 
+    value: '', 
+    status: 'error',
+    message: 'Missing title tag' 
+  };
+  
+  const description = metadata.basicMeta?.find(tag => tag.label === 'Description') || { 
+    value: '', 
+    status: 'error',
+    message: 'Missing description tag' 
+  };
+  
+  // Update title card
+  const titleCard = summaryGrid.querySelector('.title');
+  if (titleCard) {
+    const titleBadge = titleCard.querySelector('.status-badge');
+    const titleContent = titleCard.querySelector('.summary-content');
+    
+    if (titleBadge) titleBadge.className = `status-badge ${title.status || 'error'}`;
+    if (titleBadge) titleBadge.textContent = title.status === 'good' ? 'Good' : title.message;
+    
+    if (titleContent) {
+      if (title.value) {
+        titleContent.textContent = title.value;
+        titleContent.classList.remove('empty');
+      } else {
+        titleContent.textContent = 'No title found';
+        titleContent.classList.add('empty');
+      }
+    }
+  }
+  
+  // Update description card
+  const descriptionCard = summaryGrid.querySelector('.description');
+  if (descriptionCard) {
+    const descBadge = descriptionCard.querySelector('.status-badge');
+    const descContent = descriptionCard.querySelector('.summary-content');
+    
+    if (descBadge) descBadge.className = `status-badge ${description.status || 'error'}`;
+    if (descBadge) descBadge.textContent = description.status === 'good' ? 'Good' : description.message;
+    
+    if (descContent) {
+      if (description.value) {
+        descContent.textContent = description.value;
+        descContent.classList.remove('empty');
+      } else {
+        descContent.textContent = 'No description found';
+        descContent.classList.add('empty');
+      }
+    }
+  }
+}
+
+/**
+ * Update detailed meta tags in Meta Tags tab
+ * @param {Object} metadata - Metadata from content script
+ */
+function updateDetailedMetaTags(metadata) {
+  const metaTagsTab = document.getElementById('meta-tags-tab');
+  if (!metaTagsTab) return;
+  
+  // Helper function to create meta tag table
+  const createMetaTable = (tags, title) => {
+    if (!tags || tags.length === 0) return null;
+  
+    const section = document.createElement('div');
+    section.className = 'section-card';
+    
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <h3 class="section-title">${title}</h3>
+      <button class="btn-icon-text" data-category="${title.toLowerCase().replace(/\s+/g, '-')}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        Copy All
+      </button>
+  `;
+  
+    const table = document.createElement('div');
+    table.className = 'meta-table';
+    
+    tags.forEach(tag => {
+      const row = document.createElement('div');
+      row.className = 'meta-row';
+      
+      const isEmpty = !tag.value || tag.value.trim() === '';
+      const valueClass = isEmpty ? 'meta-cell value empty' : 'meta-cell value';
+      
+      row.innerHTML = `
+        <div class="meta-cell name">${tag.label}</div>
+        <div class="${valueClass}">${isEmpty ? 'Not set' : tag.value}</div>
+        <div class="meta-cell status">
+          <span class="status-badge ${tag.status || 'warning'}">${isEmpty ? 'Missing' : tag.status === 'good' ? 'Good' : 'Warning'}</span>
+        </div>
+      `;
+      
+      table.appendChild(row);
+    });
+    
+    section.appendChild(header);
+    section.appendChild(table);
+    
+    return section;
+  };
+  
+  // Clear existing content except for tabs
+  const existingSections = metaTagsTab.querySelectorAll('.section-card');
+  existingSections.forEach(section => section.remove());
+  
+  // Add each meta tag category
+  if (metadata.basicMeta && metadata.basicMeta.length > 0) {
+    const basicSection = createMetaTable(metadata.basicMeta, 'Basic Meta Tags');
+    if (basicSection) metaTagsTab.appendChild(basicSection);
+  }
+  
+  if (metadata.ogMeta && metadata.ogMeta.length > 0) {
+    const ogSection = createMetaTable(metadata.ogMeta, 'Open Graph Tags');
+    if (ogSection) metaTagsTab.appendChild(ogSection);
+  }
+  
+  if (metadata.twitterMeta && metadata.twitterMeta.length > 0) {
+    const twitterSection = createMetaTable(metadata.twitterMeta, 'Twitter Card Tags');
+    if (twitterSection) metaTagsTab.appendChild(twitterSection);
+  }
+  
+  // Add canonical URL if available
+  if (metadata.canonicalUrl) {
+    const canonicalSection = document.createElement('div');
+    canonicalSection.className = 'section-card';
+    canonicalSection.innerHTML = `
+      <h3 class="section-title">Canonical URL</h3>
+      <div class="meta-table">
+        <div class="meta-row">
+          <div class="meta-cell name">canonical</div>
+          <div class="meta-cell value">${metadata.canonicalUrl}</div>
+          <div class="meta-cell status">
+            <span class="status-badge good">Good</span>
+          </div>
         </div>
       </div>
     `;
-}
-
-/**
- * Update meta tags display
- * @param {Object} metadata - Metadata from content script
- */
-function updateMetaTags(metadata) {
-  console.log('Updating meta tags');
-  if (!metadata.basicMeta) return;
-  
-  // Get the meta cards
-  const metaCards = document.querySelectorAll('.meta-card');
-  if (metaCards.length < 2) return;
-  
-  // Title card (usually first)
-  updateMetaCard(
-    metaCards[0], 
-    metadata.basicMeta.find(tag => tag.label === 'Title')
-  );
-  
-  // Description card (usually second)
-  updateMetaCard(
-    metaCards[1], 
-    metadata.basicMeta.find(tag => tag.label === 'Description')
-  );
-}
-
-/**
- * Update a meta card with data
- * @param {Element} card - The card element to update
- * @param {Object} data - Meta tag data
- */
-function updateMetaCard(card, data) {
-  if (!card || !data) return;
-  
-  const cardHeader = document.createElement('div');
-  cardHeader.className = 'meta-card-header';
-  cardHeader.innerHTML = `
-    <span class="meta-card-tag">${data.label}</span>
-    <span class="meta-card-status ${data.status || 'warning'}">${data.message || 'Unknown'}</span>
-  `;
-  
-  const cardContent = document.createElement('div');
-  cardContent.className = 'meta-card-content';
-  
-  if (!data.value) {
-    cardContent.innerHTML = `
-      <p class="empty-content">No ${data.label.toLowerCase()} tag found.</p>
-      <button class="btn-secondary btn-small">Add ${data.label}</button>
-    `;
-  } else {
-    cardContent.innerHTML = `<p>${data.value}</p>`;
+    
+    metaTagsTab.appendChild(canonicalSection);
   }
   
-  // Clear the card and add the new content
-  card.innerHTML = '';
-  card.appendChild(cardHeader);
-  card.appendChild(cardContent);
-  
-  // Add event listener to the "Add" button if it exists
-  const addButton = cardContent.querySelector('.btn-secondary');
-  if (addButton) {
-    addButton.addEventListener('click', () => {
-      // Show a dialog or expand a form to add the missing meta tag
-      showToast(`Adding ${data.label} functionality would go here`);
+  // Add copy functionality for the buttons
+  const copyButtons = metaTagsTab.querySelectorAll('.btn-icon-text');
+  copyButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const category = button.getAttribute('data-category');
+      const table = button.closest('.section-card').querySelector('.meta-table');
+      let textToCopy = '';
+      
+      const rows = table.querySelectorAll('.meta-row');
+      rows.forEach(row => {
+        const name = row.querySelector('.meta-cell.name').textContent;
+        const value = row.querySelector('.meta-cell.value').textContent;
+        if (value !== 'Not set') {
+          textToCopy += `${name}: ${value}\n`;
+        }
+      });
+      
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => showToast(`Copied ${category || 'meta tags'} to clipboard!`))
+        .catch(err => {
+          console.error('Failed to copy:', err);
+          showToast('Failed to copy meta tags');
+        });
     });
-  }
+  });
 }
 
 /**
- * Helper to extract hostname from URL
- * @param {string} url - URL to extract hostname from
- * @returns {string} Hostname
- */
-function extractHostname(url) {
-  try {
-    return new URL(url).hostname;
-  } catch (e) {
-    return url || 'example.com';
-  }
-}
-
-/**
- * Update social media previews
+ * Update social previews in Social Preview tab
  * @param {Object} metadata - Metadata from content script
  */
-function updatePreviews(metadata) {
-  console.log('Updating previews');
-  if (!metadata) return;
-  
+function updateSocialPreviews(metadata) {
   // Extract common metadata
-  const title = metadata.basicMeta.find(tag => tag.label === 'Title')?.value || '';
-  const description = metadata.basicMeta.find(tag => tag.label === 'Description')?.value || '';
+  const title = metadata.basicMeta?.find(tag => tag.label === 'Title')?.value || '';
+  const description = metadata.basicMeta?.find(tag => tag.label === 'Description')?.value || '';
   const ogTitle = metadata.ogMeta?.find(tag => tag.label === 'og:title')?.value || title;
   const ogDescription = metadata.ogMeta?.find(tag => tag.label === 'og:description')?.value || description;
   const ogImage = metadata.ogMeta?.find(tag => tag.label === 'og:image')?.value || '';
-  const ogUrl = metadata.ogMeta?.find(tag => tag.label === 'og:url')?.value || 
-                metadata.canonicalUrl || '';
+  const ogUrl = metadata.ogMeta?.find(tag => tag.label === 'og:url')?.value || metadata.canonicalUrl || '';
   
   // Get hostname for display
   const hostname = extractHostname(ogUrl);
@@ -829,7 +934,7 @@ function updateGooglePreview(hostname, title, description) {
   googlePreview.innerHTML = `
     <div class="google-preview">
       <div class="google-url">${hostname}</div>
-      <div class="google-title">${title}</div>
+      <div class="google-title">${title || 'No title available'}</div>
       <div class="google-description">${description || 'No description available. Search engines might generate their own description from page content.'}</div>
     </div>
   `;
@@ -854,7 +959,7 @@ function updateFacebookPreview(hostname, title, description, image) {
       }
       <div class="facebook-content">
         <div class="facebook-domain">${hostname}</div>
-        <div class="facebook-title">${title}</div>
+        <div class="facebook-title">${title || 'No title provided'}</div>
         <div class="facebook-description">${description || 'No description provided'}</div>
         </div>
       </div>
@@ -889,7 +994,7 @@ function updateTwitterPreview(metadata, hostname, ogTitle, ogDescription, ogImag
       }
       <div class="twitter-content">
         <div class="twitter-site">${twitterSite || hostname}</div>
-        <div class="twitter-title">${twitterTitle}</div>
+        <div class="twitter-title">${twitterTitle || 'No title provided'}</div>
         <div class="twitter-description">${twitterDescription || 'No description provided'}</div>
         <div class="twitter-domain">${hostname}</div>
         </div>
@@ -898,222 +1003,199 @@ function updateTwitterPreview(metadata, hostname, ogTitle, ogDescription, ogImag
   }
   
 /**
- * Initialize Web Vitals metrics
- */
-function initializeWebVitals() {
-  console.log('Initializing Web Vitals');
-  
-  // Set loading state
-  state.loading.webVitals = true;
-  state.errors.webVitals = null;
-  
-  // Initialize metrics object in the UI first (empty state)
-  const performanceContainer = document.querySelector('.performance-section');
-  if (performanceContainer) {
-    const metricsRow = performanceContainer.querySelector('.metrics-row');
-    if (metricsRow) {
-      // Show loading state for metrics
-      Array.from(metricsRow.children).forEach(metric => {
-        const metricValue = metric.querySelector('.metric-value');
-        if (metricValue) {
-          metricValue.textContent = 'Loading...';
-        }
-      });
-    }
-  }
-  
-  // Request web vitals initialization from content script
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    if (!tabs || !tabs[0]) {
-      console.error('No active tab found for web vitals');
-      state.errors.webVitals = 'No active tab found for web vitals';
-      state.loading.webVitals = false;
-      return;
-    }
-    
-    chrome.tabs.sendMessage(tabs[0].id, { type: 'initWebVitals' }, (response) => {
-      state.loading.webVitals = false;
-      
-      if (chrome.runtime.lastError) {
-        console.error('Error initializing web vitals:', chrome.runtime.lastError);
-        state.errors.webVitals = 'Failed to initialize web vitals';
-        return;
-      }
-      
-      console.log('Web vitals initialization response:', response);
-      
-      if (response && response.metrics) {
-        updatePerformance(response.metrics);
-      } else {
-        state.errors.webVitals = 'No web vitals data received';
-      }
-    });
-  });
-}
-
-/**
- * Update performance metrics display
+ * Update performance metrics in Performance tab
  * @param {Object} metrics - Web vitals metrics
  */
-function updatePerformance(metrics) {
-  console.log('Updating performance metrics');
+function updatePerformanceMetrics(metrics) {
+  const performanceTab = document.getElementById('performance-tab');
+  if (!performanceTab) return;
   
-  const performanceSection = document.querySelector('.performance-section');
-  if (!performanceSection) return;
-  
-  const metricsRow = performanceSection.querySelector('.metrics-row');
-  if (!metricsRow) return;
+  const metricsGrid = performanceTab.querySelector('.metrics-grid');
+  if (!metricsGrid) return;
   
   // Define metric display info
   const metricDisplayInfo = {
     lcp: {
-      index: 0,
+      name: 'LCP',
+      label: 'Largest Contentful Paint',
       format: (value) => (value / 1000).toFixed(1) + 's',
-      thresholds: CONFIG.metricThresholds.lcp,
-      label: 'Largest Contentful Paint'
+      threshold: '< 2.5s',
+      thresholds: [2500, 4000] // good, poor thresholds
     },
     cls: {
-      index: 1,
+      name: 'CLS',
+      label: 'Cumulative Layout Shift',
       format: (value) => value.toFixed(2),
-      thresholds: CONFIG.metricThresholds.cls,
-      label: 'Cumulative Layout Shift'
+      threshold: '< 0.1',
+      thresholds: [0.1, 0.25] // good, poor thresholds
     },
     inp: {
-      index: 2,
+      name: 'INP',
+      label: 'Interaction to Next Paint',
       format: (value) => value.toFixed(0) + 'ms',
-      thresholds: CONFIG.metricThresholds.inp,
-      label: 'Interaction to Next Paint'
+      threshold: '< 200ms',
+      thresholds: [200, 500] // good, poor thresholds
     }
   };
   
-  // Update each metric if available
+  // Clear existing metrics
+  metricsGrid.innerHTML = '';
+  
+  // Add each metric
   for (const [metricName, info] of Object.entries(metricDisplayInfo)) {
     if (metrics[metricName] !== null && metrics[metricName] !== undefined) {
-      const metricItem = metricsRow.children[info.index];
-      if (metricItem) {
-        const metricValue = metricItem.querySelector('.metric-value');
-        const metricLabel = metricItem.querySelector('.metric-label');
+      const value = metrics[metricName];
+      
+      // Determine status
+      let status = 'good';
+      let statusText = 'Good';
         
-        if (metricValue) {
-          metricValue.textContent = info.format(metrics[metricName]);
+      if (metricName === 'cls') {
+        // For CLS, lower is better
+        if (value > info.thresholds[1]) {
+          status = 'poor';
+          statusText = 'Poor';
+        } else if (value > info.thresholds[0]) {
+          status = 'warning';
+          statusText = 'Needs Improvement';
         }
-        
-        if (metricLabel) {
-          metricLabel.textContent = info.label;
+      } else {
+        // For other metrics
+        if (value > info.thresholds[1]) {
+          status = 'poor';
+          statusText = 'Poor';
+        } else if (value > info.thresholds[0]) {
+          status = 'warning';
+          statusText = 'Needs Improvement';
         }
-        
-        // Update status class
-        const statusClass = getMetricStatusClass(
-          metrics[metricName], 
-          info.thresholds[0],  // good threshold
-          info.thresholds[1],  // poor threshold
-          metricName === 'cls' // lower is better for CLS
-        );
-        
-        metricItem.className = `metric-item ${statusClass}`;
-        
-        // Add tooltip with threshold information
-        metricItem.title = `${info.label}: ${info.format(metrics[metricName])}\n` +
-          `Good: ${info.format(info.thresholds[0])}\n` +
-          `Poor: ${info.format(info.thresholds[1])}`;
       }
+      
+      // Create metric card
+      const metricCard = document.createElement('div');
+      metricCard.className = `metric-card ${status}`;
+      
+      metricCard.innerHTML = `
+        <div class="metric-header">
+          <h4>${info.name}</h4>
+          <span class="metric-status ${status}">${statusText}</span>
+        </div>
+        <div class="metric-value">${info.format(value)}</div>
+        <div class="metric-label">${info.label}</div>
+        <div class="metric-threshold">Target: ${info.threshold}</div>
+      `;
+      
+      metricsGrid.appendChild(metricCard);
+    } else {
+      // Create placeholder for missing metric
+      const metricCard = document.createElement('div');
+      metricCard.className = 'metric-card';
+      
+      metricCard.innerHTML = `
+        <div class="metric-header">
+          <h4>${info.name}</h4>
+          <span class="metric-status">Not Available</span>
+        </div>
+        <div class="metric-value">--</div>
+        <div class="metric-label">${info.label}</div>
+        <div class="metric-threshold">Target: ${info.threshold}</div>
+      `;
+      
+      metricsGrid.appendChild(metricCard);
     }
   }
   
-  // Update performance tip based on the most critical issue
-  updatePerformanceTip(metrics);
+  // Add tip based on worst metric
+  updatePerformanceTip(metrics, performanceTab);
 }
 
 /**
- * Get the status class for a metric value
- * @param {number} value - Metric value
- * @param {number} goodThreshold - Threshold for "good" status
- * @param {number} poorThreshold - Threshold for "poor" status
- * @param {boolean} lowerIsBetter - Whether lower values are better
- * @returns {string} CSS class name
- */
-function getMetricStatusClass(value, goodThreshold, poorThreshold, lowerIsBetter = true) {
-  if (lowerIsBetter) {
-    return value <= goodThreshold ? 'good' : 
-           value <= poorThreshold ? 'warning' : 
-           'poor';
-      } else {
-    return value >= goodThreshold ? 'good' : 
-           value >= poorThreshold ? 'warning' : 
-           'poor';
-  }
-}
-
-/**
- * Update the performance tip based on metrics
+ * Update performance tip based on metrics
  * @param {Object} metrics - Web vitals metrics
+ * @param {Element} container - Performance tab container
  */
-function updatePerformanceTip(metrics) {
-  const performanceTip = document.querySelector('.performance-tip');
-  if (!performanceTip) return;
+function updatePerformanceTip(metrics, container) {
+  const tipElement = container.querySelector('.performance-tip');
+  if (!tipElement) return;
   
-  // Find the most critical issue
+  // Find most critical issue
   let criticalIssue = null;
   
-  if (metrics.cls !== null && metrics.cls > CONFIG.metricThresholds.cls[1]) {
+  if (metrics.cls !== null && metrics.cls > 0.25) {
     criticalIssue = {
       name: 'CLS',
       message: 'Your page has significant layout shifts (CLS) that may impact user experience. Check for elements that move after loading.',
-      impact: 'High'
+      status: 'error'
     };
   } 
-  else if (metrics.lcp !== null && metrics.lcp > CONFIG.metricThresholds.lcp[1]) {
+  else if (metrics.lcp !== null && metrics.lcp > 4000) {
     criticalIssue = {
       name: 'LCP',
       message: 'Your page has slow loading performance (LCP). Consider optimizing images, reducing server response time, or reducing JavaScript.',
-      impact: 'High'
+      status: 'error'
     };
   }
-  else if (metrics.inp !== null && metrics.inp > CONFIG.metricThresholds.inp[1]) {
+  else if (metrics.inp !== null && metrics.inp > 500) {
     criticalIssue = {
       name: 'INP',
       message: 'Your page has poor interaction performance (INP). Consider optimizing event handlers and reducing JavaScript execution time.',
-      impact: 'High'
+      status: 'error'
     };
   }
-  else if (metrics.cls !== null && metrics.cls > CONFIG.metricThresholds.cls[0]) {
+  else if (metrics.cls !== null && metrics.cls > 0.1) {
     criticalIssue = {
       name: 'CLS',
       message: 'Your page has some layout shifts (CLS) that could be improved. Consider optimizing dynamic content loading.',
-      impact: 'Medium'
+      status: 'warning'
     };
   }
-  else if (metrics.lcp !== null && metrics.lcp > CONFIG.metricThresholds.lcp[0]) {
+  else if (metrics.lcp !== null && metrics.lcp > 2500) {
     criticalIssue = {
       name: 'LCP',
       message: 'Your page loading performance (LCP) could be improved. Consider optimizing resource loading.',
-      impact: 'Medium'
+      status: 'warning'
     };
   }
-  else if (metrics.inp !== null && metrics.inp > CONFIG.metricThresholds.inp[0]) {
+  else if (metrics.inp !== null && metrics.inp > 200) {
     criticalIssue = {
       name: 'INP',
       message: 'Your page interaction performance (INP) could be improved. Consider optimizing event handlers.',
-      impact: 'Medium'
+      status: 'warning'
     };
   }
   
-  // Update the tip text or hide if all metrics are good
+  // Update tip or hide if all metrics are good
   if (criticalIssue) {
-    performanceTip.innerHTML = `
+    tipElement.className = `performance-tip ${criticalIssue.status}`;
+    tipElement.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="12" y1="16" x2="12" y2="12"></line>
         <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
-      <div class="performance-tip-content">
-        <p class="performance-tip-message">${criticalIssue.message}</p>
-        <span class="performance-tip-impact ${criticalIssue.impact.toLowerCase()}">${criticalIssue.impact} Impact</span>
-      </div>
+      <p>${criticalIssue.message}</p>
     `;
-    performanceTip.style.display = 'flex';
   } else {
-    performanceTip.style.display = 'none';
+    tipElement.className = 'performance-tip good';
+    tipElement.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <p>All performance metrics are looking good! Your page loads quickly and provides a good user experience.</p>
+    `;
+  }
+}
+
+/**
+ * Helper to extract hostname from URL
+ * @param {string} url - URL to extract hostname from
+ * @returns {string} Hostname
+ */
+function extractHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (e) {
+    return url || 'example.com';
   }
 }
 
@@ -1134,5 +1216,76 @@ function showToast(message) {
   
   setTimeout(() => {
     toast.classList.remove('show');
-  }, CONFIG.toastDuration);
+  }, 3000); // Hide after 3 seconds
+}
+
+/**
+ * Tab Navigation Functionality
+ * Handles switching between main tabs and social preview tabs
+ */
+
+// Initialize tab navigation when the document is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  initTabNavigation();
+  initSocialTabs();
+});
+
+/**
+ * Initialize main tab navigation
+ */
+function initTabNavigation() {
+  const tabButtons = document.querySelectorAll('.tab-button');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Get the target tab ID
+      const tabId = button.getAttribute('data-tab');
+      
+      // Skip if already active
+      if (button.classList.contains('active')) return;
+      
+      // Remove active class from all tab buttons and panes
+      document.querySelectorAll('.tab-button').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab button and corresponding pane
+      button.classList.add('active');
+      document.getElementById(`${tabId}-tab`).classList.add('active');
+    });
+  });
+}
+
+/**
+ * Initialize social preview tabs
+ */
+function initSocialTabs() {
+  const socialTabs = document.querySelectorAll('.social-tab');
+  
+  socialTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Get the target preview ID
+      const previewId = tab.getAttribute('data-preview');
+      
+      // Skip if already active
+      if (tab.classList.contains('active')) return;
+      
+      // Remove active class from all tabs and preview content
+      document.querySelectorAll('.social-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.preview-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab and corresponding preview
+      tab.classList.add('active');
+      document.getElementById(`${previewId}-preview`).classList.add('active');
+    });
+  });
 } 

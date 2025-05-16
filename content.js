@@ -418,7 +418,7 @@ function getPageMetadata() {
  */
 function extractBasicMetaTags(metadata) {
   // Title validation
-  const title = document.querySelector('title')?.textContent || '';
+    const title = document.querySelector('title')?.textContent || '';
   let titleStatus = 'error';
   let titleMessage = META_TAG_STANDARDS.title.message.missing;
   
@@ -436,7 +436,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Description validation
-  const description = document.querySelector('meta[name="description"]')?.content || '';
+    const description = document.querySelector('meta[name="description"]')?.content || '';
   let descStatus = 'error';
   let descMessage = META_TAG_STANDARDS.description.message.missing;
   
@@ -454,7 +454,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Keywords validation
-  const keywords = document.querySelector('meta[name="keywords"]')?.content || '';
+    const keywords = document.querySelector('meta[name="keywords"]')?.content || '';
   let keywordsStatus = 'warning';
   let keywordsMessage = META_TAG_STANDARDS.keywords.message.missing;
   
@@ -470,7 +470,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Viewport validation
-  const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
+    const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
   let viewportStatus = 'error';
   let viewportMessage = META_TAG_STANDARDS.viewport.message.missing;
   
@@ -485,7 +485,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Robots validation
-  const robots = document.querySelector('meta[name="robots"]')?.content || '';
+    const robots = document.querySelector('meta[name="robots"]')?.content || '';
   let robotsStatus = 'warning';
   let robotsMessage = META_TAG_STANDARDS.robots.message.missing;
   
@@ -503,34 +503,34 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Build the basic meta tags array
-  metadata.basicMeta = [
-    { 
-      label: 'Title', 
-      value: title,
+    metadata.basicMeta = [
+      { 
+        label: 'Title', 
+        value: title,
       status: titleStatus,
       message: titleMessage
-    },
-    { 
-      label: 'Description', 
-      value: description,
+      },
+      { 
+        label: 'Description', 
+        value: description,
       status: descStatus,
       message: descMessage
-    },
-    { 
-      label: 'Keywords', 
-      value: keywords,
+      },
+      { 
+        label: 'Keywords', 
+        value: keywords,
       status: keywordsStatus,
       message: keywordsMessage
-    },
-    { 
-      label: 'Viewport', 
-      value: viewport,
+      },
+      { 
+        label: 'Viewport', 
+        value: viewport,
       status: viewportStatus,
       message: viewportMessage
-    },
-    { 
-      label: 'Robots', 
-      value: robots,
+      },
+      { 
+        label: 'Robots', 
+        value: robots,
       status: robotsStatus,
       message: robotsMessage
     }
@@ -612,14 +612,14 @@ function extractOpenGraphTags(metadata) {
     const element = document.querySelector(`meta[property="${tag.name}"]`);
     const value = element?.content || '';
     const validation = tag.validate(value);
-    
-    return {
+      
+      return {
       label: tag.name,
-      value: value,
+        value: value,
       status: validation.status,
       message: validation.message
-    };
-  });
+      };
+    });
 }
 
 /**
@@ -694,14 +694,14 @@ function extractTwitterCardTags(metadata) {
     const element = document.querySelector(`meta[name="${tag.name}"]`);
     const value = element?.content || '';
     const validation = tag.validate(value);
-    
-    return {
+      
+      return {
       label: tag.name,
-      value: value,
+        value: value,
       status: validation.status,
       message: validation.message
-    };
-  });
+      };
+    });
 }
 
 /**
