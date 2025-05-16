@@ -76,25 +76,8 @@ function initCollapsibleSections() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  // Tab Switching Logic
-  const tabs = document.querySelectorAll('.nav-item');
-  const tabPanes = document.querySelectorAll('.tab-pane');
-  
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      // Remove active class from all tabs and tab panes
-      tabs.forEach(t => t.classList.remove('active'));
-      tabPanes.forEach(p => p.classList.remove('active'));
-      
-      // Add active class to clicked tab and corresponding tab pane
-      tab.classList.add('active');
-      const tabId = tab.getAttribute('data-tab');
-      document.getElementById(tabId).classList.add('active');
-    });
-  });
-  
-  // Dark Mode Toggle
+// Theme Toggle Functionality
+function initThemeToggle() {
   const themeToggle = document.getElementById('theme-toggle');
   const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
   
@@ -118,15 +101,195 @@ document.addEventListener('DOMContentLoaded', function() {
     // Optional: Add animation effect
     document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
   });
+}
+
+// Action Items Expansion
+function initActionItems() {
+  const actionHeaders = document.querySelectorAll('.action-header');
   
-  // Initialize copy buttons
-  attachCopyButtonListeners();
+  actionHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+      const actionItem = header.closest('.action-item');
+      const content = actionItem.querySelector('.action-content');
+      const icon = header.querySelector('.action-expand svg');
+      
+      if (content.style.display === 'none' || content.style.display === '') {
+        content.style.display = 'flex';
+        icon.style.transform = 'rotate(180deg)';
+      } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+      }
+    });
+  });
   
-  // Initialize collapsible sections
-  initCollapsibleSections();
+  // Initialize all action items as collapsed except the first one
+  const actionItems = document.querySelectorAll('.action-item');
+  if (actionItems.length > 0) {
+    const firstContent = actionItems[0].querySelector('.action-content');
+    const firstIcon = actionItems[0].querySelector('.action-expand svg');
+    
+    firstContent.style.display = 'flex';
+    firstIcon.style.transform = 'rotate(180deg)';
+    
+    // Collapse all other items
+    for (let i = 1; i < actionItems.length; i++) {
+      const content = actionItems[i].querySelector('.action-content');
+      content.style.display = 'none';
+    }
+  }
+}
+
+// Preview Tabs Functionality
+function initPreviewTabs() {
+  const previewTabs = document.querySelectorAll('.preview-tab');
+  const previewContents = document.querySelectorAll('.preview-content');
   
-  // Fetch and populate content
-  fetchMetaData();
+  previewTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Remove active class from all tabs and contents
+      previewTabs.forEach(t => t.classList.remove('active'));
+      previewContents.forEach(c => c.classList.remove('active'));
+      
+      // Add active class to clicked tab and corresponding content
+      tab.classList.add('active');
+      const previewId = tab.getAttribute('data-preview');
+      document.getElementById(`${previewId}-preview`).classList.add('active');
+    });
+  });
+}
+
+// Performance Section Toggle
+function initPerformanceToggle() {
+  const performanceHeader = document.querySelector('.performance-header');
+  const performanceSection = document.querySelector('.performance-section');
+  
+  performanceHeader.addEventListener('click', () => {
+    performanceSection.classList.toggle('collapsed');
+  });
+}
+
+// Meta Tags Drawer Functionality
+function initMetaDrawer() {
+  const viewAllButton = document.getElementById('view-all-meta');
+  const drawerCloseButton = document.querySelector('.drawer-close');
+  const drawer = document.getElementById('meta-drawer');
+  const overlay = document.querySelector('.overlay');
+  
+  viewAllButton.addEventListener('click', () => {
+    drawer.classList.add('open');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  });
+  
+  drawerCloseButton.addEventListener('click', closeDrawer);
+  overlay.addEventListener('click', closeDrawer);
+  
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+// Copy Functionality
+function initCopyButtons() {
+  const copyButtons = document.querySelectorAll('.btn-copy');
+  const copyAllButton = document.getElementById('copy-all-meta');
+  const toast = document.getElementById('toast');
+  
+  copyButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const textToCopy = button.getAttribute('data-copy');
+      
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast('Copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        showToast('Failed to copy!');
+      });
+    });
+  });
+  
+  if (copyAllButton) {
+    copyAllButton.addEventListener('click', () => {
+      const metaItems = document.querySelectorAll('.meta-tag-row');
+      let textToCopy = '';
+      
+      metaItems.forEach(item => {
+        const name = item.querySelector('.meta-tag-name').textContent;
+        const value = item.querySelector('.meta-tag-value').textContent;
+        if (value !== 'Not set') {
+          textToCopy += `${name}: ${value}\n`;
+        }
+      });
+      
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast('All meta tags copied!');
+      }).catch(err => {
+        console.error('Failed to copy all meta tags:', err);
+        showToast('Failed to copy!');
+      });
+    });
+  }
+  
+  function showToast(message) {
+    const toastMessage = toast.querySelector('span');
+    toastMessage.textContent = message;
+    
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+}
+
+// Initialize the popup
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    // Initialize UI components first
+    initThemeToggle();
+    initActionItems();
+    initPreviewTabs();
+    initPerformanceToggle();
+    initMetaDrawer();
+    initCopyButtons();
+    initCollapsibleSections();
+    
+    // Then initialize data loading
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      // Wait for the DOM to be fully loaded before making Chrome API calls
+      setTimeout(() => {
+        loadPageData();
+        initializeWebVitals();
+      }, 100);
+    } else {
+      console.warn('Chrome API not available. Running in demo mode.');
+      // Show demo data or error state
+      const seoSummaryContent = document.getElementById('seo-summary-content');
+      if (seoSummaryContent) {
+        seoSummaryContent.innerHTML = `
+          <div class="seo-error">
+            <div class="seo-error-title">Chrome API Not Available</div>
+            <div class="seo-error-message">Please ensure you're running this as a Chrome extension.</div>
+          </div>
+        `;
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing popup:', error);
+    // Show error state in UI
+    const seoSummaryContent = document.getElementById('seo-summary-content');
+    if (seoSummaryContent) {
+      seoSummaryContent.innerHTML = `
+        <div class="seo-error">
+          <div class="seo-error-title">Initialization Error</div>
+          <div class="seo-error-message">${error.message}</div>
+        </div>
+      `;
+    }
+  }
 });
 
 // Function to fetch metadata from the current page
@@ -1013,6 +1176,221 @@ function populateSchemaWithSeparatedCards(metadata) {
   schemaGrid.innerHTML = html;
 }
 
+// Function to load page data with improved error handling
+function loadPageData() {
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (chrome.runtime.lastError) {
+      console.error('Error querying tabs:', chrome.runtime.lastError);
+      showError('Failed to access current tab. Please try refreshing the page.');
+      return;
+    }
+    
+    if (!tabs || !tabs[0]) {
+      showError('No active tab found. Please try again.');
+      return;
+    }
+    
+    chrome.tabs.sendMessage(tabs[0].id, { type: 'getMetadata' }, function(response) {
+      if (chrome.runtime.lastError) {
+        console.error('Error getting metadata:', chrome.runtime.lastError);
+        showError('Failed to analyze page metadata. Please try refreshing the page.');
+        return;
+      }
+      
+      if (response) {
+        console.log('Fetched metadata:', response);
+        populateMetadata(response);
+      } else {
+        console.error('No results returned from content script');
+        showError('Unable to analyze page metadata. Please try refreshing the page.');
+      }
+    });
+  });
+}
+
+// Function to show error message in the UI
+function showError(message) {
+  const seoSummaryContent = document.getElementById('seo-summary-content');
+  if (seoSummaryContent) {
+    seoSummaryContent.innerHTML = `
+      <div class="seo-error">
+        <div class="seo-error-title">Error</div>
+        <div class="seo-error-message">${message}</div>
+      </div>
+    `;
+  }
+}
+
+// OPTIMIZATION: New function to request web vitals initialization with improved error handling
+function initializeWebVitals() {
+  // Initialize cached metrics first
+  initializeMetricsFromCache()
+    .then(() => {
+      // Then request fresh metrics collection
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (chrome.runtime.lastError) {
+          console.error('Error querying tabs:', chrome.runtime.lastError);
+          showError('Failed to access current tab. Please try refreshing the page.');
+          return;
+        }
+        
+        if (!tabs || !tabs[0]) {
+          showError('No active tab found. Please try again.');
+          return;
+        }
+        
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'initWebVitals' }, function(response) {
+          if (chrome.runtime.lastError) {
+            console.error('Error initializing web vitals:', chrome.runtime.lastError);
+            showError('Failed to initialize performance metrics. Please try refreshing the page.');
+            return;
+          }
+          
+          console.log('Web vitals initialization:', response);
+          
+          // If we have cached metrics available, show them immediately
+          if (response && response.hasCachedMetrics) {
+            updatePerformanceDisplay(response.metrics);
+          }
+        });
+      });
+    })
+    .catch(error => {
+      console.error('Error initializing metrics from cache:', error);
+      showError('Failed to load cached performance metrics. Please try refreshing the page.');
+    });
+}
+
+// OPTIMIZATION: Cache metrics in local storage with improved error handling
+function storeMetricsInCache(metrics) {
+  try {
+    const cacheData = {
+      metrics: metrics,
+      timestamp: Date.now(),
+      url: window.location.href
+    };
+    
+    // Check if chrome.storage is available
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ 'metaPeekMetricsCache': cacheData }, function() {
+        if (chrome.runtime.lastError) {
+          console.error('Error saving to chrome.storage:', chrome.runtime.lastError);
+          // Fallback to localStorage
+          localStorage.setItem('metaPeekMetricsCache', JSON.stringify(cacheData));
+        } else {
+          console.log('Metrics saved to chrome.storage');
+        }
+      });
+    } else {
+      // Fallback to localStorage if chrome.storage is not available
+      localStorage.setItem('metaPeekMetricsCache', JSON.stringify(cacheData));
+      console.log('Metrics saved to localStorage');
+    }
+  } catch (e) {
+    console.error('Error storing metrics in cache:', e);
+  }
+}
+
+// OPTIMIZATION: Load cached metrics from storage
+function initializeMetricsFromCache() {
+  return new Promise((resolve) => {
+    try {
+      // Try chrome.storage first
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get('metaPeekMetricsCache', function(result) {
+          if (chrome.runtime.lastError) {
+            console.error('Error reading from chrome.storage:', chrome.runtime.lastError);
+            // Fall back to localStorage
+            const cachedData = JSON.parse(localStorage.getItem('metaPeekMetricsCache'));
+            handleCachedData(cachedData, resolve);
+            return;
+          }
+          handleCachedData(result.metaPeekMetricsCache, resolve);
+        });
+      } else {
+        // Fallback to localStorage
+        const cachedData = JSON.parse(localStorage.getItem('metaPeekMetricsCache'));
+        handleCachedData(cachedData, resolve);
+      }
+    } catch (e) {
+      console.error('Error accessing cache:', e);
+      resolve(null);
+    }
+  });
+}
+
+// Helper function to handle cached data
+function handleCachedData(cachedData, resolve) {
+  if (cachedData && Date.now() - cachedData.timestamp < 300000) { // 5 minutes validity
+    console.log('Using cached metrics:', cachedData);
+    updatePerformanceDisplay(cachedData.metrics);
+  }
+  resolve(cachedData?.metrics || null);
+}
+
+// OPTIMIZATION: Update performance display with real-time updates
+function updatePerformanceDisplay(metrics, updatedMetric = null) {
+  const container = document.getElementById('performance-container');
+  if (!container) return;
+  
+  // If this is the first metrics update, replace the loading state
+  if (container.querySelector('.performance-loading')) {
+    displayPerformanceMetrics({ performance: metrics });
+    return;
+  }
+  
+  // For subsequent updates, just update the specific metric that changed
+  if (updatedMetric && metrics[updatedMetric] !== null) {
+    const metricItem = container.querySelector(`.metric-item[data-metric="${updatedMetric}"]`);
+    if (metricItem) {
+      const valueElement = metricItem.querySelector('.metric-value');
+      const formattedValue = formatMetricValue(updatedMetric, metrics[updatedMetric]);
+      valueElement.textContent = formattedValue;
+      
+      // Update the status class
+      metricItem.className = 'metric-item ' + getMetricClass(
+        metrics[updatedMetric], 
+        getThresholdsForMetric(updatedMetric)[0],
+        getThresholdsForMetric(updatedMetric)[1],
+        updatedMetric === 'cls' // lowerIsBetter only for CLS
+      );
+      
+      // Remove loading indicator if present
+      const loadingIndicator = metricItem.querySelector('.metric-collecting-indicator');
+      if (loadingIndicator) loadingIndicator.remove();
+    }
+  }
+}
+
+// OPTIMIZATION: Helper to format metric values consistently
+function formatMetricValue(metricName, value) {
+  switch (metricName) {
+    case 'lcp':
+    case 'fcp':
+    case 'ttfb':
+      return (value/1000).toFixed(2) + 's';
+    case 'cls':
+      return value.toFixed(3);
+    case 'inp':
+      return value.toFixed(0) + 'ms';
+    default:
+      return value.toString();
+  }
+}
+
+// OPTIMIZATION: Helper to get thresholds for a specific metric
+function getThresholdsForMetric(metricName) {
+  switch (metricName) {
+    case 'lcp': return [2500, 4000];
+    case 'cls': return [0.1, 0.25];
+    case 'inp': return [200, 500];
+    case 'fcp': return [1800, 3000];
+    case 'ttfb': return [800, 1800];
+    default: return [0, 0];
+  }
+}
+
+// OPTIMIZATION: Improved display of performance metrics with progressive loading
 function displayPerformanceMetrics(metadata) {
   const container = document.getElementById('performance-container');
   if (!container) return;
@@ -1027,111 +1405,135 @@ function displayPerformanceMetrics(metadata) {
     return;
   }
   
-  // Show collection status if metrics are still being gathered
-  if (!metrics.metricsCollected || metrics.collectionTime < 3000) {
+  // OPTIMIZATION: Don't show loading state if we have at least some metrics
+  if (!metrics.partialMetricsAvailable && !metrics.metricsCollected) {
     container.innerHTML = `
       <div class="performance-loading">
         <div class="performance-loading-spinner"></div>
         <div class="performance-loading-message">
           Collecting performance metrics...<br>
-          <small>Some metrics (like LCP and CLS) may take a few seconds to finalize after the page loads. Please wait…</small>
+          <small>Some metrics (like LCP and CLS) may take a few seconds to finalize after the page loads.</small>
         </div>
       </div>
     `;
-    // Set up a refresh after 2 seconds to check again
-    setTimeout(() => {
-      try {
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          if (chrome.runtime.lastError) {
-            console.error('Error querying tabs:', chrome.runtime.lastError);
-            return;
-          }
-          if (!tabs || tabs.length === 0) {
-            console.error('No tabs found');
-            return;
-          }
-          try {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'getMetadata' }, function(response) {
-              if (chrome.runtime.lastError) {
-                console.error('Error getting metadata:', chrome.runtime.lastError);
-                return;
-              }
-              if (response && response.performance) {
-                displayPerformanceMetrics(response);
-              }
-            });
-          } catch (e) {
-            console.error('Exception sending message:', e);
-          }
-        });
-      } catch (e) {
-        console.error('Exception in timeout handler:', e);
-      }
-    }, 2000);
     return;
   }
+
+  // OPTIMIZATION: Group metrics by category for better organization
+  const fastMetrics = [
+    { name: 'ttfb', label: 'Time to First Byte', thresholds: [800, 1800], lowerIsBetter: true },
+    { name: 'fcp', label: 'First Contentful Paint', thresholds: [1800, 3000], lowerIsBetter: true }
+  ];
+  
+  const interactionMetrics = [
+    { name: 'lcp', label: 'Largest Contentful Paint', thresholds: [2500, 4000], lowerIsBetter: true },
+    { name: 'cls', label: 'Cumulative Layout Shift', thresholds: [0.1, 0.25], lowerIsBetter: true },
+    { name: 'inp', label: 'Interaction to Next Paint', thresholds: [200, 500], lowerIsBetter: true }
+  ];
   
   // Create metrics section
   let html = `
     <div class="performance-metrics">
-      <h3>Core Web Vitals</h3>
+      <div class="metrics-section">
+        <h4>Initial Load Metrics</h4>
+        <div class="metrics-grid">`;
+
+  // Add fast metrics first (they're usually available quickly)
+  fastMetrics.forEach(metric => {
+    const value = metrics[metric.name];
+    const formattedValue = value !== null ? 
+      formatMetricValue(metric.name, value) : 
+      'Collecting...';
+      
+    const statusClass = value !== null ? 
+      getMetricClass(value, metric.thresholds[0], metric.thresholds[1], metric.lowerIsBetter) : 
+      'metric-collecting';
+      
+    html += `
+      <div class="metric-item ${statusClass}" data-metric="${metric.name}">
+        <div class="metric-name">${metric.label}</div>
+        <div class="metric-value">${formattedValue}</div>
+        ${value === null ? '<div class="metric-collecting-indicator"></div>' : ''}
+      </div>`;
+  });
+
+  html += `
+      </div>
+    </div>
+    
+    <div class="metrics-section">
+      <h4>Interaction & Layout Metrics</h4>
       <div class="metrics-grid">`;
 
-  // Helper for spinner icon
-  const spinner = '<span class="metric-spinner" title="Collecting…"><svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#ccc" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 31.4" transform="rotate(-90 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg></span>';
-
-  // Add LCP metric
-  html += `
-    <div class="metric-item ${metrics.lcp !== null ? getMetricClass(metrics.lcp, 2500, 4000) : ''}">
-      <div class="metric-name">Largest Contentful Paint</div>
-      <div class="metric-value">${metrics.lcp !== null ? (metrics.lcp/1000).toFixed(2) + 's' : spinner}</div>
-    </div>`;
-
-  // Add CLS metric
-  html += `
-    <div class="metric-item ${metrics.cls !== null ? getMetricClass(metrics.cls, 0.1, 0.25, true) : ''}">
-      <div class="metric-name">Cumulative Layout Shift</div>
-      <div class="metric-value">${metrics.cls !== null ? metrics.cls.toFixed(3) : spinner}</div>
-    </div>`;
-
-  // Add INP metric
-  html += `
-    <div class="metric-item ${metrics.inp !== null ? getMetricClass(metrics.inp, 200, 500) : ''}">
-      <div class="metric-name">Interaction to Next Paint</div>
-      <div class="metric-value">${metrics.inp !== null ? metrics.inp.toFixed(0) + 'ms' : spinner}</div>
-    </div>`;
-
-  // Add FCP metric
-  html += `
-    <div class="metric-item ${metrics.fcp !== null ? getMetricClass(metrics.fcp, 1800, 3000) : ''}">
-      <div class="metric-name">First Contentful Paint</div>
-      <div class="metric-value">${metrics.fcp !== null ? (metrics.fcp/1000).toFixed(2) + 's' : spinner}</div>
-    </div>`;
-
-  // Add TTFB metric
-  html += `
-    <div class="metric-item ${metrics.ttfb !== null ? getMetricClass(metrics.ttfb, 800, 1800) : ''}">
-      <div class="metric-name">Time to First Byte</div>
-      <div class="metric-value">${metrics.ttfb !== null ? (metrics.ttfb/1000).toFixed(2) + 's' : spinner}</div>
-    </div>`;
-
-  // Close the container divs
-  html += `
-      </div>
-      <div class="performance-note">
-        <small>Some metrics (like LCP and CLS) may take a few seconds to finalize after the page loads.</small>
-      </div>
-    </div>`;
-
-  // If no metrics were found, show a message
-  if (!metrics.lcp && !metrics.cls && !metrics.inp && !metrics.fcp && !metrics.ttfb) {
-    html = `
-      <div class="performance-unavailable">
-        <p>No performance metrics available yet. Try refreshing the page and opening the extension again.</p>
+  // Add interaction metrics second (they take longer and may require user interaction)
+  interactionMetrics.forEach(metric => {
+    const value = metrics[metric.name];
+    const formattedValue = value !== null ? 
+      formatMetricValue(metric.name, value) : 
+      'Collecting...';
+      
+    const statusClass = value !== null ? 
+      getMetricClass(value, metric.thresholds[0], metric.thresholds[1], metric.lowerIsBetter) : 
+      'metric-collecting';
+      
+    html += `
+      <div class="metric-item ${statusClass}" data-metric="${metric.name}">
+        <div class="metric-name">${metric.label}</div>
+        <div class="metric-value">${formattedValue}</div>
+        ${value === null ? '<div class="metric-collecting-indicator"></div>' : ''}
       </div>`;
-  }
+  });
+
+  html += `
+      </div>
+    </div>`;
+    
+  // OPTIMIZATION: Add refresh button to manually trigger metric collection
+  html += `
+    <div class="performance-actions">
+      <button id="refresh-metrics" class="btn btn-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"></path>
+          <path d="M1 20v-6h6"></path>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+          <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+        </svg>
+        Refresh Metrics
+      </button>
+      <div class="performance-note">
+        <small>Some metrics like INP require user interaction with the page to calculate.</small>
+      </div>
+    </div>`;
+
+  html += `</div>`;
   
   container.innerHTML = html;
+  
+  // Add event listener for refresh button
+  document.getElementById('refresh-metrics')?.addEventListener('click', () => {
+    // Show loading indicator on metrics that are still being collected
+    const collectingMetrics = container.querySelectorAll('.metric-collecting');
+    collectingMetrics.forEach(item => {
+      const valueElement = item.querySelector('.metric-value');
+      valueElement.innerHTML = '<span class="metric-refreshing">Refreshing...</span>';
+    });
+    
+    // Request fresh metrics
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      if (!tabs || !tabs[0]) return;
+      
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'getWebVitals' }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('Error refreshing web vitals:', chrome.runtime.lastError);
+          return;
+        }
+        
+        if (response && response.metrics) {
+          updatePerformanceDisplay(response.metrics);
+        }
+      });
+    });
+  });
 }
 
 function getMetricClass(value, good, poor, lowerIsBetter = true) {
