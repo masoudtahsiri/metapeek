@@ -172,7 +172,7 @@ function pollWebVitals() {
         
         if (response.metrics && (response.metrics.partialMetricsAvailable || response.metrics.metricsCollected)) {
           updatePerformanceMetrics(response.metrics);
-  }
+        }
       });
     });
   }, 2000); // Poll every 2 seconds
@@ -392,43 +392,17 @@ function updateMetaTagSummary(metadata) {
       message: 'Missing description tag' 
     };
     
-    // Update status icon in header (keep it on the right)
+    // Replace icon with text status indicator
     const headerElement = cards[1].querySelector('.summary-header');
     if (headerElement) {
+      // Map status to display text
+      const statusText = description.status === 'good' ? 'Good' : 
+                         description.status === 'warning' ? 'Warning' : 'Error';
+      
       headerElement.innerHTML = `
         <h4>Description</h4>
-        <span class="status-icon ${description.status}"></span>
+        <span class="status-badge ${description.status}">${statusText}</span>
       `;
-    }
-    
-    // Remove "Checking..." text by replacing it with warning message
-    const checkingElement = cards[1].querySelector('.checking-text');
-    if (checkingElement) {
-      // Remove the checking text completely
-      checkingElement.remove();
-    }
-    
-    // Add warning message in a banner below content if needed
-    if (description.status !== 'good') {
-      // Check if warning banner already exists
-      let warningBanner = cards[1].querySelector('.warning-banner');
-      if (!warningBanner) {
-        warningBanner = document.createElement('div');
-        warningBanner.className = 'warning-banner';
-        cards[1].appendChild(warningBanner);
-      }
-      
-      warningBanner.className = `warning-banner ${description.status}`;
-      warningBanner.innerHTML = `
-        <span class="warning-icon">⚠️</span>
-        <span>${description.message}</span>
-      `;
-    } else {
-      // Remove warning banner if status is good
-      const existingBanner = cards[1].querySelector('.warning-banner');
-      if (existingBanner) {
-        existingBanner.remove();
-      }
     }
     
     // Update content
@@ -442,6 +416,24 @@ function updateMetaTagSummary(metadata) {
         contentElement.classList.add('empty');
       }
     }
+    
+    // Add warning banner with smaller text if needed
+    if (description.status !== 'good') {
+      let warningBanner = cards[1].querySelector('.warning-banner');
+      if (!warningBanner) {
+        warningBanner = document.createElement('div');
+        warningBanner.className = 'warning-banner';
+        cards[1].appendChild(warningBanner);
+      }
+      
+      warningBanner.className = `warning-banner ${description.status}`;
+      warningBanner.innerHTML = `<span>${description.message}</span>`;
+    } else {
+      const existingBanner = cards[1].querySelector('.warning-banner');
+      if (existingBanner) {
+        existingBanner.remove();
+      }
+    }
   }
   
   // Update title card
@@ -452,27 +444,43 @@ function updateMetaTagSummary(metadata) {
       message: 'Missing title tag' 
     };
     
-    const header = cards[0].querySelector('.summary-header');
-    const content = cards[0].querySelector('.summary-content');
-    
-    // Add status icon to header
-    header.innerHTML = `
-      <h4>Title</h4>
-      <span class="status-icon ${title.status || 'error'}"></span>
-    `;
-    
-    // Add message below if not good
-    if (title.status !== 'good') {
-      const messageEl = document.createElement('p');
-      messageEl.className = 'status-message';
-      messageEl.textContent = title.message;
-      content.parentNode.insertBefore(messageEl, content.nextSibling);
+    const headerElement = cards[0].querySelector('.summary-header');
+    if (headerElement) {
+      const statusText = title.status === 'good' ? 'Good' : 
+                         title.status === 'warning' ? 'Warning' : 'Error';
+      
+      headerElement.innerHTML = `
+        <h4>Title</h4>
+        <span class="status-badge ${title.status}">${statusText}</span>
+      `;
     }
     
-    // Update content
-    if (content) {
-      content.textContent = title.value || 'No title found';
-      content.className = `summary-content ${!title.value ? 'empty' : ''}`;
+    const contentElement = cards[0].querySelector('.summary-content');
+    if (contentElement) {
+      if (title.value) {
+        contentElement.textContent = title.value;
+        contentElement.classList.remove('empty');
+      } else {
+        contentElement.textContent = 'No title found';
+        contentElement.classList.add('empty');
+      }
+    }
+    
+    if (title.status !== 'good') {
+      let warningBanner = cards[0].querySelector('.warning-banner');
+      if (!warningBanner) {
+        warningBanner = document.createElement('div');
+        warningBanner.className = 'warning-banner';
+        cards[0].appendChild(warningBanner);
+      }
+      
+      warningBanner.className = `warning-banner ${title.status}`;
+      warningBanner.innerHTML = `<span>${title.message}</span>`;
+    } else {
+      const existingBanner = cards[0].querySelector('.warning-banner');
+      if (existingBanner) {
+        existingBanner.remove();
+      }
     }
   }
   
@@ -482,27 +490,42 @@ function updateMetaTagSummary(metadata) {
     const status = canonical ? 'good' : 'error';
     const message = canonical ? 'Canonical URL properly defined' : 'Missing canonical URL';
     
-    const header = cards[2].querySelector('.summary-header');
-    const content = cards[2].querySelector('.summary-content');
-    
-    // Add status icon to header
-    header.innerHTML = `
-      <h4>Canonical URL</h4>
-      <span class="status-icon ${status}"></span>
-    `;
-    
-    // Add message below if not good
-    if (status !== 'good') {
-      const messageEl = document.createElement('p');
-      messageEl.className = 'status-message';
-      messageEl.textContent = message;
-      content.parentNode.insertBefore(messageEl, content.nextSibling);
+    const headerElement = cards[2].querySelector('.summary-header');
+    if (headerElement) {
+      const statusText = status === 'good' ? 'Good' : 'Error';
+      
+      headerElement.innerHTML = `
+        <h4>Canonical URL</h4>
+        <span class="status-badge ${status}">${statusText}</span>
+      `;
     }
     
-    // Update content
-    if (content) {
-      content.textContent = canonical || 'No canonical URL found';
-      content.className = `summary-content ${!canonical ? 'empty' : ''}`;
+    const contentElement = cards[2].querySelector('.summary-content');
+    if (contentElement) {
+      if (canonical) {
+        contentElement.textContent = canonical;
+        contentElement.classList.remove('empty');
+      } else {
+        contentElement.textContent = 'No canonical URL found';
+        contentElement.classList.add('empty');
+      }
+    }
+    
+    if (status !== 'good') {
+      let warningBanner = cards[2].querySelector('.warning-banner');
+      if (!warningBanner) {
+        warningBanner = document.createElement('div');
+        warningBanner.className = 'warning-banner';
+        cards[2].appendChild(warningBanner);
+      }
+      
+      warningBanner.className = `warning-banner ${status}`;
+      warningBanner.innerHTML = `<span>${message}</span>`;
+    } else {
+      const existingBanner = cards[2].querySelector('.warning-banner');
+      if (existingBanner) {
+        existingBanner.remove();
+      }
     }
   }
 }
