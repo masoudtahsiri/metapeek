@@ -1,28 +1,59 @@
-// Add more detailed logging to popup.js
-console.log('Popup script initialized');
+/**
+ * MetaPeek Popup
+ * Displays metadata and SEO information for the current page
+ */
 
-// Add this to the beginning of popup.js to immediately remove placeholder data
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Popup DOM loaded - removing placeholder data');
+console.log('MetaPeek popup initialized');
+
+// Configuration
+const CONFIG = {
+  loadingTimeout: 5000,            // Timeout for loading data (ms)
+  toastDuration: 3000,             // Duration to show toast messages (ms)
+  metricThresholds: {
+    lcp: [2500, 4000],             // LCP thresholds in ms (good, poor)
+    cls: [0.1, 0.25],              // CLS thresholds (good, poor)
+    inp: [200, 500],               // INP thresholds in ms (good, poor)
+    fcp: [1800, 3000],             // FCP thresholds in ms (good, poor)
+    ttfb: [800, 1800]              // TTFB thresholds in ms (good, poor)
+  }
+};
+
+// State
+const state = {
+  metadata: null,
+  webVitalsInitialized: false,
+  darkMode: false,
+  loading: {
+    metadata: false,
+    webVitals: false
+  },
+  errors: {
+    metadata: null,
+    webVitals: null
+  }
+};
+
+/**
+ * Document Ready Handler
+ * Initialize the app when the DOM is fully loaded
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Popup DOM loaded');
   
-  // Clear placeholder data
-  document.querySelectorAll('.meta-card, .preview-content').forEach(el => {
-    // Add loading indicator
-    el.innerHTML = `<div class="loading-indicator">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Loading data...</div>
-    </div>`;
-  });
+  // Clear placeholder data and show loading indicators
+  clearPlaceholders();
   
-  // Initialize UI elements
+  // Initialize UI components
   initUI();
   
-  // Then load real data
+  // Load data from the active tab
   loadPageData();
 });
 
+/**
+ * Initialize all UI components
+ */
 function initUI() {
-  // Initialize all UI components
   try {
     initThemeToggle();
     initActionItems();
@@ -31,19 +62,69 @@ function initUI() {
     initMetaDrawer();
     initCopyButtons();
     initCollapsibleSections();
+    initCustomStyles();
   } catch (error) {
     console.error('Error initializing UI:', error);
   }
 }
 
-// Replace the loadPageData function with this simplified version
+/**
+ * Clear placeholder data and show loading states
+ */
+function clearPlaceholders() {
+  document.querySelectorAll('.meta-card, .preview-content').forEach(el => {
+    el.innerHTML = createLoadingIndicator('Loading data...');
+  });
+}
+
+/**
+ * Create HTML for a loading indicator
+ * @param {string} message - Message to display
+ * @returns {string} HTML for loading indicator
+ */
+function createLoadingIndicator(message) {
+  return `
+    <div class="loading-indicator">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">${message}</div>
+    </div>
+  `;
+}
+
+/**
+ * Create HTML for an error indicator
+ * @param {string} message - Error message to display
+ * @returns {string} HTML for error indicator
+ */
+function createErrorIndicator(message) {
+  return `
+    <div class="error-indicator">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <div class="error-text">${message}</div>
+    </div>
+  `;
+}
+
+/**
+ * Load data from the active tab
+ */
 function loadPageData() {
   console.log('Loading page metadata...');
   
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+  // Set loading state
+  state.loading.metadata = true;
+  state.errors.metadata = null;
+  
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
     if (!tabs || !tabs[0]) {
       console.error('No active tab found');
-      showError('Unable to access current tab');
+      state.errors.metadata = 'Unable to access current tab';
+      showError(state.errors.metadata);
+      state.loading.metadata = false;
       return;
     }
     
@@ -55,55 +136,59 @@ function loadPageData() {
     const timeoutId = setTimeout(() => {
       if (!responseReceived) {
         console.error('Timeout waiting for metadata response');
-        showError('Timeout getting metadata from page. Please refresh and try again.');
+        state.errors.metadata = 'Timeout getting metadata from page. Please refresh and try again.';
+        showError(state.errors.metadata);
+        state.loading.metadata = false;
       }
-    }, 5000);
+    }, CONFIG.loadingTimeout);
     
-    // Send message to content script
-    chrome.tabs.sendMessage(activeTab.id, { type: 'getMetadata' }, function(response) {
-      // Clear timeout as response was received
+    // Request metadata from content script
+    chrome.tabs.sendMessage(activeTab.id, { type: 'getMetadata' }, (response) => {
+      // Clear timeout
       clearTimeout(timeoutId);
       responseReceived = true;
+      state.loading.metadata = false;
       
       if (chrome.runtime.lastError) {
         console.error('Error getting metadata:', chrome.runtime.lastError);
-        showError('Failed to connect to page. Please refresh and try again.');
+        state.errors.metadata = 'Failed to connect to page. Please refresh and try again.';
+        showError(state.errors.metadata);
         return;
       }
       
       if (!response) {
         console.error('No response received from content script');
-        showError('No data received from page');
+        state.errors.metadata = 'No data received from page';
+        showError(state.errors.metadata);
         return;
       }
       
-      console.log('Received metadata:', response);
+      console.log('Received metadata');
+      state.metadata = response;
       populateUI(response);
     });
   });
   
-  // Also initialize web vitals
+  // Initialize web vitals data collection
   initializeWebVitals();
 }
 
-// Add this simple error display function
+/**
+ * Show error message in all data containers
+ * @param {string} message - Error message to display
+ */
 function showError(message) {
   console.error('Error:', message);
   
-  // Find all containers that should display data
   document.querySelectorAll('.meta-card, .preview-content, .score-section').forEach(el => {
-    el.innerHTML = `<div class="error-indicator">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      </svg>
-      <div class="error-text">${message}</div>
-    </div>`;
+    el.innerHTML = createErrorIndicator(message);
   });
 }
 
-// Add this simplified function to populate the UI
+/**
+ * Populate the UI with metadata
+ * @param {Object} metadata - Metadata from content script
+ */
 function populateUI(metadata) {
   console.log('Populating UI with metadata');
   
@@ -129,69 +214,180 @@ function populateUI(metadata) {
   }
 }
 
-// Add this CSS to the top of your popup.html file
-const style = document.createElement('style');
-style.textContent = `
-  .loading-indicator, .error-indicator {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    text-align: center;
-  }
+/**
+ * Initialize theme toggle functionality
+ */
+function initThemeToggle() {
+  const themeToggle = document.getElementById('theme-toggle');
+  if (!themeToggle) return;
   
-  .loading-spinner {
-    width: 30px;
-    height: 30px;
-    border: 3px solid var(--border-light);
-    border-top: 3px solid var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 10px;
-  }
+  const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
   
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  .loading-text, .error-text {
-    color: var(--text-secondary);
-    font-size: 14px;
-  }
-  
-  .error-indicator svg {
-    color: var(--status-error);
-    margin-bottom: 10px;
-  }
-  
-  .preview-image {
-    height: 150px;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-  }
-  
-  .preview-image-placeholder {
-    height: 150px;
-    background-color: var(--bg-surface);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-tertiary);
-    font-style: italic;
-  }
-`;
-document.head.appendChild(style);
-
-function displayFieldValue(value) {
-  if (Array.isArray(value)) {
-    return value.map(displayFieldValue).join(', ');
-  } else if (value && typeof value === 'object') {
-    return value.name || '';
+  // Set initial theme based on user preference or localStorage
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    document.body.setAttribute('data-theme', savedTheme);
+    state.darkMode = savedTheme === 'dark';
+  } else if (prefersDarkScheme.matches) {
+    document.body.setAttribute('data-theme', 'dark');
+    state.darkMode = true;
   } else {
-    return value;
+    document.body.setAttribute('data-theme', 'light');
+    state.darkMode = false;
+  }
+  
+  themeToggle.addEventListener('click', () => {
+    state.darkMode = !state.darkMode;
+    const newTheme = state.darkMode ? 'dark' : 'light';
+    
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    // Add animation effect
+    document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
+  });
+}
+
+/**
+ * Initialize action items expansion
+ */
+function initActionItems() {
+  const actionHeaders = document.querySelectorAll('.action-header');
+  
+  actionHeaders.forEach(header => {
+    header.addEventListener('click', () => {
+      const actionItem = header.closest('.action-item');
+      const content = actionItem.querySelector('.action-content');
+      const icon = header.querySelector('.action-expand svg');
+      
+      const isExpanded = content.style.display === 'flex';
+      
+      content.style.display = isExpanded ? 'none' : 'flex';
+      icon.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+    });
+  });
+  
+  // Initialize all action items as collapsed except the first one
+  const actionItems = document.querySelectorAll('.action-item');
+  if (actionItems.length > 0) {
+    const firstContent = actionItems[0].querySelector('.action-content');
+    const firstIcon = actionItems[0].querySelector('.action-expand svg');
+    
+    firstContent.style.display = 'flex';
+    firstIcon.style.transform = 'rotate(180deg)';
+    
+    // Collapse all other items
+    for (let i = 1; i < actionItems.length; i++) {
+      const content = actionItems[i].querySelector('.action-content');
+      content.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Initialize preview tabs functionality
+ */
+function initPreviewTabs() {
+  const previewTabs = document.querySelectorAll('.preview-tab');
+  const previewContents = document.querySelectorAll('.preview-content');
+  
+  previewTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Remove active class from all tabs and contents
+      previewTabs.forEach(t => t.classList.remove('active'));
+      previewContents.forEach(c => c.classList.remove('active'));
+      
+      // Add active class to clicked tab and corresponding content
+      tab.classList.add('active');
+      const previewId = tab.getAttribute('data-preview');
+      document.getElementById(`${previewId}-preview`)?.classList.add('active');
+    });
+  });
+}
+
+/**
+ * Initialize performance section toggle
+ */
+function initPerformanceToggle() {
+  const performanceHeader = document.querySelector('.performance-header');
+  const performanceSection = document.querySelector('.performance-section');
+  
+  if (performanceHeader && performanceSection) {
+    performanceHeader.addEventListener('click', () => {
+      performanceSection.classList.toggle('collapsed');
+    });
+  }
+}
+
+/**
+ * Initialize meta tags drawer functionality
+ */
+function initMetaDrawer() {
+  const viewAllButton = document.getElementById('view-all-meta');
+  const drawerCloseButton = document.querySelector('.drawer-close');
+  const drawer = document.getElementById('meta-drawer');
+  const overlay = document.querySelector('.overlay');
+  
+  if (!viewAllButton || !drawerCloseButton || !drawer || !overlay) return;
+  
+  viewAllButton.addEventListener('click', () => {
+    drawer.classList.add('open');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  });
+  
+  drawerCloseButton.addEventListener('click', closeDrawer);
+  overlay.addEventListener('click', closeDrawer);
+  
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * Initialize copy buttons functionality
+ */
+function initCopyButtons() {
+  const copyButtons = document.querySelectorAll('.btn-copy');
+  const copyAllButton = document.getElementById('copy-all-meta');
+  const toast = document.getElementById('toast');
+  
+  if (!toast) return;
+  
+  copyButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const textToCopy = button.getAttribute('data-copy');
+      
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => showToast('Copied to clipboard!'))
+        .catch(err => {
+          console.error('Failed to copy:', err);
+          showToast('Failed to copy!');
+        });
+    });
+  });
+  
+  if (copyAllButton) {
+    copyAllButton.addEventListener('click', () => {
+      const metaItems = document.querySelectorAll('.meta-tag-row');
+      const textToCopy = Array.from(metaItems)
+        .map(item => {
+          const name = item.querySelector('.meta-tag-name')?.textContent || '';
+          const value = item.querySelector('.meta-tag-value')?.textContent || '';
+          return value !== 'Not set' ? `${name}: ${value}` : '';
+        })
+        .filter(text => text)
+        .join('\n');
+      
+      navigator.clipboard.writeText(textToCopy)
+        .then(() => showToast('All meta tags copied!'))
+        .catch(err => {
+          console.error('Failed to copy all meta tags:', err);
+          showToast('Failed to copy!');
+        });
+    });
   }
 }
 
@@ -211,7 +407,7 @@ function initCollapsibleSections() {
   // Clear existing content
   metaGrid.innerHTML = '';
   
-  // Add each section
+  // Add section HTML
   metaSections.forEach(section => {
     const sectionContainer = document.createElement('div');
     sectionContainer.className = 'collapsible-section';
@@ -238,7 +434,7 @@ function initCollapsibleSections() {
         break;
     }
     
-    // Create header
+    // Create section HTML
     sectionContainer.innerHTML = `
       <div class="collapsible-header" aria-expanded="true" aria-controls="${section.contentId}">
         <div class="collapsible-title">
@@ -263,1496 +459,94 @@ function initCollapsibleSections() {
   });
 }
 
-// Theme Toggle Functionality
-function initThemeToggle() {
-  const themeToggle = document.getElementById('theme-toggle');
-  const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-  
-  // Set initial theme based on user preference or localStorage
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) {
-    document.body.setAttribute('data-theme', savedTheme);
-  } else if (prefersDarkScheme.matches) {
-    document.body.setAttribute('data-theme', 'dark');
-  } else {
-    document.body.setAttribute('data-theme', 'light');
-  }
-  
-  themeToggle.addEventListener('click', () => {
-    const currentTheme = document.body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    
-    document.body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    
-    // Optional: Add animation effect
-    document.body.style.transition = 'background-color 0.3s ease, color 0.3s ease';
-  });
-}
-
-// Action Items Expansion
-function initActionItems() {
-  const actionHeaders = document.querySelectorAll('.action-header');
-  
-  actionHeaders.forEach(header => {
-    header.addEventListener('click', () => {
-      const actionItem = header.closest('.action-item');
-      const content = actionItem.querySelector('.action-content');
-      const icon = header.querySelector('.action-expand svg');
-      
-      if (content.style.display === 'none' || content.style.display === '') {
-        content.style.display = 'flex';
-        icon.style.transform = 'rotate(180deg)';
-      } else {
-        content.style.display = 'none';
-        icon.style.transform = 'rotate(0deg)';
-      }
-    });
-  });
-  
-  // Initialize all action items as collapsed except the first one
-  const actionItems = document.querySelectorAll('.action-item');
-  if (actionItems.length > 0) {
-    const firstContent = actionItems[0].querySelector('.action-content');
-    const firstIcon = actionItems[0].querySelector('.action-expand svg');
-    
-    firstContent.style.display = 'flex';
-    firstIcon.style.transform = 'rotate(180deg)';
-    
-    // Collapse all other items
-    for (let i = 1; i < actionItems.length; i++) {
-      const content = actionItems[i].querySelector('.action-content');
-      content.style.display = 'none';
-    }
-  }
-}
-
-// Preview Tabs Functionality
-function initPreviewTabs() {
-  const previewTabs = document.querySelectorAll('.preview-tab');
-  const previewContents = document.querySelectorAll('.preview-content');
-  
-  previewTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      // Remove active class from all tabs and contents
-      previewTabs.forEach(t => t.classList.remove('active'));
-      previewContents.forEach(c => c.classList.remove('active'));
-      
-      // Add active class to clicked tab and corresponding content
-      tab.classList.add('active');
-      const previewId = tab.getAttribute('data-preview');
-      document.getElementById(`${previewId}-preview`).classList.add('active');
-    });
-  });
-}
-
-// Performance Section Toggle
-function initPerformanceToggle() {
-  const performanceHeader = document.querySelector('.performance-header');
-  const performanceSection = document.querySelector('.performance-section');
-  
-  performanceHeader.addEventListener('click', () => {
-    performanceSection.classList.toggle('collapsed');
-  });
-}
-
-// Meta Tags Drawer Functionality
-function initMetaDrawer() {
-  const viewAllButton = document.getElementById('view-all-meta');
-  const drawerCloseButton = document.querySelector('.drawer-close');
-  const drawer = document.getElementById('meta-drawer');
-  const overlay = document.querySelector('.overlay');
-  
-  viewAllButton.addEventListener('click', () => {
-    drawer.classList.add('open');
-    overlay.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  });
-  
-  drawerCloseButton.addEventListener('click', closeDrawer);
-  overlay.addEventListener('click', closeDrawer);
-  
-  function closeDrawer() {
-    drawer.classList.remove('open');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-  }
-}
-
-// Copy Functionality
-function initCopyButtons() {
-  const copyButtons = document.querySelectorAll('.btn-copy');
-  const copyAllButton = document.getElementById('copy-all-meta');
-  const toast = document.getElementById('toast');
-  
-  copyButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const textToCopy = button.getAttribute('data-copy');
-      
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        showToast('Copied to clipboard!');
-      }).catch(err => {
-        console.error('Failed to copy:', err);
-        showToast('Failed to copy!');
-      });
-    });
-  });
-  
-  if (copyAllButton) {
-    copyAllButton.addEventListener('click', () => {
-      const metaItems = document.querySelectorAll('.meta-tag-row');
-      let textToCopy = '';
-      
-      metaItems.forEach(item => {
-        const name = item.querySelector('.meta-tag-name').textContent;
-        const value = item.querySelector('.meta-tag-value').textContent;
-        if (value !== 'Not set') {
-          textToCopy += `${name}: ${value}\n`;
-        }
-      });
-      
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        showToast('All meta tags copied!');
-      }).catch(err => {
-        console.error('Failed to copy all meta tags:', err);
-        showToast('Failed to copy!');
-      });
-    });
-  }
-  
-  function showToast(message) {
-    const toastMessage = toast.querySelector('span');
-    toastMessage.textContent = message;
-    
-    toast.classList.add('show');
-    
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
-  }
-}
-
-// Function to fetch metadata from the current page
-function fetchMetaData() {
-  // Get the active tab
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (chrome.runtime.lastError) {
-      console.error('Error querying tabs:', chrome.runtime.lastError);
-      return;
-    }
-
-    const activeTab = tabs[0];
-    if (!activeTab) {
-      console.error('No active tab found');
-      return;
-    }
-    
-    // Only send a message to the content script to get metadata
-    chrome.tabs.sendMessage(activeTab.id, { type: 'getMetadata' }, function(response) {
-      if (chrome.runtime.lastError) {
-        console.error('Error getting metadata:', chrome.runtime.lastError);
-        return;
-      }
-      
-      if (response) {
-        console.log('Fetched metadata:', response); // Debug log
-        populateMetadata(response);
-      } else {
-        console.error('No results returned from content script');
-        // Show error state in UI
-        const seoSummaryContent = document.getElementById('seo-summary-content');
-        if (seoSummaryContent) {
-          seoSummaryContent.innerHTML = `
-            <div class="seo-perfect">
-              <div class="seo-perfect-title">Metadata Analysis Failed</div>
-              <div class="seo-perfect-message">Unable to analyze page metadata. Please try refreshing the page.</div>
-            </div>
-          `;
-        }
-      }
-    });
-  });
-}
-
-// Function to extract metadata from the page
-function getPageMetadata() {
-  console.log('getPageMetadata executing...'); // Debug log
-  
-  const metadata = {
-    seoSummary: [],
-    basicMeta: [],
-    ogMeta: [],
-    twitterMeta: [],
-    canonicalUrl: '',
-    schemaData: [],
-    performance: {}
-  };
-  
-  try {
-    // Get basic meta tags
-    const title = document.querySelector('title')?.textContent || '';
-    const description = document.querySelector('meta[name="description"]')?.content || '';
-    const keywords = document.querySelector('meta[name="keywords"]')?.content || '';
-    const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
-    const robots = document.querySelector('meta[name="robots"]')?.content || '';
-    
-    console.log('Basic meta tags found:', { title, description, keywords, viewport, robots }); // Debug log
-    
-    // Validate and add basic meta tags
-    metadata.basicMeta = [
-      { 
-        label: 'Title', 
-        value: title,
-        status: title.length >= 30 && title.length <= 60 ? 'good' : 'warning',
-        message: title.length < 30 ? 'Too short' : title.length > 60 ? 'Too long' : 'Good length'
-      },
-      { 
-        label: 'Description', 
-        value: description,
-        status: description.length >= 120 && description.length <= 160 ? 'good' : 'warning',
-        message: description.length < 120 ? 'Too short' : description.length > 160 ? 'Too long' : 'Good length'
-      },
-      { 
-        label: 'Keywords', 
-        value: keywords,
-        status: keywords ? 'good' : 'warning',
-        message: keywords ? 'Well defined' : 'Missing'
-      },
-      { 
-        label: 'Viewport', 
-        value: viewport,
-        status: viewport ? 'good' : 'error',
-        message: viewport ? 'Properly configured' : 'Missing'
-      },
-      { 
-        label: 'Robots', 
-        value: robots,
-        status: robots ? 'good' : 'warning',
-        message: robots ? 'Properly set' : 'Not specified'
-      }
-    ];
-    
-    // Get Open Graph tags
-    const ogTags = document.querySelectorAll('meta[property^="og:"]');
-    const requiredOgTags = ['og:title', 'og:description', 'og:type', 'og:url', 'og:image', 'og:site_name'];
-    
-    metadata.ogMeta = requiredOgTags.map(tag => {
-      const element = document.querySelector(`meta[property="${tag}"]`);
-      const value = element?.content || 'Missing';
-      const status = value === 'Missing' ? 'error' : 'good';
-      const message = value === 'Missing' ? 'Required tag missing' : 'Present';
-      
-      return {
-        label: tag,
-        value: value,
-        status: status,
-        message: message
-      };
-    });
-    
-    // Get Twitter Card tags
-    const twitterTags = document.querySelectorAll('meta[name^="twitter:"]');
-    const requiredTwitterTags = ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:image', 'twitter:site'];
-    
-    metadata.twitterMeta = requiredTwitterTags.map(tag => {
-      const element = document.querySelector(`meta[name="${tag}"]`);
-      const value = element?.content || 'Missing';
-      const status = value === 'Missing' ? 'error' : 'good';
-      const message = value === 'Missing' ? 'Required tag missing' : 'Present';
-      
-      return {
-        label: tag,
-        value: value,
-        status: status,
-        message: message
-      };
-    });
-    
-    // Get canonical URL
-    const canonical = document.querySelector('link[rel="canonical"]')?.href || '';
-    metadata.canonicalUrl = canonical;
-    
-    // Get Schema.org data
-    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
-    let schemas = [];
-    
-    schemaScripts.forEach(script => {
-      let json;
-      let valid = true;
-      try {
-        json = JSON.parse(script.textContent);
-      } catch (e) {
-        valid = false;
-        json = null;
-      }
-      
-      if (valid && json) {
-        // Recursively find all objects with @type
-        const found = findSchemaTypes(json);
-        if (found.length > 0) {
-          schemas.push(...found);
-        } else {
-          schemas.push({ valid: true, data: json, hasType: false });
-        }
-      } else {
-        schemas.push({ valid: false, data: null, hasType: false });
-      }
-    });
-    
-    // Filter for objects that directly describe the current page
-    const pageSchemas = schemas.filter(obj => isPageSchema(obj.data, window.location.href));
-    
-    // Prefer the most specific type
-    const specificity = [
-      'NewsArticle', 'Article', 'BlogPosting', 'FAQPage', 'AboutPage', 'ContactPage',
-      'ProfilePage', 'SearchResultsPage', 'CollectionPage', 'CheckoutPage', 'WebPage'
-    ];
-    
-    let best = null;
-    let bestScore = specificity.length;
-    
-    for (const obj of pageSchemas) {
-      const types = Array.isArray(obj.data['@type']) ? obj.data['@type'] : [obj.data['@type']];
-      for (const type of types) {
-        const score = specificity.indexOf(type);
-        if (score !== -1 && score < bestScore) {
-          best = obj;
-          bestScore = score;
-        }
-      }
-    }
-    
-    metadata.schemaData = best ? [best] : [];
-    
-    // Generate SEO summary
-    metadata.seoSummary = [
-      {
-        label: 'Title',
-        value: title ? `Title is ${title.length} characters` : 'Title is missing',
-        status: title.length >= 30 && title.length <= 60 ? 'good' : 'warning'
-      },
-      {
-        label: 'Description',
-        value: description ? `Description is ${description.length} characters` : 'Description is missing',
-        status: description.length >= 120 && description.length <= 160 ? 'good' : 'warning'
-      },
-      {
-        label: 'Canonical URL',
-        value: canonical ? 'Canonical URL is properly set' : 'Canonical URL is missing',
-        status: canonical ? 'good' : 'error'
-      },
-      {
-        label: 'Open Graph Tags',
-        value: `${metadata.ogMeta.filter(tag => tag.status === 'good').length}/${requiredOgTags.length} Open Graph tags present`,
-        status: metadata.ogMeta.every(tag => tag.status === 'good') ? 'good' : 'warning'
-      },
-      {
-        label: 'Twitter Card Tags',
-        value: `${metadata.twitterMeta.filter(tag => tag.status === 'good').length}/${requiredTwitterTags.length} Twitter Card tags present`,
-        status: metadata.twitterMeta.every(tag => tag.status === 'good') ? 'good' : 'warning'
-      },
-      {
-        label: 'Schema Data',
-        value: metadata.schemaData.length > 0 
-          ? `Found ${metadata.schemaData.length} schema${metadata.schemaData.length > 1 ? 's' : ''} (${metadata.schemaData.map(s => s.data['@type']).join(', ')})`
-          : 'No Schema.org data found',
-        status: metadata.schemaData.length > 0 && metadata.schemaData.every(s => s.valid) ? 'good' : 'warning'
-      }
-    ];
-    
-    console.log('Metadata collected:', metadata); // Debug log
-    return metadata;
-  } catch (error) {
-    console.error('Error in getPageMetadata:', error);
-    return metadata;
-  }
-}
-
-// Helper function to find schema types recursively
-function findSchemaTypes(obj, schemas = []) {
-  if (Array.isArray(obj)) {
-    obj.forEach(item => findSchemaTypes(item, schemas));
-  } else if (obj && typeof obj === 'object') {
-    if (obj['@type']) {
-      schemas.push({ valid: true, data: obj, hasType: true });
-    }
-    Object.values(obj).forEach(val => findSchemaTypes(val, schemas));
-  }
-  return schemas;
-}
-
-// Helper function to check if schema is relevant to current page
-function isPageSchema(obj, currentUrl) {
-  if (!obj || !obj['@type']) return false;
-  
-  const types = Array.isArray(obj['@type']) ? obj['@type'] : [obj['@type']];
-  const pageTypes = [
-    'WebPage', 'AboutPage', 'Article', 'NewsArticle', 'BlogPosting', 'FAQPage',
-    'ContactPage', 'ProfilePage', 'SearchResultsPage', 'CollectionPage', 'CheckoutPage'
-  ];
-  
-  const hasPageType = types.some(type => pageTypes.includes(type));
-  if (!hasPageType) return false;
-  
-  const normalize = url => url ? url.replace(/[#?].*$/, '').replace(/\/+$/, '') : '';
-  const objUrl = normalize(obj.url || obj['@id'] || '');
-  const pageUrl = normalize(currentUrl);
-  
-  return objUrl && (objUrl === pageUrl);
-}
-
 /**
- * Function to create separated meta tag cards with improved status handling
+ * Initialize custom styles for dynamic elements
  */
-function createSeparatedMetaItem(item) {
-  const statusClass = `status-${item.status}`;
-  // Status icon only in badge, message outside
-  return `
-    <div class="meta-tag-card">
-      <div class="meta-tag-header">
-        <span class="meta-tag-name">${item.label}</span>
-        <span class="status-indicator ${statusClass}-badge"></span>
-      </div>
-      <div class="meta-tag-content">
-        <div class="meta-tag-value">${item.value}</div>
-        ${item.message ? `<div class="meta-tag-message">${item.message}</div>` : ''}
-      </div>
-    </div>
+function initCustomStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .loading-indicator, .error-indicator {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .loading-spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--border-light);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .loading-text, .error-text {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .error-indicator svg {
+      color: var(--status-error);
+      margin-bottom: 10px;
+    }
+    
+    .preview-image {
+      height: 150px;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    
+    .preview-image-placeholder {
+      height: 150px;
+      background-color: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+    
+    .metric-collecting .metric-value {
+      color: var(--text-secondary);
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-normal);
+    }
+    
+    .metric-collecting-indicator {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border-light);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-top: 8px;
+    }
   `;
+  document.head.appendChild(style);
 }
 
 /**
- * Function to populate meta items with separated cards
- * Includes error handling and empty state
+ * Update SEO score display
+ * @param {Object} scoreData - SEO score data
  */
-function populateMetaItemsWithSeparatedCards(elementId, items) {
-  const container = document.getElementById(elementId);
-  if (!container) return;
-  
-  if (!items || items.length === 0) {
-    container.innerHTML = `
-      <div class="meta-tag-card">
-        <div class="meta-tag-header">
-          <span class="meta-tag-name">No Meta Tags Found</span>
-          <span class="status-indicator status-warning-badge">Warning</span>
-        </div>
-        <div class="meta-tag-content">
-          <div class="meta-tag-value">No meta tags were found on this page.</div>
-          <div class="meta-tag-message">Consider adding relevant meta tags to improve SEO and social sharing.</div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-  
-  let html = '';
-  
-  items.forEach(item => {
-    if (item && typeof item === 'object') {
-      html += createSeparatedMetaItem(item);
-    }
-  });
-  
-  container.innerHTML = html;
-}
-
-/**
- * Function to populate a detailed SEO health summary with collapsible categories
- */
-function populateSEOHealth(metadata) {
-  const seoSummaryContent = document.getElementById('seo-summary-content');
-  if (!seoSummaryContent) return;
-  
-  // Show loading state
-  seoSummaryContent.innerHTML = `
-    <div class="seo-loading">
-      <div class="seo-loading-spinner"></div>
-      <div class="seo-loading-message">Analyzing SEO metrics...</div>
-    </div>
-  `;
-  
-  // Request SEO analysis from the content script
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (chrome.runtime.lastError) {
-      console.error('Error querying tabs:', chrome.runtime.lastError);
-      seoSummaryContent.innerHTML = `
-        <div class="seo-error">
-          <div class="seo-error-title">Error</div>
-          <div class="seo-error-message">Failed to access page data. Please try refreshing the page.</div>
-        </div>
-      `;
-      return;
-    }
-
-    const activeTab = tabs[0];
-    if (!activeTab) {
-      console.error('No active tab found');
-      seoSummaryContent.innerHTML = `
-        <div class="seo-error">
-          <div class="seo-error-title">Error</div>
-          <div class="seo-error-message">No active tab found. Please try again.</div>
-        </div>
-      `;
-      return;
-    }
-
-    chrome.tabs.sendMessage(activeTab.id, {
-      type: "getSEOHealth"
-    }, function(response) {
-      if (chrome.runtime.lastError) {
-        console.error('Error getting SEO health:', chrome.runtime.lastError);
-        seoSummaryContent.innerHTML = `
-          <div class="seo-error">
-            <div class="seo-error-title">Error</div>
-            <div class="seo-error-message">Failed to analyze SEO metrics. Please try refreshing the page.</div>
-          </div>
-        `;
-        return;
-      }
-      
-      if (!response) {
-        console.error('No response received from content script');
-        seoSummaryContent.innerHTML = `
-          <div class="seo-error">
-            <div class="seo-error-title">Error</div>
-            <div class="seo-error-message">No data received. Please try refreshing the page.</div>
-          </div>
-        `;
-        return;
-      }
-
-      try {
-        // Generate HTML for the SEO report
-        const seoReportHTML = generateSEOReportHTML(response);
-        seoSummaryContent.innerHTML = seoReportHTML;
-      } catch (error) {
-        console.error('Error generating SEO report:', error);
-        seoSummaryContent.innerHTML = `
-          <div class="seo-error">
-            <div class="seo-error-title">Error</div>
-            <div class="seo-error-message">Failed to generate SEO report. Please try again.</div>
-          </div>
-        `;
-      }
-    });
-  });
-}
-
-/**
- * Main function to populate all metadata sections with improved error handling and UI
- */
-function populateMetadata(metadata) {
-  // Populate SEO health score first
-  populateSEOHealth(metadata);
-  
-  // Populate basic meta tags
-  populateMetaItemsWithSeparatedCards('basic-meta-content', metadata.basicMeta);
-  
-  // Populate Open Graph tags
-  populateMetaItemsWithSeparatedCards('og-meta-content', metadata.ogMeta);
-  
-  // Populate Twitter Card tags
-  populateMetaItemsWithSeparatedCards('twitter-meta-content', metadata.twitterMeta);
-  
-  // Populate canonical URL
-  populateCanonicalUrl(metadata);
-  
-  // Populate schema data
-  populateSchemaWithSeparatedCards(metadata);
-  
-  // Populate previews
-  populateComprehensivePreviews(metadata);
-  
-  // Populate performance metrics
-  displayPerformanceMetrics(metadata);
-}
-
-// Helper function to get status label
-function getStatusLabel(status) {
-  switch (status) {
-    case 'good':
-      return '✓'; // Icon only
-    case 'warning':
-      return '⚠'; // Icon only
-    case 'error':
-      return '✕'; // Icon only
-    default:
-      return '';
-  }
-}
-
-// Helper function to attach copy button listeners
-function attachCopyButtonListeners() {
-  const copyButtons = document.querySelectorAll('.btn-secondary, .btn-icon');
-  const toast = document.getElementById('toast');
-  
-  copyButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      let textToCopy = '';
-      const parentHeader = button.closest('.card-header');
-      
-      if (parentHeader) {
-        const contentId = parentHeader.nextElementSibling.querySelector('div').id;
-        const contentElement = document.getElementById(contentId);
-        if (contentElement) {
-          textToCopy = contentElement.textContent;
-        }
-      } else if (button.id === 'copy-all') {
-        const activePane = document.querySelector('.tab-pane.active');
-        if (activePane) {
-          textToCopy = activePane.textContent;
-        }
-      }
-      
-      if (textToCopy) {
-        navigator.clipboard.writeText(textToCopy).then(() => {
-          if (toast) {
-            toast.classList.add('show');
-            setTimeout(() => {
-              toast.classList.remove('show');
-            }, 3000);
-          }
-        }).catch(err => {
-          console.error('Failed to copy text: ', err);
-        });
-      }
-    });
-  });
-}
-
-/**
- * Improved function to populate canonical URL with better accessibility
- */
-function populateCanonicalUrl(metadata) {
-  const canonicalContent = document.getElementById('canonical-content');
-  if (!canonicalContent) return;
-  
-  canonicalContent.innerHTML = `
-    <div class="canonical-container">
-      <span class="canonical-label">URL:</span>
-      <div class="canonical-value">${metadata.canonicalUrl || 'Not set'}</div>
-      <button class="btn btn-icon canonical-copy" title="Copy canonical URL">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-        </svg>
-      </button>
-    </div>
-  `;
-  
-  // Add click handler for the copy button
-  const copyButton = canonicalContent.querySelector('.canonical-copy');
-  if (copyButton && metadata.canonicalUrl) {
-    copyButton.addEventListener('click', () => {
-      navigator.clipboard.writeText(metadata.canonicalUrl)
-        .then(() => showToast('Canonical URL copied!'))
-        .catch(err => console.error('Failed to copy text: ', err));
-    });
-  }
-}
-
-// Function to show a toast notification
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  if (toast) {
-    const toastMessage = toast.querySelector('span');
-    if (toastMessage) {
-      toastMessage.textContent = message;
-    }
-    toast.classList.add('show');
-    
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
-  }
-}
-
-// Helper to extract hostname
-function extractHostname(url) {
-  try {
-    return new URL(url).hostname;
-  } catch (e) {
-    return url || 'example.com';
-  }
-}
-
-function populateAccuratePreview(platform, data) {
-  const containerSelector = `#${platform}-preview`;
-  const container = document.querySelector(containerSelector);
-  if (!container) return;
-  
-  // Get metadata with appropriate fallbacks
-  const title = data.title || '';
-  const description = data.description || '';
-  const image = data.image || '';
-  const url = data.url || '';
-  
-  // Handle platform-specific truncation
-  const truncate = (text, limit) => {
-    if (!text) return '';
-    return text.length > limit ? text.substring(0, limit - 1) + '…' : text;
-  };
-  
-  // Platform-specific templates
-  const templates = {
-    google: () => `
-      <div class="preview-card-inner google-card">
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname google-url">${extractHostname(url)}</div>
-          <div class="preview-title google-title">${truncate(title, 65)}</div>
-          <div class="preview-description google-snippet">${truncate(description, 160)}</div>
-        </div>
-      </div>
-    `,
-    
-    facebook: () => `
-      <div class="preview-card-inner facebook-card">
-        ${image ? 
-          `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
-          `<div class="preview-image-placeholder">No image</div>`
-        }
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname">${extractHostname(url)}</div>
-          <div class="preview-title">${truncate(title, 80)}</div>
-          <div class="preview-description">${truncate(description, 200)}</div>
-        </div>
-      </div>
-    `,
-    
-    twitter: () => {
-      const isLargeCard = data.cardType === 'summary_large_image';
-      return `
-        <div class="preview-card-inner twitter-card ${isLargeCard ? 'twitter-large-card' : ''}">
-          ${image ? 
-            `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
-            `<div class="preview-image-placeholder">No image</div>`
-          }
-          <div class="preview-content-wrapper">
-            <div class="preview-account">${data.site || extractHostname(url)}</div>
-            <div class="preview-title">${truncate(title, isLargeCard ? 70 : 55)}</div>
-            <div class="preview-description">${truncate(description, isLargeCard ? 200 : 125)}</div>
-            <div class="preview-hostname">${extractHostname(url)}</div>
-          </div>
-        </div>
-      `;
-    },
-    
-    linkedin: () => `
-      <div class="preview-card-inner linkedin-card">
-        ${image ? 
-          `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
-          `<div class="preview-image-placeholder">No image</div>`
-        }
-        <div class="preview-content-wrapper">
-          <div class="preview-hostname">${extractHostname(url)}</div>
-          <div class="preview-title">${truncate(title, 70)}</div>
-          <div class="preview-description">${truncate(description, 100)}</div>
-        </div>
-      </div>
-    `
-  };
-  
-  // Render the template
-  if (templates[platform]) {
-    container.innerHTML = templates[platform]();
-  }
-}
-
-function populateComprehensivePreviews(metadata) {
-  // Extract common metadata
-  const ogTitle = metadata.ogMeta.find(tag => tag.label === 'og:title')?.value || 
-                  metadata.basicMeta.find(tag => tag.label === 'Title')?.value || '';
-  const ogDescription = metadata.ogMeta.find(tag => tag.label === 'og:description')?.value || 
-                         metadata.basicMeta.find(tag => tag.label === 'Description')?.value || '';
-  const ogImage = metadata.ogMeta.find(tag => tag.label === 'og:image')?.value || '';
-  const ogUrl = metadata.ogMeta.find(tag => tag.label === 'og:url')?.value || 
-                metadata.canonicalUrl || '';
-  
-  // Google Preview
-  populateAccuratePreview('google', {
-    title: ogTitle,
-    description: ogDescription,
-    url: ogUrl
-  });
-  
-  // Facebook Preview
-  populateAccuratePreview('facebook', {
-    title: ogTitle,
-    description: ogDescription,
-    image: ogImage,
-    url: ogUrl
-  });
-  
-  // Twitter Preview
-  const twitterCard = metadata.twitterMeta.find(tag => tag.label === 'twitter:card')?.value || 'summary';
-  const twitterSite = metadata.twitterMeta.find(tag => tag.label === 'twitter:site')?.value || '';
-  const twitterTitle = metadata.twitterMeta.find(tag => tag.label === 'twitter:title')?.value || ogTitle;
-  const twitterDescription = metadata.twitterMeta.find(tag => tag.label === 'twitter:description')?.value || ogDescription;
-  const twitterImage = metadata.twitterMeta.find(tag => tag.label === 'twitter:image')?.value || ogImage;
-  
-  populateAccuratePreview('twitter', {
-    title: twitterTitle,
-    description: twitterDescription,
-    image: twitterImage,
-    url: ogUrl,
-    cardType: twitterCard,
-    site: twitterSite
-  });
-  
-  // LinkedIn Preview
-  populateAccuratePreview('linkedin', {
-    title: ogTitle,
-    description: ogDescription,
-    image: ogImage,
-    url: ogUrl
-  });
-}
-
-function createMetaItem(name, value, validation) {
-  const div = document.createElement('div');
-  div.className = 'meta-item';
-
-  const labelDiv = document.createElement('div');
-  labelDiv.className = 'meta-label';
-
-  const nameSpan = document.createElement('span');
-  nameSpan.textContent = name;
-
-  const statusSpan = document.createElement('span');
-  let isMissing = value === undefined || value === null || value === '' || value === 'Not set';
-  let statusClass = !validation.valid || isMissing
-    ? (validation.message === 'Missing' || isMissing ? 'status-error' : 'status-warning')
-    : 'status-good';
-  statusSpan.className = `meta-status ${statusClass}-badge`;
-  statusSpan.textContent = validation.message;
-
-  labelDiv.appendChild(nameSpan);
-  labelDiv.appendChild(statusSpan);
-
-  const valueDiv = document.createElement('div');
-  valueDiv.className = 'meta-value';
-  valueDiv.textContent = value || 'Not set';
-
-  div.appendChild(labelDiv);
-  div.appendChild(valueDiv);
-
-  return div;
-}
-
-/**
- * Function to create schema property with separated header and content
- * Includes improved handling of different value types and expandable content
- */
-function createSeparatedSchemaProperty(key, value) {
-  const propertyElement = document.createElement('div');
-  propertyElement.className = 'schema-property-card';
-  
-  // Create header with property name
-  const headerElement = document.createElement('div');
-  headerElement.className = 'schema-property-header';
-  headerElement.innerHTML = `<span class="schema-property-name">${key}</span>`;
-  
-  // Handle button for expandable content if needed
-  if (typeof value === 'object' && value !== null) {
-    const expandButton = document.createElement('button');
-    expandButton.className = 'schema-expand-btn';
-    expandButton.innerHTML = 'View Content';
-    headerElement.appendChild(expandButton);
-  }
-  
-  propertyElement.appendChild(headerElement);
-  
-  // Create content section
-  const contentElement = document.createElement('div');
-  contentElement.className = 'schema-property-content';
-  
-  // Handle different value types
-  if (value === null || value === undefined) {
-    contentElement.innerHTML = '<div class="schema-property-value">null</div>';
-  } 
-  else if (Array.isArray(value)) {
-    if (value.length === 0) {
-      contentElement.innerHTML = '<div class="schema-property-value">[ ]</div>';
-    } 
-    else if (typeof value[0] !== 'object' || value[0] === null) {
-      // Simple array
-      contentElement.innerHTML = `<div class="schema-property-value">${JSON.stringify(value)}</div>`;
-    } 
-    else {
-      // Array of objects - make collapsible
-      contentElement.innerHTML = `<div class="schema-property-value">Array with ${value.length} items</div>`;
-      
-      // Add expandable content (hidden by default)
-      const nestedContent = document.createElement('div');
-      nestedContent.className = 'schema-expanded-content';
-      nestedContent.style.display = 'none';
-      
-      // Add a few sample items
-      const displayCount = Math.min(value.length, 3);
-      for (let i = 0; i < displayCount; i++) {
-        const item = value[i];
-        const itemEl = document.createElement('div');
-        itemEl.className = 'schema-property-nested';
-        
-        if (typeof item === 'object' && item !== null) {
-          itemEl.textContent = `[${i}]: Object with ${Object.keys(item).length} properties`;
-        } else {
-          itemEl.textContent = `[${i}]: ${JSON.stringify(item)}`;
-        }
-        
-        nestedContent.appendChild(itemEl);
-      }
-      
-      // Show more indicator if needed
-      if (value.length > displayCount) {
-        const moreEl = document.createElement('div');
-        moreEl.className = 'schema-property-more';
-        moreEl.textContent = `...and ${value.length - displayCount} more items`;
-        nestedContent.appendChild(moreEl);
-      }
-      
-      contentElement.appendChild(nestedContent);
-      
-      // Add expand/collapse functionality
-      const expandBtn = headerElement.querySelector('.schema-expand-btn');
-      if (expandBtn) {
-        expandBtn.addEventListener('click', () => {
-          const isHidden = nestedContent.style.display === 'none';
-          nestedContent.style.display = isHidden ? 'block' : 'none';
-          expandBtn.textContent = isHidden ? 'Hide Content' : 'View Content';
-        });
-      }
-    }
-  } 
-  else if (typeof value === 'object') {
-    // Object
-    contentElement.innerHTML = `<div class="schema-property-value">Object with ${Object.keys(value).length} properties</div>`;
-    
-    // Create expandable content (hidden by default)
-    const nestedContent = document.createElement('div');
-    nestedContent.className = 'schema-expanded-content';
-    nestedContent.style.display = 'none';
-    
-    // Show a few properties
-    const keys = Object.keys(value).slice(0, 3);
-    keys.forEach(key => {
-      const propEl = document.createElement('div');
-      propEl.className = 'schema-property-nested';
-      
-      if (typeof value[key] === 'object' && value[key] !== null) {
-        propEl.textContent = `${key}: ${Array.isArray(value[key]) ? 'Array' : 'Object'}`;
-      } else {
-        propEl.textContent = `${key}: ${JSON.stringify(value[key])}`;
-      }
-      
-      nestedContent.appendChild(propEl);
-    });
-    
-    // Show more indicator if needed
-    if (Object.keys(value).length > keys.length) {
-      const moreEl = document.createElement('div');
-      moreEl.className = 'schema-property-more';
-      moreEl.textContent = `...and ${Object.keys(value).length - keys.length} more properties`;
-      nestedContent.appendChild(moreEl);
-    }
-    
-    contentElement.appendChild(nestedContent);
-    
-    // Add expand/collapse functionality
-    const expandBtn = headerElement.querySelector('.schema-expand-btn');
-    if (expandBtn) {
-      expandBtn.addEventListener('click', () => {
-        const isHidden = nestedContent.style.display === 'none';
-        nestedContent.style.display = isHidden ? 'block' : 'none';
-        expandBtn.textContent = isHidden ? 'Hide Content' : 'View Content';
-      });
-    }
-  } 
-  else {
-    // Simple value
-    if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
-      contentElement.innerHTML = `<div class="schema-property-value"><a href="${value}" target="_blank" rel="noopener noreferrer">${value}</a></div>`;
-    } else {
-      contentElement.innerHTML = `<div class="schema-property-value">${JSON.stringify(value)}</div>`;
-    }
-  }
-  
-  propertyElement.appendChild(contentElement);
-  return propertyElement;
-}
-
-/**
- * Function to populate schema data with separated cards
- * Includes error handling and empty state
- */
-function populateSchemaWithSeparatedCards(metadata) {
-  const schemaGrid = document.getElementById('schema-grid');
-  if (!schemaGrid) return;
-  
-  if (!metadata.schemaData || metadata.schemaData.length === 0) {
-    schemaGrid.innerHTML = `
-      <div class="schema-tag-card">
-        <div class="schema-tag-header">
-          <span class="schema-tag-name">No Schema.org Data Found</span>
-          <span class="status-indicator status-warning-badge">Warning</span>
-        </div>
-        <div class="schema-tag-content">
-          <div class="schema-tag-value">No schema.org data was found on this page.</div>
-          <div class="schema-tag-message">Consider adding relevant schema.org data to improve SEO.</div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-  
-  let html = '';
-  
-  metadata.schemaData.forEach(obj => {
-    const key = Object.keys(obj.data)[0];
-    const value = obj.data[key];
-    html += createSeparatedSchemaProperty(key, value);
-  });
-  
-  schemaGrid.innerHTML = html;
-}
-
-// OPTIMIZATION: New function to request web vitals initialization with improved error handling
-function initializeWebVitals() {
-  // Initialize cached metrics first
-  initializeMetricsFromCache()
-    .then(() => {
-      // Then request fresh metrics collection
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (chrome.runtime.lastError) {
-          console.error('Error querying tabs:', chrome.runtime.lastError);
-          showError('Failed to access current tab. Please try refreshing the page.');
-          return;
-        }
-        
-        if (!tabs || !tabs[0]) {
-          showError('No active tab found. Please try again.');
-          return;
-        }
-        
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'initWebVitals' }, function(response) {
-          if (chrome.runtime.lastError) {
-            console.error('Error initializing web vitals:', chrome.runtime.lastError);
-            showError('Failed to initialize performance metrics. Please try refreshing the page.');
-            return;
-          }
-          
-          console.log('Web vitals initialization:', response);
-          
-          // If we have cached metrics available, show them immediately
-          if (response && response.hasCachedMetrics) {
-            updatePerformanceDisplay(response.metrics);
-          }
-        });
-      });
-    })
-    .catch(error => {
-      console.error('Error initializing metrics from cache:', error);
-      showError('Failed to load cached performance metrics. Please try refreshing the page.');
-    });
-}
-
-// OPTIMIZATION: Cache metrics in local storage with improved error handling
-function storeMetricsInCache(metrics) {
-  try {
-    const cacheData = {
-      metrics: metrics,
-      timestamp: Date.now(),
-      url: window.location.href
-    };
-    
-    // Check if chrome.storage is available
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ 'metaPeekMetricsCache': cacheData }, function() {
-        if (chrome.runtime.lastError) {
-          console.error('Error saving to chrome.storage:', chrome.runtime.lastError);
-          // Fallback to localStorage
-          localStorage.setItem('metaPeekMetricsCache', JSON.stringify(cacheData));
-        } else {
-          console.log('Metrics saved to chrome.storage');
-        }
-      });
-    } else {
-      // Fallback to localStorage if chrome.storage is not available
-      localStorage.setItem('metaPeekMetricsCache', JSON.stringify(cacheData));
-      console.log('Metrics saved to localStorage');
-    }
-  } catch (e) {
-    console.error('Error storing metrics in cache:', e);
-  }
-}
-
-// OPTIMIZATION: Load cached metrics from storage
-function initializeMetricsFromCache() {
-  return new Promise((resolve) => {
-    try {
-      // Try chrome.storage first
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get('metaPeekMetricsCache', function(result) {
-          if (chrome.runtime.lastError) {
-            console.error('Error reading from chrome.storage:', chrome.runtime.lastError);
-            // Fall back to localStorage
-            const cachedData = JSON.parse(localStorage.getItem('metaPeekMetricsCache'));
-            handleCachedData(cachedData, resolve);
-            return;
-          }
-          handleCachedData(result.metaPeekMetricsCache, resolve);
-        });
-      } else {
-        // Fallback to localStorage
-        const cachedData = JSON.parse(localStorage.getItem('metaPeekMetricsCache'));
-        handleCachedData(cachedData, resolve);
-      }
-    } catch (e) {
-      console.error('Error accessing cache:', e);
-      resolve(null);
-    }
-  });
-}
-
-// Helper function to handle cached data
-function handleCachedData(cachedData, resolve) {
-  if (cachedData && Date.now() - cachedData.timestamp < 300000) { // 5 minutes validity
-    console.log('Using cached metrics:', cachedData);
-    updatePerformanceDisplay(cachedData.metrics);
-  }
-  resolve(cachedData?.metrics || null);
-}
-
-// OPTIMIZATION: Update performance display with real-time updates
-function updatePerformanceDisplay(metrics, updatedMetric = null) {
-  const container = document.getElementById('performance-container');
-  if (!container) return;
-  
-  // If this is the first metrics update, replace the loading state
-  if (container.querySelector('.performance-loading')) {
-    displayPerformanceMetrics({ performance: metrics });
-    return;
-  }
-  
-  // For subsequent updates, just update the specific metric that changed
-  if (updatedMetric && metrics[updatedMetric] !== null) {
-    const metricItem = container.querySelector(`.metric-item[data-metric="${updatedMetric}"]`);
-    if (metricItem) {
-      const valueElement = metricItem.querySelector('.metric-value');
-      const formattedValue = formatMetricValue(updatedMetric, metrics[updatedMetric]);
-      valueElement.textContent = formattedValue;
-      
-      // Update the status class
-      metricItem.className = 'metric-item ' + getMetricClass(
-        metrics[updatedMetric], 
-        getThresholdsForMetric(updatedMetric)[0],
-        getThresholdsForMetric(updatedMetric)[1],
-        updatedMetric === 'cls' // lowerIsBetter only for CLS
-      );
-      
-      // Remove loading indicator if present
-      const loadingIndicator = metricItem.querySelector('.metric-collecting-indicator');
-      if (loadingIndicator) loadingIndicator.remove();
-    }
-  }
-}
-
-// OPTIMIZATION: Helper to format metric values consistently
-function formatMetricValue(metricName, value) {
-  switch (metricName) {
-    case 'lcp':
-    case 'fcp':
-    case 'ttfb':
-      return (value/1000).toFixed(2) + 's';
-    case 'cls':
-      return value.toFixed(3);
-    case 'inp':
-      return value.toFixed(0) + 'ms';
-    default:
-      return value.toString();
-  }
-}
-
-// OPTIMIZATION: Helper to get thresholds for a specific metric
-function getThresholdsForMetric(metricName) {
-  switch (metricName) {
-    case 'lcp': return [2500, 4000];
-    case 'cls': return [0.1, 0.25];
-    case 'inp': return [200, 500];
-    case 'fcp': return [1800, 3000];
-    case 'ttfb': return [800, 1800];
-    default: return [0, 0];
-  }
-}
-
-// OPTIMIZATION: Improved display of performance metrics with progressive loading
-function displayPerformanceMetrics(metadata) {
-  const container = document.getElementById('performance-container');
-  if (!container) return;
-  
-  const metrics = metadata.performance;
-  if (!metrics) {
-    container.innerHTML = `
-      <div class="performance-unavailable">
-        <p>Performance metrics unavailable.</p>
-      </div>
-    `;
-    return;
-  }
-  
-  // OPTIMIZATION: Don't show loading state if we have at least some metrics
-  if (!metrics.partialMetricsAvailable && !metrics.metricsCollected) {
-    container.innerHTML = `
-      <div class="performance-loading">
-        <div class="performance-loading-spinner"></div>
-        <div class="performance-loading-message">
-          Collecting performance metrics...<br>
-          <small>Some metrics (like LCP and CLS) may take a few seconds to finalize after the page loads.</small>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  // OPTIMIZATION: Group metrics by category for better organization
-  const fastMetrics = [
-    { name: 'ttfb', label: 'Time to First Byte', thresholds: [800, 1800], lowerIsBetter: true },
-    { name: 'fcp', label: 'First Contentful Paint', thresholds: [1800, 3000], lowerIsBetter: true }
-  ];
-  
-  const interactionMetrics = [
-    { name: 'lcp', label: 'Largest Contentful Paint', thresholds: [2500, 4000], lowerIsBetter: true },
-    { name: 'cls', label: 'Cumulative Layout Shift', thresholds: [0.1, 0.25], lowerIsBetter: true },
-    { name: 'inp', label: 'Interaction to Next Paint', thresholds: [200, 500], lowerIsBetter: true }
-  ];
-  
-  // Create metrics section
-  let html = `
-    <div class="performance-metrics">
-      <div class="metrics-section">
-        <h4>Initial Load Metrics</h4>
-        <div class="metrics-grid">`;
-
-  // Add fast metrics first (they're usually available quickly)
-  fastMetrics.forEach(metric => {
-    const value = metrics[metric.name];
-    const formattedValue = value !== null ? 
-      formatMetricValue(metric.name, value) : 
-      'Collecting...';
-      
-    const statusClass = value !== null ? 
-      getMetricClass(value, metric.thresholds[0], metric.thresholds[1], metric.lowerIsBetter) : 
-      'metric-collecting';
-      
-    html += `
-      <div class="metric-item ${statusClass}" data-metric="${metric.name}">
-        <div class="metric-name">${metric.label}</div>
-        <div class="metric-value">${formattedValue}</div>
-        ${value === null ? '<div class="metric-collecting-indicator"></div>' : ''}
-      </div>`;
-  });
-
-  html += `
-      </div>
-    </div>
-    
-    <div class="metrics-section">
-      <h4>Interaction & Layout Metrics</h4>
-      <div class="metrics-grid">`;
-
-  // Add interaction metrics second (they take longer and may require user interaction)
-  interactionMetrics.forEach(metric => {
-    const value = metrics[metric.name];
-    const formattedValue = value !== null ? 
-      formatMetricValue(metric.name, value) : 
-      'Collecting...';
-      
-    const statusClass = value !== null ? 
-      getMetricClass(value, metric.thresholds[0], metric.thresholds[1], metric.lowerIsBetter) : 
-      'metric-collecting';
-      
-    html += `
-      <div class="metric-item ${statusClass}" data-metric="${metric.name}">
-        <div class="metric-name">${metric.label}</div>
-        <div class="metric-value">${formattedValue}</div>
-        ${value === null ? '<div class="metric-collecting-indicator"></div>' : ''}
-      </div>`;
-  });
-
-  html += `
-      </div>
-    </div>`;
-    
-  // OPTIMIZATION: Add refresh button to manually trigger metric collection
-  html += `
-    <div class="performance-actions">
-      <button id="refresh-metrics" class="btn btn-secondary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M23 4v6h-6"></path>
-          <path d="M1 20v-6h6"></path>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
-          <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
-        </svg>
-        Refresh Metrics
-      </button>
-      <div class="performance-note">
-        <small>Some metrics like INP require user interaction with the page to calculate.</small>
-      </div>
-    </div>`;
-
-  html += `</div>`;
-  
-  container.innerHTML = html;
-  
-  // Add event listener for refresh button
-  document.getElementById('refresh-metrics')?.addEventListener('click', () => {
-    // Show loading indicator on metrics that are still being collected
-    const collectingMetrics = container.querySelectorAll('.metric-collecting');
-    collectingMetrics.forEach(item => {
-      const valueElement = item.querySelector('.metric-value');
-      valueElement.innerHTML = '<span class="metric-refreshing">Refreshing...</span>';
-    });
-    
-    // Request fresh metrics
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      if (!tabs || !tabs[0]) return;
-      
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'getWebVitals' }, function(response) {
-        if (chrome.runtime.lastError) {
-          console.error('Error refreshing web vitals:', chrome.runtime.lastError);
-          return;
-        }
-        
-        if (response && response.metrics) {
-          updatePerformanceDisplay(response.metrics);
-        }
-      });
-    });
-  });
-}
-
-function getMetricClass(value, good, poor, lowerIsBetter = true) {
-  if (lowerIsBetter) {
-    return value <= good ? 'metric-good' : 
-           value <= poor ? 'metric-warning' : 
-           'metric-poor';
-  } else {
-    return value >= good ? 'metric-good' : 
-           value >= poor ? 'metric-warning' : 
-           'metric-poor';
-  }
-}
-
-/**
- * Function to generate HTML for the SEO report
- */
-function generateSEOReportHTML(seoData) {
-  let html = `<div class="seo-report">
-    <div class="seo-score-container">
-      <div class="seo-score-circle status-${seoData.status}">
-        <svg viewBox="0 0 36 36">
-          <path class="score-circle-bg"
-            d="M18 2.0845 
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-            fill="none"
-            stroke-width="3"
-            stroke-dasharray="100, 100"
-          />
-          <path class="score-circle"
-            d="M18 2.0845 
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-            fill="none"
-            stroke-width="3"
-            stroke-dasharray="${seoData.score}, 100"
-          />
-          <text x="18" y="20.5" class="score-text">${seoData.score}</text>
-        </svg>
-      </div>
-      <div class="seo-score-details">
-        <h3>SEO Health Score</h3>
-        <div class="seo-score-breakdown">`;
-  
-  // Add category breakdown
-  Object.entries(seoData.categoryScores).forEach(([category, score]) => {
-    const formattedCategory = category
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase());
-      
-    html += `
-      <div class="score-category">
-        <span class="category-name">${formattedCategory}</span>
-        <div class="category-bar-container">
-          <div class="category-bar" style="width: ${score * 100}%"></div>
-        </div>
-        <span class="category-score">${Math.round(score * 100)}</span>
-      </div>`;
-  });
-  
-  html += `
-      </div>
-    </div>
-  </div>`;
-  
-  // Add recommendations if there are any
-  if (seoData.recommendations && seoData.recommendations.length > 0) {
-    html += `
-    <div class="seo-recommendations">
-      <h3>Recommended Improvements</h3>`;
-      
-    seoData.recommendations.forEach(category => {
-      html += `
-        <div class="recommendation-category">
-          <div class="recommendation-header">
-            <h4>${category.category}</h4>
-          </div>
-          <ul class="recommendation-items">`;
-            
-      category.items.forEach(item => {
-        const impactClass = `impact-${item.impact ? item.impact.toLowerCase() : 'medium'}`;
-        
-        html += `
-            <li class="recommendation-item ${impactClass}">
-              <div class="recommendation-title">${item.issue}</div>
-              <div class="recommendation-details">${item.details}</div>
-            </li>`;
-      });
-            
-      html += `
-          </ul>
-        </div>`;
-    });
-      
-    html += `
-    </div>`;
-  } else {
-    // No recommendations - everything looks good
-    html += `
-    <div class="seo-perfect">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--status-good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-      </svg>
-      <div>
-        <div class="seo-perfect-title">Excellent SEO</div>
-        <div class="seo-perfect-message">All critical SEO factors look good</div>
-      </div>
-    </div>`;
-  }
-  
-  return html;
-}
-
-// Update SEO score display
 function updateSEOScore(scoreData) {
-  console.log('Updating SEO score with:', scoreData);
+  console.log('Updating SEO score');
   if (!scoreData) return;
   
   const scoreSection = document.querySelector('.score-section');
   if (!scoreSection) return;
   
-  // Get score value and description
+  // Get score value and determine status
   const score = scoreData.score || 0;
   let status = 'warning';
   let description = 'Needs improvement';
@@ -1765,28 +559,44 @@ function updateSEOScore(scoreData) {
     description = 'Poor, needs urgent attention';
   }
   
-  // Update the score circle
-  const scoreCirclePath = scoreSection.querySelector('.score-fill');
-  const scoreText = scoreSection.querySelector('.score-text');
-  
-  if (scoreCirclePath) {
-    scoreCirclePath.setAttribute('stroke-dasharray', `${score}, 100`);
-  }
-  
-  if (scoreText) {
-    scoreText.textContent = score;
-  }
-  
-  // Update the description
-  const scoreDescription = scoreSection.querySelector('.score-description');
-  if (scoreDescription) {
-    scoreDescription.textContent = description;
-  }
+  // Update HTML with score data
+  scoreSection.innerHTML = `
+    <div class="score-wrapper">
+      <div class="score-circle">
+        <svg viewBox="0 0 36 36">
+          <path class="score-bg"
+            d="M18 2.0845 
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke-width="3"
+            stroke-dasharray="100, 100"
+          />
+          <path class="score-fill"
+            d="M18 2.0845 
+              a 15.9155 15.9155 0 0 1 0 31.831
+              a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke-width="3"
+            stroke-dasharray="${score}, 100"
+          />
+          <text x="18" y="20.5" class="score-text">${score}</text>
+        </svg>
+      </div>
+      <div class="score-details">
+        <h2>SEO Health</h2>
+        <p class="score-description">${description}</p>
+      </div>
+    </div>
+  `;
 }
 
-// Update meta tags display
+/**
+ * Update meta tags display
+ * @param {Object} metadata - Metadata from content script
+ */
 function updateMetaTags(metadata) {
-  console.log('Updating meta tags with:', metadata.basicMeta);
+  console.log('Updating meta tags');
   if (!metadata.basicMeta) return;
   
   // Get the meta cards
@@ -1794,48 +604,79 @@ function updateMetaTags(metadata) {
   if (metaCards.length < 2) return;
   
   // Title card (usually first)
-  const titleData = metadata.basicMeta.find(tag => tag.label === 'Title');
-  if (titleData && metaCards[0]) {
-    const titleStatus = metaCards[0].querySelector('.meta-card-status');
-    const titleContent = metaCards[0].querySelector('.meta-card-content');
-    
-    if (titleStatus) {
-      titleStatus.textContent = titleData.message || 'Missing';
-      titleStatus.className = `meta-card-status ${titleData.status || 'error'}`;
-    }
-    
-    if (titleContent) {
-      titleContent.innerHTML = `<p>${titleData.value || 'Title not set'}</p>`;
-    }
-  }
+  updateMetaCard(
+    metaCards[0], 
+    metadata.basicMeta.find(tag => tag.label === 'Title')
+  );
   
   // Description card (usually second)
-  const descData = metadata.basicMeta.find(tag => tag.label === 'Description');
-  if (descData && metaCards[1]) {
-    const descStatus = metaCards[1].querySelector('.meta-card-status');
-    const descContent = metaCards[1].querySelector('.meta-card-content');
-    
-    if (descStatus) {
-      descStatus.textContent = descData.message || 'Missing';
-      descStatus.className = `meta-card-status ${descData.status || 'error'}`;
-    }
-    
-    if (descContent) {
-      if (!descData.value) {
-        descContent.innerHTML = `
-          <p class="empty-content">No description tag found.</p>
-          <button class="btn-secondary btn-small">Add Description</button>
-        `;
-      } else {
-        descContent.innerHTML = `<p>${descData.value}</p>`;
-      }
-    }
+  updateMetaCard(
+    metaCards[1], 
+    metadata.basicMeta.find(tag => tag.label === 'Description')
+  );
+}
+
+/**
+ * Update a meta card with data
+ * @param {Element} card - The card element to update
+ * @param {Object} data - Meta tag data
+ */
+function updateMetaCard(card, data) {
+  if (!card || !data) return;
+  
+  const cardHeader = document.createElement('div');
+  cardHeader.className = 'meta-card-header';
+  cardHeader.innerHTML = `
+    <span class="meta-card-tag">${data.label}</span>
+    <span class="meta-card-status ${data.status || 'warning'}">${data.message || 'Unknown'}</span>
+  `;
+  
+  const cardContent = document.createElement('div');
+  cardContent.className = 'meta-card-content';
+  
+  if (!data.value) {
+    cardContent.innerHTML = `
+      <p class="empty-content">No ${data.label.toLowerCase()} tag found.</p>
+      <button class="btn-secondary btn-small">Add ${data.label}</button>
+    `;
+  } else {
+    cardContent.innerHTML = `<p>${data.value}</p>`;
+  }
+  
+  // Clear the card and add the new content
+  card.innerHTML = '';
+  card.appendChild(cardHeader);
+  card.appendChild(cardContent);
+  
+  // Add event listener to the "Add" button if it exists
+  const addButton = cardContent.querySelector('.btn-secondary');
+  if (addButton) {
+    addButton.addEventListener('click', () => {
+      // Show a dialog or expand a form to add the missing meta tag
+      showToast(`Adding ${data.label} functionality would go here`);
+    });
   }
 }
 
-// Update previews
+/**
+ * Helper to extract hostname from URL
+ * @param {string} url - URL to extract hostname from
+ * @returns {string} Hostname
+ */
+function extractHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (e) {
+    return url || 'example.com';
+  }
+}
+
+/**
+ * Update social media previews
+ * @param {Object} metadata - Metadata from content script
+ */
 function updatePreviews(metadata) {
-  console.log('Updating previews with metadata');
+  console.log('Updating previews');
   if (!metadata) return;
   
   // Extract common metadata
@@ -1845,68 +686,162 @@ function updatePreviews(metadata) {
   const ogDescription = metadata.ogMeta?.find(tag => tag.label === 'og:description')?.value || description;
   const ogImage = metadata.ogMeta?.find(tag => tag.label === 'og:image')?.value || '';
   const ogUrl = metadata.ogMeta?.find(tag => tag.label === 'og:url')?.value || 
-               metadata.canonicalUrl || '';
-               
+                metadata.canonicalUrl || '';
+  
   // Get hostname for display
   const hostname = extractHostname(ogUrl);
   
   // Update Google preview
-  const googlePreview = document.getElementById('google-preview');
-  if (googlePreview) {
-    googlePreview.innerHTML = `
-      <div class="google-preview">
-        <div class="google-url">${hostname}</div>
-        <div class="google-title">${title}</div>
-        <div class="google-description">${description || 'No description available. Search engines might generate their own description from page content.'}</div>
-      </div>
-    `;
-  }
+  updateGooglePreview(hostname, title, description);
   
   // Update Facebook preview
-  const facebookPreview = document.getElementById('facebook-preview');
-  if (facebookPreview) {
-    facebookPreview.innerHTML = `
-      <div class="facebook-preview">
-        ${ogImage ? 
-          `<div class="preview-image" style="background-image: url('${ogImage}')"></div>` : 
-          `<div class="preview-image-placeholder">No image provided</div>`
-        }
-        <div class="facebook-content">
-          <div class="facebook-domain">${hostname}</div>
-          <div class="facebook-title">${ogTitle}</div>
-          <div class="facebook-description">${ogDescription || 'No description provided'}</div>
-        </div>
-      </div>
-    `;
-  }
+  updateFacebookPreview(hostname, ogTitle, ogDescription, ogImage);
   
   // Update Twitter preview
-  const twitterPreview = document.getElementById('twitter-preview');
-  if (twitterPreview) {
-    const twitterTitle = metadata.twitterMeta?.find(tag => tag.label === 'twitter:title')?.value || ogTitle;
-    const twitterDescription = metadata.twitterMeta?.find(tag => tag.label === 'twitter:description')?.value || ogDescription;
-    const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || ogImage;
-    
-    twitterPreview.innerHTML = `
-      <div class="twitter-preview">
-        ${twitterImage ? 
-          `<div class="preview-image" style="background-image: url('${twitterImage}')"></div>` : 
-          `<div class="preview-image-placeholder">No image provided</div>`
-        }
-        <div class="twitter-content">
-          <div class="twitter-domain">${hostname}</div>
-          <div class="twitter-title">${twitterTitle}</div>
-          <div class="twitter-description">${twitterDescription || 'No description provided'}</div>
-        </div>
-      </div>
-    `;
-  }
+  updateTwitterPreview(metadata, hostname, ogTitle, ogDescription, ogImage);
 }
 
-// Update performance metrics display
+/**
+ * Update Google search preview
+ * @param {string} hostname - Website hostname
+ * @param {string} title - Page title
+ * @param {string} description - Page description
+ */
+function updateGooglePreview(hostname, title, description) {
+  const googlePreview = document.getElementById('google-preview');
+  if (!googlePreview) return;
+  
+  googlePreview.innerHTML = `
+    <div class="google-preview">
+      <div class="google-url">${hostname}</div>
+      <div class="google-title">${title}</div>
+      <div class="google-description">${description || 'No description available. Search engines might generate their own description from page content.'}</div>
+    </div>
+  `;
+}
+
+/**
+ * Update Facebook preview
+ * @param {string} hostname - Website hostname
+ * @param {string} title - OG title
+ * @param {string} description - OG description
+ * @param {string} image - OG image URL
+ */
+function updateFacebookPreview(hostname, title, description, image) {
+  const facebookPreview = document.getElementById('facebook-preview');
+  if (!facebookPreview) return;
+  
+  facebookPreview.innerHTML = `
+    <div class="facebook-preview">
+      ${image ? 
+        `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
+        `<div class="preview-image-placeholder">No image provided</div>`
+      }
+      <div class="facebook-content">
+        <div class="facebook-domain">${hostname}</div>
+        <div class="facebook-title">${title}</div>
+        <div class="facebook-description">${description || 'No description provided'}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Update Twitter preview
+ * @param {Object} metadata - Metadata from content script
+ * @param {string} hostname - Website hostname
+ * @param {string} ogTitle - Default title (from OG)
+ * @param {string} ogDescription - Default description (from OG)
+ * @param {string} ogImage - Default image (from OG)
+ */
+function updateTwitterPreview(metadata, hostname, ogTitle, ogDescription, ogImage) {
+  const twitterPreview = document.getElementById('twitter-preview');
+  if (!twitterPreview) return;
+  
+  const twitterTitle = metadata.twitterMeta?.find(tag => tag.label === 'twitter:title')?.value || ogTitle;
+  const twitterDescription = metadata.twitterMeta?.find(tag => tag.label === 'twitter:description')?.value || ogDescription;
+  const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || ogImage;
+  const twitterCard = metadata.twitterMeta?.find(tag => tag.label === 'twitter:card')?.value || 'summary';
+  const twitterSite = metadata.twitterMeta?.find(tag => tag.label === 'twitter:site')?.value || '';
+  
+  const isLargeCard = twitterCard === 'summary_large_image';
+  
+  twitterPreview.innerHTML = `
+    <div class="twitter-preview ${isLargeCard ? 'twitter-large-card' : ''}">
+      ${twitterImage ? 
+        `<div class="preview-image" style="background-image: url('${twitterImage}')"></div>` : 
+        `<div class="preview-image-placeholder">No image provided</div>`
+      }
+      <div class="twitter-content">
+        <div class="twitter-site">${twitterSite || hostname}</div>
+        <div class="twitter-title">${twitterTitle}</div>
+        <div class="twitter-description">${twitterDescription || 'No description provided'}</div>
+        <div class="twitter-domain">${hostname}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Initialize Web Vitals metrics
+ */
+function initializeWebVitals() {
+  console.log('Initializing Web Vitals');
+  
+  // Set loading state
+  state.loading.webVitals = true;
+  state.errors.webVitals = null;
+  
+  // Initialize metrics object in the UI first (empty state)
+  const performanceContainer = document.querySelector('.performance-section');
+  if (performanceContainer) {
+    const metricsRow = performanceContainer.querySelector('.metrics-row');
+    if (metricsRow) {
+      // Show loading state for metrics
+      Array.from(metricsRow.children).forEach(metric => {
+        const metricValue = metric.querySelector('.metric-value');
+        if (metricValue) {
+          metricValue.textContent = 'Loading...';
+        }
+      });
+    }
+  }
+  
+  // Request web vitals initialization from content script
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    if (!tabs || !tabs[0]) {
+      console.error('No active tab found for web vitals');
+      state.errors.webVitals = 'No active tab found for web vitals';
+      state.loading.webVitals = false;
+      return;
+    }
+    
+    chrome.tabs.sendMessage(tabs[0].id, { type: 'initWebVitals' }, (response) => {
+      state.loading.webVitals = false;
+      
+      if (chrome.runtime.lastError) {
+        console.error('Error initializing web vitals:', chrome.runtime.lastError);
+        state.errors.webVitals = 'Failed to initialize web vitals';
+        return;
+      }
+      
+      console.log('Web vitals initialization response:', response);
+      
+      if (response && response.metrics) {
+        updatePerformance(response.metrics);
+      } else {
+        state.errors.webVitals = 'No web vitals data received';
+      }
+    });
+  });
+}
+
+/**
+ * Update performance metrics display
+ * @param {Object} metrics - Web vitals metrics
+ */
 function updatePerformance(metrics) {
-  console.log('Updating performance with metrics:', metrics);
-  if (!metrics) return;
+  console.log('Updating performance metrics');
   
   const performanceSection = document.querySelector('.performance-section');
   if (!performanceSection) return;
@@ -1914,63 +849,175 @@ function updatePerformance(metrics) {
   const metricsRow = performanceSection.querySelector('.metrics-row');
   if (!metricsRow) return;
   
-  // Update LCP (Largest Contentful Paint)
-  if (metrics.lcp !== null && metrics.lcp !== undefined) {
-    const lcpItem = metricsRow.querySelector('.metric-item:nth-child(1)');
-    if (lcpItem) {
-      const lcpValue = lcpItem.querySelector('.metric-value');
-      if (lcpValue) {
-        lcpValue.textContent = (metrics.lcp / 1000).toFixed(1) + 's';
-      }
-      
-      // Update status class
-      if (metrics.lcp <= 2500) {
-        lcpItem.className = 'metric-item good';
-      } else if (metrics.lcp <= 4000) {
-        lcpItem.className = 'metric-item warning';
-      } else {
-        lcpItem.className = 'metric-item poor';
+  // Define metric display info
+  const metricDisplayInfo = {
+    lcp: {
+      index: 0,
+      format: (value) => (value / 1000).toFixed(1) + 's',
+      thresholds: CONFIG.metricThresholds.lcp,
+      label: 'Largest Contentful Paint'
+    },
+    cls: {
+      index: 1,
+      format: (value) => value.toFixed(2),
+      thresholds: CONFIG.metricThresholds.cls,
+      label: 'Cumulative Layout Shift'
+    },
+    inp: {
+      index: 2,
+      format: (value) => value.toFixed(0) + 'ms',
+      thresholds: CONFIG.metricThresholds.inp,
+      label: 'Interaction to Next Paint'
+    }
+  };
+  
+  // Update each metric if available
+  for (const [metricName, info] of Object.entries(metricDisplayInfo)) {
+    if (metrics[metricName] !== null && metrics[metricName] !== undefined) {
+      const metricItem = metricsRow.children[info.index];
+      if (metricItem) {
+        const metricValue = metricItem.querySelector('.metric-value');
+        const metricLabel = metricItem.querySelector('.metric-label');
+        
+        if (metricValue) {
+          metricValue.textContent = info.format(metrics[metricName]);
+        }
+        
+        if (metricLabel) {
+          metricLabel.textContent = info.label;
+        }
+        
+        // Update status class
+        const statusClass = getMetricStatusClass(
+          metrics[metricName], 
+          info.thresholds[0],  // good threshold
+          info.thresholds[1],  // poor threshold
+          metricName === 'cls' // lower is better for CLS
+        );
+        
+        metricItem.className = `metric-item ${statusClass}`;
+        
+        // Add tooltip with threshold information
+        metricItem.title = `${info.label}: ${info.format(metrics[metricName])}\n` +
+          `Good: ${info.format(info.thresholds[0])}\n` +
+          `Poor: ${info.format(info.thresholds[1])}`;
       }
     }
   }
   
-  // Update CLS (Cumulative Layout Shift)
-  if (metrics.cls !== null && metrics.cls !== undefined) {
-    const clsItem = metricsRow.querySelector('.metric-item:nth-child(2)');
-    if (clsItem) {
-      const clsValue = clsItem.querySelector('.metric-value');
-      if (clsValue) {
-        clsValue.textContent = metrics.cls.toFixed(2);
-      }
-      
-      // Update status class
-      if (metrics.cls <= 0.1) {
-        clsItem.className = 'metric-item good';
-      } else if (metrics.cls <= 0.25) {
-        clsItem.className = 'metric-item warning';
-      } else {
-        clsItem.className = 'metric-item poor';
-      }
-    }
+  // Update performance tip based on the most critical issue
+  updatePerformanceTip(metrics);
+}
+
+/**
+ * Get the status class for a metric value
+ * @param {number} value - Metric value
+ * @param {number} goodThreshold - Threshold for "good" status
+ * @param {number} poorThreshold - Threshold for "poor" status
+ * @param {boolean} lowerIsBetter - Whether lower values are better
+ * @returns {string} CSS class name
+ */
+function getMetricStatusClass(value, goodThreshold, poorThreshold, lowerIsBetter = true) {
+  if (lowerIsBetter) {
+    return value <= goodThreshold ? 'good' : 
+           value <= poorThreshold ? 'warning' : 
+           'poor';
+  } else {
+    return value >= goodThreshold ? 'good' : 
+           value >= poorThreshold ? 'warning' : 
+           'poor';
+  }
+}
+
+/**
+ * Update the performance tip based on metrics
+ * @param {Object} metrics - Web vitals metrics
+ */
+function updatePerformanceTip(metrics) {
+  const performanceTip = document.querySelector('.performance-tip');
+  if (!performanceTip) return;
+  
+  // Find the most critical issue
+  let criticalIssue = null;
+  
+  if (metrics.cls !== null && metrics.cls > CONFIG.metricThresholds.cls[1]) {
+    criticalIssue = {
+      name: 'CLS',
+      message: 'Your page has significant layout shifts (CLS) that may impact user experience. Check for elements that move after loading.',
+      impact: 'High'
+    };
+  } 
+  else if (metrics.lcp !== null && metrics.lcp > CONFIG.metricThresholds.lcp[1]) {
+    criticalIssue = {
+      name: 'LCP',
+      message: 'Your page has slow loading performance (LCP). Consider optimizing images, reducing server response time, or reducing JavaScript.',
+      impact: 'High'
+    };
+  }
+  else if (metrics.inp !== null && metrics.inp > CONFIG.metricThresholds.inp[1]) {
+    criticalIssue = {
+      name: 'INP',
+      message: 'Your page has poor interaction performance (INP). Consider optimizing event handlers and reducing JavaScript execution time.',
+      impact: 'High'
+    };
+  }
+  else if (metrics.cls !== null && metrics.cls > CONFIG.metricThresholds.cls[0]) {
+    criticalIssue = {
+      name: 'CLS',
+      message: 'Your page has some layout shifts (CLS) that could be improved. Consider optimizing dynamic content loading.',
+      impact: 'Medium'
+    };
+  }
+  else if (metrics.lcp !== null && metrics.lcp > CONFIG.metricThresholds.lcp[0]) {
+    criticalIssue = {
+      name: 'LCP',
+      message: 'Your page loading performance (LCP) could be improved. Consider optimizing resource loading.',
+      impact: 'Medium'
+    };
+  }
+  else if (metrics.inp !== null && metrics.inp > CONFIG.metricThresholds.inp[0]) {
+    criticalIssue = {
+      name: 'INP',
+      message: 'Your page interaction performance (INP) could be improved. Consider optimizing event handlers.',
+      impact: 'Medium'
+    };
   }
   
-  // Update INP (Interaction to Next Paint)
-  if (metrics.inp !== null && metrics.inp !== undefined) {
-    const inpItem = metricsRow.querySelector('.metric-item:nth-child(3)');
-    if (inpItem) {
-      const inpValue = inpItem.querySelector('.metric-value');
-      if (inpValue) {
-        inpValue.textContent = metrics.inp.toFixed(0) + 'ms';
-      }
-      
-      // Update status class
-      if (metrics.inp <= 200) {
-        inpItem.className = 'metric-item good';
-      } else if (metrics.inp <= 500) {
-        inpItem.className = 'metric-item warning';
-      } else {
-        inpItem.className = 'metric-item poor';
-      }
-    }
+  // Update the tip text or hide if all metrics are good
+  if (criticalIssue) {
+    performanceTip.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      <div class="performance-tip-content">
+        <p class="performance-tip-message">${criticalIssue.message}</p>
+        <span class="performance-tip-impact ${criticalIssue.impact.toLowerCase()}">${criticalIssue.impact} Impact</span>
+      </div>
+    `;
+    performanceTip.style.display = 'flex';
+  } else {
+    performanceTip.style.display = 'none';
   }
+}
+
+/**
+ * Show a toast notification
+ * @param {string} message - Message to display
+ */
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  
+  const toastMessage = toast.querySelector('span');
+  if (toastMessage) {
+    toastMessage.textContent = message;
+  }
+  
+  toast.classList.add('show');
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, CONFIG.toastDuration);
 }
