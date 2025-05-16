@@ -18,7 +18,12 @@
       </div>
       
       <div class="page-url" id="current-url-display">
-        <span class="truncate-text">analyzing current page...</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span class="truncate-text" id="url-text">analyzing page...</span>
       </div>
       
       <div class="app-actions">
@@ -61,6 +66,36 @@
       <div class="tab-content">
         <!-- Overview Tab -->
         <section id="overview-tab" class="tab-pane active">
+          <!-- Enhanced SEO Score Display -->
+          <div class="score-panel">
+            <div class="score-display">
+              <div class="score-circle" style="--score-value: 78"></div>
+              <div class="score-inner">
+                <div class="score-value">78</div>
+                <div class="score-label">SEO Score</div>
+              </div>
+            </div>
+            <div class="score-details">
+              <h3 class="score-title">Good SEO Health</h3>
+              <p class="score-description">Your page is well-optimized but has a few issues to address.</p>
+              <div class="score-stats">
+                <div class="stat-item">
+                  <div class="stat-value">
+                    <span class="good-count">12</span>/<span class="total-count">16</span>
+                  </div>
+                  <div class="stat-label">Meta Tags</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">2</div>
+                  <div class="stat-label">Critical Issues</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">3</div>
+                  <div class="stat-label">Warnings</div>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- Priority Issues -->
           <div class="section-card">
             <h3 class="section-title">Priority Issues <span class="badge">2</span></h3>

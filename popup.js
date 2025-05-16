@@ -129,6 +129,7 @@ function loadPageData() {
     }
     
     const activeTab = tabs[0];
+    updateUrlDisplay(activeTab.url);
     console.log('Getting metadata for tab:', activeTab.id);
     
     // Add a timeout to prevent indefinite waiting
