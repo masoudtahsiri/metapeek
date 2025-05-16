@@ -235,6 +235,9 @@ function populateUI(metadata) {
     // Update priority issues
     updatePriorityIssues(metadata);
     
+    // Update meta tag summary in Overview tab
+    updateMetaTagSummary(metadata);
+    
     // Update meta tags in Meta Tags tab
     updateBasicMetaTags(metadata.basicMeta || []);
     updateOGMetaTags(metadata.ogMeta || []);
@@ -368,6 +371,97 @@ function updatePriorityIssues(metadata) {
         <p>No priority issues found. Your page is looking good!</p>
       </div>
     `;
+  }
+}
+
+/**
+ * Update meta tag summary in Overview tab - simplified to show only status
+ * @param {Object} metadata - Metadata from content script
+ */
+function updateMetaTagSummary(metadata) {
+  const summaryGrid = document.querySelector('.summary-grid');
+  if (!summaryGrid) return;
+  
+  const cards = summaryGrid.querySelectorAll('.summary-card');
+  
+  // Update title card - only update status badge
+  if (cards[0]) {
+    const title = metadata.basicMeta?.find(tag => tag.label === 'Title') || { 
+      status: 'error'
+    };
+    
+    const statusBadge = cards[0].querySelector('.status-badge');
+    if (statusBadge) {
+      const statusText = title.status === 'good' ? 'Good' : 
+                         title.status === 'warning' ? 'Warning' : 'Missing';
+      
+      statusBadge.className = 'status-badge ' + title.status;
+      statusBadge.textContent = statusText;
+    }
+    
+    // Remove content element if it exists
+    const contentElement = cards[0].querySelector('.summary-content');
+    if (contentElement) {
+      contentElement.remove();
+    }
+    
+    // Remove warning banner if it exists
+    const warningBanner = cards[0].querySelector('.warning-banner');
+    if (warningBanner) {
+      warningBanner.remove();
+    }
+  }
+  
+  // Update description card - only update status badge
+  if (cards[1]) {
+    const description = metadata.basicMeta?.find(tag => tag.label === 'Description') || { 
+      status: 'error'
+    };
+    
+    const statusBadge = cards[1].querySelector('.status-badge');
+    if (statusBadge) {
+      const statusText = description.status === 'good' ? 'Good' : 
+                         description.status === 'warning' ? 'Warning' : 'Missing';
+      
+      statusBadge.className = 'status-badge ' + description.status;
+      statusBadge.textContent = statusText;
+    }
+    
+    // Remove content element if it exists
+    const contentElement = cards[1].querySelector('.summary-content');
+    if (contentElement) {
+      contentElement.remove();
+    }
+    
+    // Remove warning banner if it exists
+    const warningBanner = cards[1].querySelector('.warning-banner');
+    if (warningBanner) {
+      warningBanner.remove();
+    }
+  }
+  
+  // Update canonical URL card - only update status badge
+  if (cards[2]) {
+    const hasCanonical = metadata.canonicalUrl && metadata.canonicalUrl.length > 0;
+    const status = hasCanonical ? 'good' : 'error';
+    
+    const statusBadge = cards[2].querySelector('.status-badge');
+    if (statusBadge) {
+      statusBadge.className = 'status-badge ' + status;
+      statusBadge.textContent = hasCanonical ? 'Good' : 'Missing';
+    }
+    
+    // Remove content element if it exists
+    const contentElement = cards[2].querySelector('.summary-content');
+    if (contentElement) {
+      contentElement.remove();
+    }
+    
+    // Remove warning banner if it exists
+    const warningBanner = cards[2].querySelector('.warning-banner');
+    if (warningBanner) {
+      warningBanner.remove();
+    }
   }
 }
 
