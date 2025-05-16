@@ -1,3 +1,190 @@
+// Add more detailed logging to popup.js
+console.log('Popup script initialized');
+
+// Add this to the beginning of popup.js to immediately remove placeholder data
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Popup DOM loaded - removing placeholder data');
+  
+  // Clear placeholder data
+  document.querySelectorAll('.meta-card, .preview-content').forEach(el => {
+    // Add loading indicator
+    el.innerHTML = `<div class="loading-indicator">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading data...</div>
+    </div>`;
+  });
+  
+  // Initialize UI elements
+  initUI();
+  
+  // Then load real data
+  loadPageData();
+});
+
+function initUI() {
+  // Initialize all UI components
+  try {
+    initThemeToggle();
+    initActionItems();
+    initPreviewTabs();
+    initPerformanceToggle();
+    initMetaDrawer();
+    initCopyButtons();
+    initCollapsibleSections();
+  } catch (error) {
+    console.error('Error initializing UI:', error);
+  }
+}
+
+// Replace the loadPageData function with this simplified version
+function loadPageData() {
+  console.log('Loading page metadata...');
+  
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (!tabs || !tabs[0]) {
+      console.error('No active tab found');
+      showError('Unable to access current tab');
+      return;
+    }
+    
+    const activeTab = tabs[0];
+    console.log('Getting metadata for tab:', activeTab.id);
+    
+    // Add a timeout to prevent indefinite waiting
+    let responseReceived = false;
+    const timeoutId = setTimeout(() => {
+      if (!responseReceived) {
+        console.error('Timeout waiting for metadata response');
+        showError('Timeout getting metadata from page. Please refresh and try again.');
+      }
+    }, 5000);
+    
+    // Send message to content script
+    chrome.tabs.sendMessage(activeTab.id, { type: 'getMetadata' }, function(response) {
+      // Clear timeout as response was received
+      clearTimeout(timeoutId);
+      responseReceived = true;
+      
+      if (chrome.runtime.lastError) {
+        console.error('Error getting metadata:', chrome.runtime.lastError);
+        showError('Failed to connect to page. Please refresh and try again.');
+        return;
+      }
+      
+      if (!response) {
+        console.error('No response received from content script');
+        showError('No data received from page');
+        return;
+      }
+      
+      console.log('Received metadata:', response);
+      populateUI(response);
+    });
+  });
+  
+  // Also initialize web vitals
+  initializeWebVitals();
+}
+
+// Add this simple error display function
+function showError(message) {
+  console.error('Error:', message);
+  
+  // Find all containers that should display data
+  document.querySelectorAll('.meta-card, .preview-content, .score-section').forEach(el => {
+    el.innerHTML = `<div class="error-indicator">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <div class="error-text">${message}</div>
+    </div>`;
+  });
+}
+
+// Add this simplified function to populate the UI
+function populateUI(metadata) {
+  console.log('Populating UI with metadata');
+  
+  try {
+    // Update SEO score
+    updateSEOScore(metadata.seoScore);
+    
+    // Update meta tags
+    updateMetaTags(metadata);
+    
+    // Update previews
+    updatePreviews(metadata);
+    
+    // Update performance if available
+    if (metadata.performance && metadata.performance.partialMetricsAvailable) {
+      updatePerformance(metadata.performance);
+    }
+    
+    console.log('UI update complete');
+  } catch (error) {
+    console.error('Error populating UI:', error);
+    showError('Error displaying data: ' + error.message);
+  }
+}
+
+// Add this CSS to the top of your popup.html file
+const style = document.createElement('style');
+style.textContent = `
+  .loading-indicator, .error-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--border-light);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .loading-text, .error-text {
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+  
+  .error-indicator svg {
+    color: var(--status-error);
+    margin-bottom: 10px;
+  }
+  
+  .preview-image {
+    height: 150px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  
+  .preview-image-placeholder {
+    height: 150px;
+    background-color: var(--bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+`;
+document.head.appendChild(style);
+
 function displayFieldValue(value) {
   if (Array.isArray(value)) {
     return value.map(displayFieldValue).join(', ');
@@ -244,53 +431,6 @@ function initCopyButtons() {
     }, 3000);
   }
 }
-
-// Initialize the popup
-document.addEventListener('DOMContentLoaded', function() {
-  try {
-    // Initialize UI components first
-    initThemeToggle();
-    initActionItems();
-    initPreviewTabs();
-    initPerformanceToggle();
-    initMetaDrawer();
-    initCopyButtons();
-    initCollapsibleSections();
-    
-    // Then initialize data loading
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      // Wait for the DOM to be fully loaded before making Chrome API calls
-      setTimeout(() => {
-        loadPageData();
-        initializeWebVitals();
-      }, 100);
-    } else {
-      console.warn('Chrome API not available. Running in demo mode.');
-      // Show demo data or error state
-      const seoSummaryContent = document.getElementById('seo-summary-content');
-      if (seoSummaryContent) {
-        seoSummaryContent.innerHTML = `
-          <div class="seo-error">
-            <div class="seo-error-title">Chrome API Not Available</div>
-            <div class="seo-error-message">Please ensure you're running this as a Chrome extension.</div>
-          </div>
-        `;
-      }
-    }
-  } catch (error) {
-    console.error('Error initializing popup:', error);
-    // Show error state in UI
-    const seoSummaryContent = document.getElementById('seo-summary-content');
-    if (seoSummaryContent) {
-      seoSummaryContent.innerHTML = `
-        <div class="seo-error">
-          <div class="seo-error-title">Initialization Error</div>
-          <div class="seo-error-message">${error.message}</div>
-        </div>
-      `;
-    }
-  }
-});
 
 // Function to fetch metadata from the current page
 function fetchMetaData() {
@@ -1176,51 +1316,6 @@ function populateSchemaWithSeparatedCards(metadata) {
   schemaGrid.innerHTML = html;
 }
 
-// Function to load page data with improved error handling
-function loadPageData() {
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (chrome.runtime.lastError) {
-      console.error('Error querying tabs:', chrome.runtime.lastError);
-      showError('Failed to access current tab. Please try refreshing the page.');
-      return;
-    }
-    
-    if (!tabs || !tabs[0]) {
-      showError('No active tab found. Please try again.');
-      return;
-    }
-    
-    chrome.tabs.sendMessage(tabs[0].id, { type: 'getMetadata' }, function(response) {
-      if (chrome.runtime.lastError) {
-        console.error('Error getting metadata:', chrome.runtime.lastError);
-        showError('Failed to analyze page metadata. Please try refreshing the page.');
-        return;
-      }
-      
-      if (response) {
-        console.log('Fetched metadata:', response);
-        populateMetadata(response);
-      } else {
-        console.error('No results returned from content script');
-        showError('Unable to analyze page metadata. Please try refreshing the page.');
-      }
-    });
-  });
-}
-
-// Function to show error message in the UI
-function showError(message) {
-  const seoSummaryContent = document.getElementById('seo-summary-content');
-  if (seoSummaryContent) {
-    seoSummaryContent.innerHTML = `
-      <div class="seo-error">
-        <div class="seo-error-title">Error</div>
-        <div class="seo-error-message">${message}</div>
-      </div>
-    `;
-  }
-}
-
 // OPTIMIZATION: New function to request web vitals initialization with improved error handling
 function initializeWebVitals() {
   // Initialize cached metrics first
@@ -1647,4 +1742,235 @@ function generateSEOReportHTML(seoData) {
   }
   
   return html;
+}
+
+// Update SEO score display
+function updateSEOScore(scoreData) {
+  console.log('Updating SEO score with:', scoreData);
+  if (!scoreData) return;
+  
+  const scoreSection = document.querySelector('.score-section');
+  if (!scoreSection) return;
+  
+  // Get score value and description
+  const score = scoreData.score || 0;
+  let status = 'warning';
+  let description = 'Needs improvement';
+  
+  if (score >= 80) {
+    status = 'good';
+    description = 'Good, well optimized';
+  } else if (score < 50) {
+    status = 'error';
+    description = 'Poor, needs urgent attention';
+  }
+  
+  // Update the score circle
+  const scoreCirclePath = scoreSection.querySelector('.score-fill');
+  const scoreText = scoreSection.querySelector('.score-text');
+  
+  if (scoreCirclePath) {
+    scoreCirclePath.setAttribute('stroke-dasharray', `${score}, 100`);
+  }
+  
+  if (scoreText) {
+    scoreText.textContent = score;
+  }
+  
+  // Update the description
+  const scoreDescription = scoreSection.querySelector('.score-description');
+  if (scoreDescription) {
+    scoreDescription.textContent = description;
+  }
+}
+
+// Update meta tags display
+function updateMetaTags(metadata) {
+  console.log('Updating meta tags with:', metadata.basicMeta);
+  if (!metadata.basicMeta) return;
+  
+  // Get the meta cards
+  const metaCards = document.querySelectorAll('.meta-card');
+  if (metaCards.length < 2) return;
+  
+  // Title card (usually first)
+  const titleData = metadata.basicMeta.find(tag => tag.label === 'Title');
+  if (titleData && metaCards[0]) {
+    const titleStatus = metaCards[0].querySelector('.meta-card-status');
+    const titleContent = metaCards[0].querySelector('.meta-card-content');
+    
+    if (titleStatus) {
+      titleStatus.textContent = titleData.message || 'Missing';
+      titleStatus.className = `meta-card-status ${titleData.status || 'error'}`;
+    }
+    
+    if (titleContent) {
+      titleContent.innerHTML = `<p>${titleData.value || 'Title not set'}</p>`;
+    }
+  }
+  
+  // Description card (usually second)
+  const descData = metadata.basicMeta.find(tag => tag.label === 'Description');
+  if (descData && metaCards[1]) {
+    const descStatus = metaCards[1].querySelector('.meta-card-status');
+    const descContent = metaCards[1].querySelector('.meta-card-content');
+    
+    if (descStatus) {
+      descStatus.textContent = descData.message || 'Missing';
+      descStatus.className = `meta-card-status ${descData.status || 'error'}`;
+    }
+    
+    if (descContent) {
+      if (!descData.value) {
+        descContent.innerHTML = `
+          <p class="empty-content">No description tag found.</p>
+          <button class="btn-secondary btn-small">Add Description</button>
+        `;
+      } else {
+        descContent.innerHTML = `<p>${descData.value}</p>`;
+      }
+    }
+  }
+}
+
+// Update previews
+function updatePreviews(metadata) {
+  console.log('Updating previews with metadata');
+  if (!metadata) return;
+  
+  // Extract common metadata
+  const title = metadata.basicMeta.find(tag => tag.label === 'Title')?.value || '';
+  const description = metadata.basicMeta.find(tag => tag.label === 'Description')?.value || '';
+  const ogTitle = metadata.ogMeta?.find(tag => tag.label === 'og:title')?.value || title;
+  const ogDescription = metadata.ogMeta?.find(tag => tag.label === 'og:description')?.value || description;
+  const ogImage = metadata.ogMeta?.find(tag => tag.label === 'og:image')?.value || '';
+  const ogUrl = metadata.ogMeta?.find(tag => tag.label === 'og:url')?.value || 
+               metadata.canonicalUrl || '';
+               
+  // Get hostname for display
+  const hostname = extractHostname(ogUrl);
+  
+  // Update Google preview
+  const googlePreview = document.getElementById('google-preview');
+  if (googlePreview) {
+    googlePreview.innerHTML = `
+      <div class="google-preview">
+        <div class="google-url">${hostname}</div>
+        <div class="google-title">${title}</div>
+        <div class="google-description">${description || 'No description available. Search engines might generate their own description from page content.'}</div>
+      </div>
+    `;
+  }
+  
+  // Update Facebook preview
+  const facebookPreview = document.getElementById('facebook-preview');
+  if (facebookPreview) {
+    facebookPreview.innerHTML = `
+      <div class="facebook-preview">
+        ${ogImage ? 
+          `<div class="preview-image" style="background-image: url('${ogImage}')"></div>` : 
+          `<div class="preview-image-placeholder">No image provided</div>`
+        }
+        <div class="facebook-content">
+          <div class="facebook-domain">${hostname}</div>
+          <div class="facebook-title">${ogTitle}</div>
+          <div class="facebook-description">${ogDescription || 'No description provided'}</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Update Twitter preview
+  const twitterPreview = document.getElementById('twitter-preview');
+  if (twitterPreview) {
+    const twitterTitle = metadata.twitterMeta?.find(tag => tag.label === 'twitter:title')?.value || ogTitle;
+    const twitterDescription = metadata.twitterMeta?.find(tag => tag.label === 'twitter:description')?.value || ogDescription;
+    const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || ogImage;
+    
+    twitterPreview.innerHTML = `
+      <div class="twitter-preview">
+        ${twitterImage ? 
+          `<div class="preview-image" style="background-image: url('${twitterImage}')"></div>` : 
+          `<div class="preview-image-placeholder">No image provided</div>`
+        }
+        <div class="twitter-content">
+          <div class="twitter-domain">${hostname}</div>
+          <div class="twitter-title">${twitterTitle}</div>
+          <div class="twitter-description">${twitterDescription || 'No description provided'}</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// Update performance metrics display
+function updatePerformance(metrics) {
+  console.log('Updating performance with metrics:', metrics);
+  if (!metrics) return;
+  
+  const performanceSection = document.querySelector('.performance-section');
+  if (!performanceSection) return;
+  
+  const metricsRow = performanceSection.querySelector('.metrics-row');
+  if (!metricsRow) return;
+  
+  // Update LCP (Largest Contentful Paint)
+  if (metrics.lcp !== null && metrics.lcp !== undefined) {
+    const lcpItem = metricsRow.querySelector('.metric-item:nth-child(1)');
+    if (lcpItem) {
+      const lcpValue = lcpItem.querySelector('.metric-value');
+      if (lcpValue) {
+        lcpValue.textContent = (metrics.lcp / 1000).toFixed(1) + 's';
+      }
+      
+      // Update status class
+      if (metrics.lcp <= 2500) {
+        lcpItem.className = 'metric-item good';
+      } else if (metrics.lcp <= 4000) {
+        lcpItem.className = 'metric-item warning';
+      } else {
+        lcpItem.className = 'metric-item poor';
+      }
+    }
+  }
+  
+  // Update CLS (Cumulative Layout Shift)
+  if (metrics.cls !== null && metrics.cls !== undefined) {
+    const clsItem = metricsRow.querySelector('.metric-item:nth-child(2)');
+    if (clsItem) {
+      const clsValue = clsItem.querySelector('.metric-value');
+      if (clsValue) {
+        clsValue.textContent = metrics.cls.toFixed(2);
+      }
+      
+      // Update status class
+      if (metrics.cls <= 0.1) {
+        clsItem.className = 'metric-item good';
+      } else if (metrics.cls <= 0.25) {
+        clsItem.className = 'metric-item warning';
+      } else {
+        clsItem.className = 'metric-item poor';
+      }
+    }
+  }
+  
+  // Update INP (Interaction to Next Paint)
+  if (metrics.inp !== null && metrics.inp !== undefined) {
+    const inpItem = metricsRow.querySelector('.metric-item:nth-child(3)');
+    if (inpItem) {
+      const inpValue = inpItem.querySelector('.metric-value');
+      if (inpValue) {
+        inpValue.textContent = metrics.inp.toFixed(0) + 'ms';
+      }
+      
+      // Update status class
+      if (metrics.inp <= 200) {
+        inpItem.className = 'metric-item good';
+      } else if (metrics.inp <= 500) {
+        inpItem.className = 'metric-item warning';
+      } else {
+        inpItem.className = 'metric-item poor';
+      }
+    }
+  }
 }
