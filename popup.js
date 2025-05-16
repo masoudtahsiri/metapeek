@@ -87,7 +87,7 @@ function createLoadingIndicator(message) {
     <div class="loading-indicator">
       <div class="loading-spinner"></div>
       <div class="loading-text">${message}</div>
-    </div>
+        </div>
   `;
 }
 
@@ -103,9 +103,9 @@ function createErrorIndicator(message) {
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="12" y1="8" x2="12" y2="12"></line>
         <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      </svg>
+        </svg>
       <div class="error-text">${message}</div>
-    </div>
+      </div>
   `;
 }
 
@@ -380,7 +380,7 @@ function populateMetaDrawer(metadata) {
             <div class="meta-tag-status good">Valid</div>
           </div>
         `;
-      } else {
+        } else {
         schemaContent += `
           <div class="meta-tag-row">
             <div class="meta-tag-name">Schema</div>
@@ -555,7 +555,7 @@ function initCollapsibleSections() {
         <div class="collapsible-title">
           ${iconSvg}
           <span>${section.title}</span>
-        </div>
+      </div>
         <svg class="collapsible-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
@@ -701,9 +701,9 @@ function updateSEOScore(scoreData) {
       <div class="score-details">
         <h2>SEO Health</h2>
         <p class="score-description">${description}</p>
+        </div>
       </div>
-    </div>
-  `;
+    `;
 }
 
 /**
@@ -846,7 +846,7 @@ function updateFacebookPreview(hostname, title, description, image) {
   const facebookPreview = document.getElementById('facebook-preview');
   if (!facebookPreview) return;
   
-  facebookPreview.innerHTML = `
+    facebookPreview.innerHTML = `
     <div class="facebook-preview">
       ${image ? 
         `<div class="preview-image" style="background-image: url('${image}')"></div>` : 
@@ -856,11 +856,11 @@ function updateFacebookPreview(hostname, title, description, image) {
         <div class="facebook-domain">${hostname}</div>
         <div class="facebook-title">${title}</div>
         <div class="facebook-description">${description || 'No description provided'}</div>
+        </div>
       </div>
-    </div>
-  `;
-}
-
+    `;
+  }
+  
 /**
  * Update Twitter preview
  * @param {Object} metadata - Metadata from content script
@@ -880,8 +880,8 @@ function updateTwitterPreview(metadata, hostname, ogTitle, ogDescription, ogImag
   const twitterSite = metadata.twitterMeta?.find(tag => tag.label === 'twitter:site')?.value || '';
   
   const isLargeCard = twitterCard === 'summary_large_image';
-  
-  twitterPreview.innerHTML = `
+    
+    twitterPreview.innerHTML = `
     <div class="twitter-preview ${isLargeCard ? 'twitter-large-card' : ''}">
       ${twitterImage ? 
         `<div class="preview-image" style="background-image: url('${twitterImage}')"></div>` : 
@@ -892,11 +892,11 @@ function updateTwitterPreview(metadata, hostname, ogTitle, ogDescription, ogImag
         <div class="twitter-title">${twitterTitle}</div>
         <div class="twitter-description">${twitterDescription || 'No description provided'}</div>
         <div class="twitter-domain">${hostname}</div>
+        </div>
       </div>
-    </div>
-  `;
-}
-
+    `;
+  }
+  
 /**
  * Initialize Web Vitals metrics
  */
@@ -1037,7 +1037,7 @@ function getMetricStatusClass(value, goodThreshold, poorThreshold, lowerIsBetter
     return value <= goodThreshold ? 'good' : 
            value <= poorThreshold ? 'warning' : 
            'poor';
-  } else {
+      } else {
     return value >= goodThreshold ? 'good' : 
            value >= poorThreshold ? 'warning' : 
            'poor';
@@ -1105,7 +1105,7 @@ function updatePerformanceTip(metrics) {
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="12" y1="16" x2="12" y2="12"></line>
         <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
+        </svg>
       <div class="performance-tip-content">
         <p class="performance-tip-message">${criticalIssue.message}</p>
         <span class="performance-tip-impact ${criticalIssue.impact.toLowerCase()}">${criticalIssue.impact} Impact</span>
@@ -1135,4 +1135,4 @@ function showToast(message) {
   setTimeout(() => {
     toast.classList.remove('show');
   }, CONFIG.toastDuration);
-}
+} 
