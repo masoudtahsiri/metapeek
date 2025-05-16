@@ -536,50 +536,31 @@ body {
 
 /* Summary Grid */
 .summary-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-3);
+  display: none;
 }
 
 .summary-card {
-  background-color: var(--bg-card);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  border: 1px solid var(--border-light);
+  display: none;
 }
 
 .summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-2);
-}
-
-.summary-header h4 {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  margin: 0;
+  display: none;
 }
 
 .summary-content {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  word-break: break-word;
+  display: none;
 }
 
 .summary-content.empty {
-  color: var(--text-tertiary);
-  font-style: italic;
+  display: none;
 }
 
 .summary-footer {
-  margin-top: var(--space-2);
-  display: flex;
+  display: none;
 }
 
 .summary-footer .status-badge {
-  max-width: 100%;
-  margin-top: var(--space-1);
+  display: none;
 }
 
 /* Status Badges */
@@ -1292,36 +1273,4 @@ a:focus-visible {
 /* Remove the standalone "Checking..." text */
 .checking-text {
   display: none;
-}
-
-/* Status Summary Styles */
-.status-summary {
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-light);
-}
-
-.status-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-}
-
-.status-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-2);
-  background-color: var(--bg-surface);
-  border-radius: var(--radius-md);
-}
-
-.status-item h4 {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  margin: 0;
 }
