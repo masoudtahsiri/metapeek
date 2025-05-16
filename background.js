@@ -1,68 +1,82 @@
-// Enhanced background.js with debugging and improved functionality
+// Enhanced background.js with improved error handling and modularization
 
 console.log('MetaPeek background script loaded');
 
-// Improved listener for extension icon clicks
+/**
+ * Constants
+ */
+const SPECIAL_URLS = ['chrome://', 'edge://', 'about:'];
+const WELCOME_PAGE = 'https://github.com/masoudtahsiri/metapeek#readme';
+
+/**
+ * Check if a URL is a special browser URL that can't be analyzed
+ * @param {string} url - The URL to check
+ * @returns {boolean} - True if the URL is special
+ */
+function isSpecialUrl(url) {
+  return SPECIAL_URLS.some(prefix => url.startsWith(prefix));
+}
+
+/**
+ * Show a notification to the user
+ * @param {string} message - The message to display
+ */
+function showNotification(message) {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/icon48.png',
+    title: 'MetaPeek',
+    message: message,
+    priority: 1
+  });
+}
+
+/**
+ * Set the popup for a tab based on its URL
+ * @param {number} tabId - The ID of the tab
+ * @param {string} url - The URL of the tab
+ */
+function configurePopupForTab(tabId, url) {
+  const popupPath = isSpecialUrl(url) ? '' : 'popup.html';
+  
+  chrome.action.setPopup({
+    tabId: tabId,
+    popup: popupPath
+  });
+  
+  if (isSpecialUrl(url)) {
+    console.log('Special URL detected, removing popup for tab:', tabId);
+  }
+}
+
+// Listen for extension icon clicks
 chrome.action.onClicked.addListener((tab) => {
   console.log('Extension icon clicked for tab:', tab.url);
   
-  // Check if the URL is a chrome:// URL
-  if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-    console.log('Special URL detected, showing notification');
-    chrome.action.setPopup({ popup: '' });
-    
-    // Show a notification or open help page instead
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: 'MetaPeek',
-      message: 'MetaPeek cannot analyze browser system pages. Please try it on a regular website.',
-      priority: 1
-    });
-    
+  if (isSpecialUrl(tab.url)) {
+    // Show a notification for special URLs
+    showNotification('MetaPeek cannot analyze browser system pages. Please try it on a regular website.');
     return;
   }
   
-  console.log('Setting popup for tab:', tab.id);
-  // For non-special URLs, open the popup
-  chrome.action.setPopup({
-    tabId: tab.id,
-    popup: 'popup.html'
-  });
+  // For non-special URLs, configure the popup
+  configurePopupForTab(tab.id, tab.url);
 });
 
-// Enhanced tab update handler
+// Handle tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
-    console.log('Tab update complete:', tab.url);
-    
-    if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-      console.log('Special URL detected, removing popup for tab:', tabId);
-      // Remove popup for special URLs
-      chrome.action.setPopup({
-        tabId: tabId,
-        popup: ''
-      });
-    } else {
-      console.log('Regular URL detected, setting popup for tab:', tabId);
-      // Set popup for regular URLs
-      chrome.action.setPopup({
-        tabId: tabId,
-        popup: 'popup.html'
-      });
-    }
+    configurePopupForTab(tabId, tab.url);
   }
 });
 
-// Add a listener for runtime errors
+// Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('Extension installed or updated:', details.reason);
   
   if (details.reason === 'install') {
     // Open a welcome page on first install
-    chrome.tabs.create({
-      url: 'https://github.com/masoudtahsiri/metapeek#readme'
-    });
+    chrome.tabs.create({ url: WELCOME_PAGE });
   }
 });
 
@@ -70,12 +84,17 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Background script received message:', message.type);
   
-  if (message.type === 'metadataUpdated') {
-    console.log('Metadata updated for tab:', sender.tab?.id);
-    // We could store this in extension storage for faster access
-    // when popup opens
+  switch (message.type) {
+    case 'metadataUpdated':
+      console.log('Metadata updated for tab:', sender.tab?.id);
+      // We could store this in extension storage for faster access
+      // when popup opens
+      sendResponse({ received: true });
+      break;
     
-    sendResponse({ received: true });
+    default:
+      console.log('Unknown message type:', message.type);
+      break;
   }
   
   return true; // Keep message channel open for async responses
