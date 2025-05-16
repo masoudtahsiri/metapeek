@@ -9,6 +9,7 @@
 </head>
 <body>
   <div class="app-container">
+    <!-- Header -->
     <header class="app-header">
       <div class="logo">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -16,24 +17,7 @@
         </svg>
         <h1>MetaPeek</h1>
       </div>
-      
-      <div class="page-url" id="current-url-display">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        <span class="truncate-text" id="url-text">analyzing page...</span>
-      </div>
-      
       <div class="app-actions">
-        <button id="help-button" class="btn-icon" aria-label="Help" title="Help">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-        </button>
         <button id="theme-toggle" class="btn-icon" aria-label="Toggle dark mode" title="Toggle dark mode">
           <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
@@ -53,6 +37,18 @@
       </div>
     </header>
 
+    <!-- URL display -->
+    <div class="page-url-container">
+      <div class="page-url" id="current-url-display">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span class="truncate-text" id="url-text">analyzing page...</span>
+      </div>
+    </div>
+
     <main class="app-content">
       <!-- Tab Navigation -->
       <nav class="tab-navigation">
@@ -66,157 +62,151 @@
       <div class="tab-content">
         <!-- Overview Tab -->
         <section id="overview-tab" class="tab-pane active">
-          <!-- Enhanced SEO Score Display -->
+          <!-- SEO Score Display -->
           <div class="score-panel">
             <div class="score-display">
-              <div class="score-circle" style="--score-value: 78"></div>
-              <div class="score-inner">
-                <div class="score-value">78</div>
-                <div class="score-label">SEO Score</div>
+              <div class="score-circle">
+                <div class="score-value">--</div>
               </div>
+              <div class="score-label">SEO Score</div>
             </div>
             <div class="score-details">
-              <h3 class="score-title">Good SEO Health</h3>
-              <p class="score-description">Your page is well-optimized but has a few issues to address.</p>
-              <div class="score-stats">
-                <div class="stat-item">
-                  <div class="stat-value">
-                    <span class="good-count">12</span>/<span class="total-count">16</span>
-                  </div>
-                  <div class="stat-label">Meta Tags</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-value">2</div>
-                  <div class="stat-label">Critical Issues</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-value">3</div>
-                  <div class="stat-label">Warnings</div>
-                </div>
-              </div>
+              <h3 class="score-title">Analyzing SEO...</h3>
+              <p class="score-description">Checking your page's SEO factors</p>
             </div>
           </div>
+
           <!-- Priority Issues -->
           <div class="section-card">
-            <h3 class="section-title">Priority Issues <span class="badge">2</span></h3>
+            <h3 class="section-title">Priority Issues <span class="badge">0</span></h3>
             <div class="issues-list">
-              <div class="issue-item high">
-                <div class="issue-header">
-                  <h4>Missing Meta Description</h4>
-                  <span class="issue-impact high">High Impact</span>
-                </div>
-                <p class="issue-description">Meta description tag is missing. Search engines use this to display page descriptions in search results.</p>
-                <button class="btn-text">Fix This →</button>
-              </div>
-              <div class="issue-item medium">
-                <div class="issue-header">
-                  <h4>Slow Loading Performance (LCP)</h4>
-                  <span class="issue-impact medium">Medium Impact</span>
-                </div>
-                <p class="issue-description">Current LCP is 4.2s (poor). Consider optimizing images and reducing server response time.</p>
-                <button class="btn-text">Learn More →</button>
+              <div class="empty-state">
+                <p>Checking for issues...</p>
               </div>
             </div>
           </div>
+
           <!-- Meta Summary -->
           <div class="summary-grid">
-            <div class="summary-card title">
+            <div class="summary-card">
               <div class="summary-header">
                 <h4>Title</h4>
-                <span class="status-badge good">Good</span>
+                <span class="status-badge">Checking...</span>
               </div>
-              <p class="summary-content">MetaPeek Chrome Extension - Audit Meta Tags & SEO</p>
+              <p class="summary-content">Loading title...</p>
             </div>
-            <div class="summary-card description">
+            <div class="summary-card">
               <div class="summary-header">
                 <h4>Description</h4>
-                <span class="status-badge error">Missing</span>
+                <span class="status-badge">Checking...</span>
               </div>
-              <p class="summary-content empty">No description found</p>
-              <button class="btn-text">Add Description</button>
+              <p class="summary-content">Loading description...</p>
+            </div>
+            <div class="summary-card">
+              <div class="summary-header">
+                <h4>Canonical URL</h4>
+                <span class="status-badge">Checking...</span>
+              </div>
+              <p class="summary-content">Loading canonical URL...</p>
             </div>
           </div>
         </section>
         
         <!-- Meta Tags Tab -->
         <section id="meta-tags-tab" class="tab-pane">
-          <div class="section-card">
-            <div class="section-header">
-              <h3 class="section-title">Basic Meta Tags</h3>
-              <button class="btn-icon-text">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                Copy All
-              </button>
+          <div class="meta-tags-container">
+            <div class="section-card">
+              <div class="section-header">
+                <h3 class="section-title">Basic Meta Tags</h3>
+                <button id="copy-basic-meta" class="btn-icon-text">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy
+                </button>
+              </div>
+              <div id="basic-meta-content" class="meta-table">
+                <div class="loading-indicator">
+                  <div class="loading-spinner"></div>
+                  <div class="loading-text">Loading meta tags...</div>
+                </div>
+              </div>
             </div>
             
-            <div class="meta-table">
-              <div class="meta-row">
-                <div class="meta-cell name">Title</div>
-                <div class="meta-cell value">MetaPeek Chrome Extension - Audit Meta Tags & SEO</div>
-                <div class="meta-cell status"><span class="status-badge good">Good</span></div>
+            <div class="section-card">
+              <div class="section-header">
+                <h3 class="section-title">Open Graph Tags</h3>
+                <button id="copy-og-meta" class="btn-icon-text">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy
+                </button>
               </div>
-              
-              <div class="meta-row">
-                <div class="meta-cell name">Description</div>
-                <div class="meta-cell value empty">Not set</div>
-                <div class="meta-cell status"><span class="status-badge error">Missing</span></div>
-              </div>
-              
-              <div class="meta-row">
-                <div class="meta-cell name">Keywords</div>
-                <div class="meta-cell value">SEO, meta tags, chrome extension, audit</div>
-                <div class="meta-cell status"><span class="status-badge good">Good</span></div>
-              </div>
-              
-              <div class="meta-row">
-                <div class="meta-cell name">Viewport</div>
-                <div class="meta-cell value">width=device-width, initial-scale=1.0</div>
-                <div class="meta-cell status"><span class="status-badge good">Good</span></div>
+              <div id="og-meta-content" class="meta-table">
+                <div class="loading-indicator">
+                  <div class="loading-spinner"></div>
+                  <div class="loading-text">Loading Open Graph tags...</div>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div class="section-card">
-            <h3 class="section-title">Open Graph Tags</h3>
-            <div class="meta-table">
-              <!-- Open Graph meta tags would be listed here -->
-              <div class="meta-row">
-                <div class="meta-cell name">og:title</div>
-                <div class="meta-cell value">MetaPeek - Meta Tag Analyzer</div>
-                <div class="meta-cell status"><span class="status-badge good">Good</span></div>
+            
+            <div class="section-card">
+              <div class="section-header">
+                <h3 class="section-title">Twitter Card Tags</h3>
+                <button id="copy-twitter-meta" class="btn-icon-text">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy
+                </button>
               </div>
-              
-              <div class="meta-row">
-                <div class="meta-cell name">og:description</div>
-                <div class="meta-cell value empty">Not set</div>
-                <div class="meta-cell status"><span class="status-badge error">Missing</span></div>
-              </div>
-              
-              <div class="meta-row">
-                <div class="meta-cell name">og:image</div>
-                <div class="meta-cell value empty">Not set</div>
-                <div class="meta-cell status"><span class="status-badge error">Missing</span></div>
+              <div id="twitter-meta-content" class="meta-table">
+                <div class="loading-indicator">
+                  <div class="loading-spinner"></div>
+                  <div class="loading-text">Loading Twitter tags...</div>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div class="section-card">
-            <h3 class="section-title">Twitter Card Tags</h3>
-            <div class="meta-table">
-              <!-- Twitter Card meta tags would be listed here -->
-              <div class="meta-row">
-                <div class="meta-cell name">twitter:card</div>
-                <div class="meta-cell value">summary</div>
-                <div class="meta-cell status"><span class="status-badge good">Good</span></div>
+
+            <div class="section-card">
+              <div class="section-header">
+                <h3 class="section-title">Schema.org Data</h3>
+                <button id="copy-schema" class="btn-icon-text">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy
+                </button>
               </div>
-              
-              <div class="meta-row">
-                <div class="meta-cell name">twitter:title</div>
-                <div class="meta-cell value empty">Not set</div>
-                <div class="meta-cell status"><span class="status-badge warning">Missing</span></div>
+              <div id="schema-content" class="meta-table">
+                <div class="loading-indicator">
+                  <div class="loading-spinner"></div>
+                  <div class="loading-text">Loading Schema.org data...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="section-header">
+                <h3 class="section-title">Canonical URL</h3>
+                <button id="copy-canonical" class="btn-icon-text">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy
+                </button>
+              </div>
+              <div id="canonical-content" class="meta-table">
+                <div class="loading-indicator">
+                  <div class="loading-spinner"></div>
+                  <div class="loading-text">Loading canonical URL...</div>
+                </div>
               </div>
             </div>
           </div>
@@ -231,20 +221,25 @@
           </div>
           
           <div class="preview-container">
-            <div class="preview-content active" id="google-preview">
-              <div class="google-preview">
-                <div class="google-url">example.com</div>
-                <div class="google-title">MetaPeek Chrome Extension - Audit Meta Tags & SEO</div>
-                <div class="google-description">No description available. Search engines might generate their own description from page content.</div>
+            <div id="google-preview" class="preview-content active">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Google preview...</div>
               </div>
             </div>
             
-            <div class="preview-content" id="facebook-preview">
-              <!-- Facebook preview content -->
+            <div id="facebook-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Facebook preview...</div>
+              </div>
             </div>
             
-            <div class="preview-content" id="twitter-preview">
-              <!-- Twitter preview content -->
+            <div id="twitter-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Twitter preview...</div>
+              </div>
             </div>
           </div>
         </section>
@@ -254,45 +249,20 @@
           <div class="section-card">
             <h3 class="section-title">Core Web Vitals</h3>
             
-            <div class="metrics-grid">
-              <div class="metric-card poor">
-                <div class="metric-header">
-                  <h4>LCP</h4>
-                  <span class="metric-status poor">Poor</span>
-                </div>
-                <div class="metric-value">4.2s</div>
-                <div class="metric-label">Largest Contentful Paint</div>
-                <div class="metric-threshold">Target: < 2.5s</div>
-              </div>
-              
-              <div class="metric-card warning">
-                <div class="metric-header">
-                  <h4>CLS</h4>
-                  <span class="metric-status warning">Needs Improvement</span>
-                </div>
-                <div class="metric-value">0.15</div>
-                <div class="metric-label">Cumulative Layout Shift</div>
-                <div class="metric-threshold">Target: < 0.1</div>
-              </div>
-              
-              <div class="metric-card good">
-                <div class="metric-header">
-                  <h4>INP</h4>
-                  <span class="metric-status good">Good</span>
-                </div>
-                <div class="metric-value">185ms</div>
-                <div class="metric-label">Interaction to Next Paint</div>
-                <div class="metric-threshold">Target: < 200ms</div>
+            <div id="metrics-grid" class="metrics-grid">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Collecting performance metrics...</div>
               </div>
             </div>
             
-            <div class="performance-tip">
+            <div id="performance-tip" class="performance-tip">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="16" x2="12" y2="12"></line>
                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
               </svg>
-              <p>Your page has slow loading performance (LCP). Consider optimizing images, reducing server response time, or reducing JavaScript.</p>
+              <p>Analyzing page performance...</p>
             </div>
           </div>
         </section>
@@ -308,6 +278,7 @@
         </svg>
         Export Report
       </button>
+      <a href="https://github.com/masoudtahsiri/metapeek" target="_blank" class="btn-link">Help</a>
     </footer>
     
     <div id="toast" class="toast">
