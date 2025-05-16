@@ -320,6 +320,116 @@ function initPerformanceToggle() {
 }
 
 /**
+ * Populate the meta drawer with all metadata categories
+ * @param {Object} metadata - Metadata from content script
+ */
+function populateMetaDrawer(metadata) {
+  console.log('Populating meta drawer with all metadata');
+  
+  // Get the container for meta groups
+  const metaGroupsContainer = document.getElementById('meta-groups-container');
+  if (!metaGroupsContainer || !metadata) return;
+  
+  // Clear existing content
+  metaGroupsContainer.innerHTML = '';
+  
+  // Create and add meta groups
+  if (metadata.basicMeta && metadata.basicMeta.length > 0) {
+    addMetaGroup(metaGroupsContainer, 'Basic Meta Tags', metadata.basicMeta);
+  }
+  
+  if (metadata.ogMeta && metadata.ogMeta.length > 0) {
+    addMetaGroup(metaGroupsContainer, 'Open Graph Tags', metadata.ogMeta);
+  }
+  
+  if (metadata.twitterMeta && metadata.twitterMeta.length > 0) {
+    addMetaGroup(metaGroupsContainer, 'Twitter Card Tags', metadata.twitterMeta);
+  }
+  
+  // Add canonical URL if available
+  if (metadata.canonicalUrl) {
+    const canonicalGroup = document.createElement('div');
+    canonicalGroup.className = 'meta-group';
+    canonicalGroup.innerHTML = `
+      <h4>Canonical URL</h4>
+      <div class="meta-items">
+        <div class="meta-tag-row">
+          <div class="meta-tag-name">canonical</div>
+          <div class="meta-tag-value">${metadata.canonicalUrl}</div>
+          <div class="meta-tag-status good">Defined</div>
+        </div>
+      </div>
+    `;
+    metaGroupsContainer.appendChild(canonicalGroup);
+  }
+  
+  // Add Schema.org data if available
+  if (metadata.schemaData && metadata.schemaData.length > 0) {
+    const schemaGroup = document.createElement('div');
+    schemaGroup.className = 'meta-group';
+    
+    let schemaContent = '<h4>Schema.org Data</h4><div class="meta-items">';
+    
+    metadata.schemaData.forEach(schema => {
+      if (schema.valid && schema.data) {
+        const schemaType = schema.data['@type'] || 'Unknown Type';
+        schemaContent += `
+          <div class="meta-tag-row">
+            <div class="meta-tag-name">@type</div>
+            <div class="meta-tag-value">${schemaType}</div>
+            <div class="meta-tag-status good">Valid</div>
+          </div>
+        `;
+      } else {
+        schemaContent += `
+          <div class="meta-tag-row">
+            <div class="meta-tag-name">Schema</div>
+            <div class="meta-tag-value empty">Invalid Schema</div>
+            <div class="meta-tag-status error">Error</div>
+          </div>
+        `;
+      }
+    });
+    
+    schemaContent += '</div>';
+    schemaGroup.innerHTML = schemaContent;
+    metaGroupsContainer.appendChild(schemaGroup);
+  }
+}
+
+/**
+ * Add a meta tag group to the container
+ * @param {Element} container - Container element to add the group to
+ * @param {string} title - Group title
+ * @param {Array} items - Array of meta items
+ */
+function addMetaGroup(container, title, items) {
+  const group = document.createElement('div');
+  group.className = 'meta-group';
+  
+  let content = `<h4>${title}</h4><div class="meta-items">`;
+  
+  items.forEach(item => {
+    const value = item.value || '';
+    const isEmpty = value === '';
+    const valueClass = isEmpty ? 'meta-tag-value empty' : 'meta-tag-value';
+    const displayValue = isEmpty ? 'Not set' : value;
+    
+    content += `
+      <div class="meta-tag-row">
+        <div class="meta-tag-name">${item.label}</div>
+        <div class="${valueClass}">${displayValue}</div>
+        <div class="meta-tag-status ${item.status || 'warning'}">${item.message || (isEmpty ? 'Missing' : 'Present')}</div>
+      </div>
+    `;
+  });
+  
+  content += '</div>';
+  group.innerHTML = content;
+  container.appendChild(group);
+}
+
+/**
  * Initialize meta tags drawer functionality
  */
 function initMetaDrawer() {
@@ -331,6 +441,11 @@ function initMetaDrawer() {
   if (!viewAllButton || !drawerCloseButton || !drawer || !overlay) return;
   
   viewAllButton.addEventListener('click', () => {
+    // Populate the drawer with metadata when it's opened
+    if (state.metadata) {
+      populateMetaDrawer(state.metadata);
+    }
+    
     drawer.classList.add('open');
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
