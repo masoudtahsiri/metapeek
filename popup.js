@@ -235,9 +235,6 @@ function populateUI(metadata) {
     // Update priority issues
     updatePriorityIssues(metadata);
     
-    // Update meta tag status summary in Overview tab
-    updateMetaTagSummary(metadata);
-    
     // Update meta tags in Meta Tags tab
     updateBasicMetaTags(metadata.basicMeta || []);
     updateOGMetaTags(metadata.ogMeta || []);
@@ -371,105 +368,6 @@ function updatePriorityIssues(metadata) {
         <p>No priority issues found. Your page is looking good!</p>
       </div>
     `;
-  }
-}
-
-/**
- * Update meta tag status summary in Overview tab
- * @param {Object} metadata - Metadata from content script
- */
-function updateMetaTagSummary(metadata) {
-  const statusGrid = document.querySelector('.status-grid');
-  if (!statusGrid) return;
-  
-  const statusItems = statusGrid.querySelectorAll('.status-item');
-  
-  // Update title status
-  if (statusItems[0]) {
-    const title = metadata.basicMeta?.find(tag => tag.label === 'Title') || { 
-      status: 'error'
-    };
-    
-    const badge = statusItems[0].querySelector('.status-badge');
-    if (badge) {
-      const statusText = title.status === 'good' ? 'Good' : 
-                         title.status === 'warning' ? 'Warning' : 'Error';
-      badge.className = `status-badge ${title.status}`;
-      badge.textContent = statusText;
-    }
-  }
-  
-  // Update description status
-  if (statusItems[1]) {
-    const description = metadata.basicMeta?.find(tag => tag.label === 'Description') || { 
-      status: 'error'
-    };
-    
-    const badge = statusItems[1].querySelector('.status-badge');
-    if (badge) {
-      const statusText = description.status === 'good' ? 'Good' : 
-                         description.status === 'warning' ? 'Warning' : 'Error';
-      badge.className = `status-badge ${description.status}`;
-      badge.textContent = statusText;
-    }
-  }
-  
-  // Update canonical status
-  if (statusItems[2]) {
-    const canonical = metadata.canonicalUrl;
-    const status = canonical ? 'good' : 'error';
-    
-    const badge = statusItems[2].querySelector('.status-badge');
-    if (badge) {
-      const statusText = status === 'good' ? 'Good' : 'Error';
-      badge.className = `status-badge ${status}`;
-      badge.textContent = statusText;
-    }
-  }
-  
-  // Update OG status
-  if (statusItems[3]) {
-    const ogTags = metadata.ogMeta || [];
-    const hasErrors = ogTags.some(tag => tag.status === 'error');
-    const hasWarnings = ogTags.some(tag => tag.status === 'warning');
-    const status = hasErrors ? 'error' : hasWarnings ? 'warning' : ogTags.length > 0 ? 'good' : 'error';
-    
-    const badge = statusItems[3].querySelector('.status-badge');
-    if (badge) {
-      const statusText = status === 'good' ? 'Good' : 
-                         status === 'warning' ? 'Warning' : 'Error';
-      badge.className = `status-badge ${status}`;
-      badge.textContent = statusText;
-    }
-  }
-  
-  // Update Twitter Card status
-  if (statusItems[4]) {
-    const twitterTags = metadata.twitterMeta || [];
-    const hasErrors = twitterTags.some(tag => tag.status === 'error');
-    const hasWarnings = twitterTags.some(tag => tag.status === 'warning');
-    const status = hasErrors ? 'error' : hasWarnings ? 'warning' : twitterTags.length > 0 ? 'good' : 'error';
-    
-    const badge = statusItems[4].querySelector('.status-badge');
-    if (badge) {
-      const statusText = status === 'good' ? 'Good' : 
-                         status === 'warning' ? 'Warning' : 'Error';
-      badge.className = `status-badge ${status}`;
-      badge.textContent = statusText;
-    }
-  }
-  
-  // Update Schema.org status
-  if (statusItems[5]) {
-    const schemaData = metadata.schemaData || [];
-    const status = schemaData.length > 0 ? 'good' : 'error';
-    
-    const badge = statusItems[5].querySelector('.status-badge');
-    if (badge) {
-      const statusText = status === 'good' ? 'Good' : 'Error';
-      badge.className = `status-badge ${status}`;
-      badge.textContent = statusText;
-    }
   }
 }
 

@@ -50,57 +50,24 @@
       <div class="tab-content">
         <!-- Overview Tab -->
         <section id="overview-tab" class="tab-pane active">
-          <!-- Meta Status Summary -->
-          <div class="status-summary">
-            <h3 class="section-title">Meta Tag Status</h3>
-            <div class="status-grid">
-              <div class="status-item">
-                <h4>Title</h4>
-                <span class="status-badge">Checking...</span>
-              </div>
-              <div class="status-item">
-                <h4>Description</h4>
-                <span class="status-badge">Checking...</span>
-              </div>
-              <div class="status-item">
-                <h4>Canonical URL</h4>
-                <span class="status-badge">Checking...</span>
-              </div>
-              <div class="status-item">
-                <h4>Open Graph</h4>
-                <span class="status-badge">Checking...</span>
-              </div>
-              <div class="status-item">
-                <h4>Twitter Cards</h4>
-                <span class="status-badge">Checking...</span>
-              </div>
-              <div class="status-item">
-                <h4>Schema.org</h4>
-                <span class="status-badge">Checking...</span>
-              </div>
+          <div class="score-section">
+            <div class="score-circle">
+              <div class="score-value">--</div>
+            </div>
+            <div class="score-info">
+              <h3 class="score-title">Analyzing...</h3>
+              <p class="score-description">Checking page metadata...</p>
             </div>
           </div>
-
-          <!-- SEO Score Display -->
-          <div class="score-panel">
-            <div class="score-display">
-              <div class="score-circle">
-                <div class="score-value">--</div>
-              </div>
-              <div class="score-label">SEO Score</div>
+          
+          <div class="issues-section">
+            <div class="section-header">
+              <h3 class="section-title">Priority Issues <span class="badge">0</span></h3>
             </div>
-            <div class="score-details">
-              <h3 class="score-title">Analyzing SEO...</h3>
-              <p class="score-description">Checking your page's SEO factors</p>
-            </div>
-          </div>
-
-          <!-- Priority Issues -->
-          <div class="section-card">
-            <h3 class="section-title">Priority Issues <span class="badge">0</span></h3>
             <div class="issues-list">
-              <div class="empty-state">
-                <p>Checking for issues...</p>
+              <div class="loading-indicator">
+                <div class="spinner"></div>
+                <p>Analyzing page...</p>
               </div>
             </div>
           </div>
