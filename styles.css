@@ -130,38 +130,109 @@
 
 /* Dark Mode Theme Variables */
 [data-theme="dark"] {
+  /* Base colors - keep existing ones */
   --bg-main: var(--color-gray-900);
   --bg-surface: var(--color-gray-800);
   --bg-surface-hover: var(--color-gray-700);
-  --bg-card: var(--color-gray-800);
+  /* NEW: Lighter card background for better contrast */
+  --bg-card: var(--color-gray-750, #2a3441);
   
   --text-primary: var(--color-gray-50);
   --text-secondary: var(--color-gray-300);
   --text-tertiary: var(--color-gray-400);
   
-  --border-light: var(--color-gray-700);
-  --border-medium: var(--color-gray-600);
+  /* NEW: Enhanced border colors with better visibility */
+  --border-light: rgba(255, 255, 255, 0.15);
+  --border-medium: rgba(255, 255, 255, 0.25);
   
-  /* Status semantic colors - adjusted for dark mode */
-  --status-good-bg: rgba(16, 185, 129, 0.15);
-  --status-good-border: rgba(16, 185, 129, 0.3);
+  /* Status semantic colors - adjusted for more visibility */
+  --status-good-bg: rgba(16, 185, 129, 0.2);
+  --status-good-border: rgba(16, 185, 129, 0.5);
   
-  --status-warning-bg: rgba(245, 158, 11, 0.15);
-  --status-warning-border: rgba(245, 158, 11, 0.3);
+  --status-warning-bg: rgba(245, 158, 11, 0.2);
+  --status-warning-border: rgba(245, 158, 11, 0.5);
   
-  --status-error-bg: rgba(239, 68, 68, 0.15);
-  --status-error-border: rgba(239, 68, 68, 0.3);
+  --status-error-bg: rgba(239, 68, 68, 0.2);
+  --status-error-border: rgba(239, 68, 68, 0.5);
   
-  /* Primary brand semantic colors - adjusted for dark mode */
-  --primary: var(--color-primary-400);
-  --primary-hover: var(--color-primary-300);
-  --primary-light: rgba(59, 130, 246, 0.15);
-  --primary-border: rgba(59, 130, 246, 0.3);
+  /* Primary brand semantic colors - brighter for dark mode */
+  --primary: var(--color-primary-300);
+  --primary-hover: var(--color-primary-200);
+  --primary-light: rgba(59, 130, 246, 0.25);
+  --primary-border: rgba(59, 130, 246, 0.5);
   
-  /* Shadow adjustments for dark mode */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  /* Enhanced shadow adjustments for dark mode */
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+}
+
+/* Enhanced section card for dark mode */
+[data-theme="dark"] .section-card {
+  /* Add a subtle gradient background */
+  background: linear-gradient(to bottom, var(--bg-card), var(--color-gray-800));
+  /* Enhanced border with stronger weight */
+  border: 2px solid var(--border-medium);
+  /* More pronounced shadow */
+  box-shadow: var(--shadow-md), 0 0 2px var(--primary-border);
+  /* Subtle highlight on the top edge */
+  border-top: 2px solid var(--color-primary-700);
+}
+
+/* Enhance contrast for tab buttons in dark mode */
+[data-theme="dark"] .tab-button {
+  color: var(--color-gray-400);
+}
+
+[data-theme="dark"] .tab-button:hover {
+  color: var(--color-gray-200);
+}
+
+[data-theme="dark"] .tab-button.active {
+  color: var(--color-primary-300);
+}
+
+/* Improve visibility of meta rows in dark mode */
+[data-theme="dark"] .meta-row {
+  border-bottom: 1px solid var(--border-light);
+}
+
+[data-theme="dark"] .meta-row:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Enhanced score panel in dark mode */
+[data-theme="dark"] .score-panel {
+  background: linear-gradient(to bottom right, var(--bg-card), var(--color-gray-800));
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--border-medium);
+  border-left: 3px solid var(--primary);
+}
+
+/* Improved issue items in dark mode */
+[data-theme="dark"] .issue-item {
+  background-color: rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
+  border-left-width: 4px;
+  border-top: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Enhanced issue item borders for different impact levels */
+[data-theme="dark"] .issue-item.high {
+  border-left-color: #ef4444;
+}
+
+[data-theme="dark"] .issue-item.medium {
+  border-left-color: #f59e0b;
+}
+
+/* Make empty states more visible in dark mode */
+[data-theme="dark"] .empty-state {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
 }
 
 /* Base Styles */
@@ -199,7 +270,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-5);
+  padding: 0 1.5rem;
   background-color: var(--bg-main);
   border-bottom: 1px solid var(--border-light);
   position: relative;
@@ -220,7 +291,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
-  padding: 0 var(--space-5);
+  padding: 0 1.5rem;
   background-color: var(--bg-main);
   border-top: 1px solid var(--border-light);
   position: fixed;
@@ -280,7 +351,7 @@ body {
 /* Tab Navigation - FIXED to prevent overlap */
 .tab-navigation {
   background-color: var(--bg-main);
-  padding: var(--space-2) var(--space-5);
+  padding: 0.75rem 1.5rem;
   display: flex;
   position: sticky;
   top: 0;
@@ -323,7 +394,7 @@ body {
 
 /* Tab Content */
 .tab-content {
-  padding: var(--space-4) var(--space-5);
+  padding: 1.25rem 1.5rem;
 }
 
 .tab-pane {
@@ -338,10 +409,71 @@ body {
 .section-card {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  padding: 1.25rem;
   margin-bottom: var(--space-4);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-light);
+}
+
+/* Move Section Titles Outside Cards */
+/* Target the meta-tags-tab section specifically */
+#meta-tags-tab .section-header {
+  position: static;
+  margin-top: 0.5rem;
+  margin-bottom: -3.9rem;
+  padding: 0.5rem 0.5rem 0 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#meta-tags-tab .section-header:first-child {
+  margin-top: 0;
+}
+
+#meta-tags-tab .section-card {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+#meta-tags-tab .section-card > *:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* Style for section header with outside title */
+#meta-tags-tab .section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0.25rem 0; /* Added padding for better touch target */
+}
+
+/* Adjust spacing between cards for better rhythm */
+#meta-tags-tab .section-card:not(:first-child) {
+  margin-top: 4rem; /* Increased from 3rem for better separation */
+}
+
+/* Ensure copy buttons stay with the title */
+#meta-tags-tab .btn-icon-text {
+  position: relative;
+  z-index: 1; /* Ensure button stays above */
+  margin-left: 1rem; /* Added spacing from title */
+}
+
+/* Meta row adjustments for better alignment */
+#meta-tags-tab .meta-row {
+  padding: 1rem 0.75rem; /* Increased padding for better readability */
+}
+
+#meta-tags-tab .meta-cell {
+  padding: 0.75rem; /* Increased padding for better spacing */
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] #meta-tags-tab .section-title {
+  color: var(--color-gray-100); /* Lighter title color for visibility */
 }
 
 .section-header {
@@ -349,6 +481,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-3);
+  padding: 1rem 0.5rem; /* Increased padding for better spacing */
 }
 
 .section-title {
@@ -357,6 +490,8 @@ body {
   margin: 0;
   display: flex;
   align-items: center;
+  padding: 0.5rem 0;
+  margin-bottom: -3.5rem;
 }
 
 .badge {
@@ -375,7 +510,7 @@ body {
   align-items: center;
   gap: var(--space-5);
   margin-bottom: var(--space-4);
-  padding: var(--space-4);
+  padding: 1.5rem;
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -459,7 +594,7 @@ body {
 }
 
 .issue-item {
-  padding: var(--space-3);
+  padding: 1rem 1.25rem;
   border-radius: var(--radius-md);
   background-color: var(--bg-surface);
   border-left: 3px solid;
@@ -536,31 +671,50 @@ body {
 
 /* Summary Grid */
 .summary-grid {
-  display: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
 }
 
 .summary-card {
-  display: none;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  border: 1px solid var(--border-light);
 }
 
 .summary-header {
-  display: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.summary-header h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
 }
 
 .summary-content {
-  display: none;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  word-break: break-word;
 }
 
 .summary-content.empty {
-  display: none;
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 .summary-footer {
-  display: none;
+  margin-top: var(--space-2);
+  display: flex;
 }
 
 .summary-footer .status-badge {
-  display: none;
+  max-width: 100%;
+  margin-top: var(--space-1);
 }
 
 /* Status Badges */
@@ -607,7 +761,7 @@ body {
   grid-template-columns: 30% 1fr auto;
   gap: var(--space-2);
   border-bottom: 1px solid var(--border-light);
-  padding: var(--space-2) 0;
+  padding: 0.75rem 0.5rem;
 }
 
 .meta-row:last-child {
@@ -616,7 +770,7 @@ body {
 
 .meta-cell {
   font-size: var(--font-size-sm);
-  padding: var(--space-1);
+  padding: 0.5rem;
 }
 
 .meta-cell.name {
@@ -677,7 +831,7 @@ body {
 .preview-container {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  padding: 1.5rem;
   border: 1px solid var(--border-light);
 }
 
@@ -852,14 +1006,14 @@ body {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
+  gap: 1rem;
   margin-bottom: var(--space-4);
 }
 
 .metric-card {
   background-color: var(--bg-card);
   border-radius: var(--radius-md);
-  padding: var(--space-3);
+  padding: 1rem;
   border: 1px solid var(--border-light);
   position: relative;
   overflow: hidden;
@@ -1273,4 +1427,28 @@ a:focus-visible {
 /* Remove the standalone "Checking..." text */
 .checking-text {
   display: none;
+}
+
+#overview-tab .section-header {
+  position: static;
+  margin-top: 0.5rem;
+  margin-bottom: 4.5rem;
+  padding: 0.5rem 0.5rem 0 0.5rem;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+#overview-tab .section-header:first-child {
+  margin-top: 0;
+}
+
+#overview-tab .section-card {
+  margin-top: 0;
+  padding-top: 19px;
+}
+
+#overview-tab .section-card > *:first-child {
+  margin-top: 0;
+  padding-top: 0;
 }
