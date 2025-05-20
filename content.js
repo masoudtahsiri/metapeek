@@ -225,10 +225,49 @@ function initializeMetaPeek() {
     window.MetaPeek.observer = new MutationObserver((mutations) => {
       // Only process if we have relevant mutations (childList changes)
       if (mutations.some(mutation => mutation.type === 'childList')) {
+        try {
           const metadata = getPageMetadata();
-        window.MetaPeek.metadata = metadata;
-        chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
-          .catch(error => console.error('Error sending metadata update:', error));
+          window.MetaPeek.metadata = metadata;
+          
+          // Wrap the message sending in a try-catch to handle context invalidation
+          try {
+            chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
+              .catch(error => {
+                // Handle specific error cases
+                if (error.message && error.message.includes('Extension context invalidated')) {
+                  console.debug('Extension context invalidated, attempting to reconnect...');
+                  // Attempt to reconnect by reinitializing
+                  window.MetaPeek.initialized = false;
+                  setTimeout(() => {
+                    try {
+                      initializeMetaPeek();
+                    } catch (reinitError) {
+                      console.debug('Failed to reconnect:', reinitError);
+                    }
+                  }, 1000); // Wait 1 second before attempting to reconnect
+                } else {
+                  console.error('Error sending metadata update:', error);
+                }
+              });
+          } catch (error) {
+            // Handle runtime errors (like context invalidation)
+            if (error.message && error.message.includes('Extension context invalidated')) {
+              console.debug('Extension context invalidated, attempting to reconnect...');
+              window.MetaPeek.initialized = false;
+              setTimeout(() => {
+                try {
+                  initializeMetaPeek();
+                } catch (reinitError) {
+                  console.debug('Failed to reconnect:', reinitError);
+                }
+              }, 1000);
+            } else {
+              console.error('Runtime error sending metadata update:', error);
+            }
+          }
+        } catch (error) {
+          console.error('Error processing metadata:', error);
+        }
       }
     });
     
@@ -237,14 +276,57 @@ function initializeMetaPeek() {
       childList: true, 
       subtree: true 
     });
+    
     console.log('MetaPeek observer started');
     
     // Collect initial metadata
-    const metadata = getPageMetadata();
-    window.MetaPeek.metadata = metadata;
-    console.log('Initial metadata collected');
+    try {
+      const metadata = getPageMetadata();
+      window.MetaPeek.metadata = metadata;
+      console.log('Initial metadata collected');
+      
+      // Send initial metadata
+      try {
+        chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
+          .catch(error => {
+            if (error.message && error.message.includes('Extension context invalidated')) {
+              console.debug('Extension context invalidated during initial metadata send');
+              // Attempt to reconnect
+              window.MetaPeek.initialized = false;
+              setTimeout(() => {
+                try {
+                  initializeMetaPeek();
+                } catch (reinitError) {
+                  console.debug('Failed to reconnect:', reinitError);
+                }
+              }, 1000);
+            } else {
+              console.error('Error sending initial metadata:', error);
+            }
+          });
+      } catch (error) {
+        if (error.message && error.message.includes('Extension context invalidated')) {
+          console.debug('Extension context invalidated during initial metadata send');
+          // Attempt to reconnect
+          window.MetaPeek.initialized = false;
+          setTimeout(() => {
+            try {
+              initializeMetaPeek();
+            } catch (reinitError) {
+              console.debug('Failed to reconnect:', reinitError);
+            }
+          }, 1000);
+        } else {
+          console.error('Runtime error sending initial metadata:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error collecting initial metadata:', error);
+    }
   } catch (error) {
     console.error('Error initializing MetaPeek:', error);
+    // Reset initialization flag to allow retry
+    window.MetaPeek.initialized = false;
   }
 }
 
@@ -279,7 +361,21 @@ function setupMessageListener() {
       }
     } catch (error) {
       console.error('Error handling message:', error);
-      sendResponse({ error: error.message });
+      if (error.message && error.message.includes('Extension context invalidated')) {
+        console.debug('Extension context invalidated during message handling');
+        // Attempt to reconnect
+        window.MetaPeek.initialized = false;
+        setTimeout(() => {
+          try {
+            initializeMetaPeek();
+          } catch (reinitError) {
+            console.debug('Failed to reconnect:', reinitError);
+          }
+        }, 1000);
+        sendResponse({ error: 'Extension context invalidated, attempting to reconnect' });
+      } else {
+        sendResponse({ error: error.message });
+      }
     }
     
     // Keep the message channel open for async responses
@@ -914,37 +1010,122 @@ function initializeWebVitalsCollection(metrics, notifyMetricsUpdate) {
       
       // Time to First Byte (TTFB)
       webVitals.onTTFB(metric => {
-        metrics.ttfb = metric.value;
-        notifyMetricsUpdate(metrics, 'ttfb');
+        try {
+          metrics.ttfb = metric.value;
+          notifyMetricsUpdate(metrics, 'ttfb');
+        } catch (error) {
+          if (error.message && error.message.includes('Extension context invalidated')) {
+            console.debug('Extension context invalidated during TTFB collection');
+            // Attempt to reconnect
+            window.MetaPeek.initialized = false;
+            setTimeout(() => {
+              try {
+                initializeMetaPeek();
+              } catch (reinitError) {
+                console.debug('Failed to reconnect:', reinitError);
+              }
+            }, 1000);
+          } else {
+            console.error('Error collecting TTFB:', error);
+          }
+        }
       });
       
       // First Contentful Paint (FCP)
       webVitals.onFCP(metric => {
-        metrics.fcp = metric.value;
-        notifyMetricsUpdate(metrics, 'fcp');
+        try {
+          metrics.fcp = metric.value;
+          notifyMetricsUpdate(metrics, 'fcp');
+        } catch (error) {
+          if (error.message && error.message.includes('Extension context invalidated')) {
+            console.debug('Extension context invalidated during FCP collection');
+            // Attempt to reconnect
+            window.MetaPeek.initialized = false;
+            setTimeout(() => {
+              try {
+                initializeMetaPeek();
+              } catch (reinitError) {
+                console.debug('Failed to reconnect:', reinitError);
+              }
+            }, 1000);
+          } else {
+            console.error('Error collecting FCP:', error);
+          }
+        }
       });
       
       // Slower metrics - These take longer to calculate
       
       // Largest Contentful Paint (LCP)
       webVitals.onLCP(metric => {
-        metrics.lcp = metric.value;
-        metrics.metricsCollected = true;
-        notifyMetricsUpdate(metrics, 'lcp');
+        try {
+          metrics.lcp = metric.value;
+          metrics.metricsCollected = true;
+          notifyMetricsUpdate(metrics, 'lcp');
+        } catch (error) {
+          if (error.message && error.message.includes('Extension context invalidated')) {
+            console.debug('Extension context invalidated during LCP collection');
+            // Attempt to reconnect
+            window.MetaPeek.initialized = false;
+            setTimeout(() => {
+              try {
+                initializeMetaPeek();
+              } catch (reinitError) {
+                console.debug('Failed to reconnect:', reinitError);
+              }
+            }, 1000);
+          } else {
+            console.error('Error collecting LCP:', error);
+          }
+        }
       });
       
       // Cumulative Layout Shift (CLS)
       webVitals.onCLS(metric => {
-        metrics.cls = metric.value;
-        metrics.metricsCollected = true;
-        notifyMetricsUpdate(metrics, 'cls');
+        try {
+          metrics.cls = metric.value;
+          metrics.metricsCollected = true;
+          notifyMetricsUpdate(metrics, 'cls');
+        } catch (error) {
+          if (error.message && error.message.includes('Extension context invalidated')) {
+            console.debug('Extension context invalidated during CLS collection');
+            // Attempt to reconnect
+            window.MetaPeek.initialized = false;
+            setTimeout(() => {
+              try {
+                initializeMetaPeek();
+              } catch (reinitError) {
+                console.debug('Failed to reconnect:', reinitError);
+              }
+            }, 1000);
+          } else {
+            console.error('Error collecting CLS:', error);
+          }
+        }
       });
       
       // Interaction to Next Paint (INP)
       webVitals.onINP(metric => {
-        metrics.inp = metric.value;
-        metrics.metricsCollected = true;
-        notifyMetricsUpdate(metrics, 'inp');
+        try {
+          metrics.inp = metric.value;
+          metrics.metricsCollected = true;
+          notifyMetricsUpdate(metrics, 'inp');
+        } catch (error) {
+          if (error.message && error.message.includes('Extension context invalidated')) {
+            console.debug('Extension context invalidated during INP collection');
+            // Attempt to reconnect
+            window.MetaPeek.initialized = false;
+            setTimeout(() => {
+              try {
+                initializeMetaPeek();
+              } catch (reinitError) {
+                console.debug('Failed to reconnect:', reinitError);
+              }
+            }, 1000);
+          } else {
+            console.error('Error collecting INP:', error);
+          }
+        }
       });
       
       console.log('Web Vitals initialized successfully');
@@ -1270,4 +1451,13 @@ function calculatePerformanceScore(metrics) {
 
 // Initialize on load
 initializeMetaPeek();
-setupMessageListener(); 
+setupMessageListener();
+
+// Listen for messages from the popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'getWebVitals') {
+    // Send current metrics to popup
+    sendResponse({ metrics: window.MetaPeek.metrics });
+    return true;
+  }
+}); 
