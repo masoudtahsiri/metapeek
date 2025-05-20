@@ -927,12 +927,6 @@ function initSocialPreviews() {
     // Initialize platform tabs
     initSocialTabs();
     
-    // Initialize device toggle
-    initDeviceToggle();
-    
-    // Initialize edit mode
-    initEditMode();
-    
     console.log('Social previews initialized successfully');
   } catch (error) {
     console.error('Error initializing social previews:', error);
@@ -963,7 +957,6 @@ function ensureBasicPreviewStructure() {
         <button class="social-tab" data-preview="facebook">Facebook</button>
         <button class="social-tab" data-preview="twitter">Twitter</button>
         <button class="social-tab" data-preview="linkedin">LinkedIn</button>
-        <button class="social-tab" data-preview="pinterest">Pinterest</button>
       `;
       previewTab.prepend(socialTabs);
     }
@@ -976,6 +969,7 @@ function ensureBasicPreviewStructure() {
       
       // Create basic preview panes
       previewContainer.innerHTML = `
+        <!-- Google Preview -->
         <div id="google-preview" class="preview-content active">
           <div class="loading-indicator">
             <div class="loading-spinner"></div>
@@ -983,6 +977,7 @@ function ensureBasicPreviewStructure() {
           </div>
         </div>
         
+        <!-- Facebook Preview -->
         <div id="facebook-preview" class="preview-content">
           <div class="loading-indicator">
             <div class="loading-spinner"></div>
@@ -990,6 +985,7 @@ function ensureBasicPreviewStructure() {
           </div>
         </div>
         
+        <!-- Twitter Preview -->
         <div id="twitter-preview" class="preview-content">
           <div class="loading-indicator">
             <div class="loading-spinner"></div>
@@ -997,17 +993,11 @@ function ensureBasicPreviewStructure() {
           </div>
         </div>
 
+        <!-- LinkedIn Preview -->
         <div id="linkedin-preview" class="preview-content">
           <div class="loading-indicator">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading LinkedIn preview...</div>
-          </div>
-        </div>
-
-        <div id="pinterest-preview" class="preview-content">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Pinterest preview...</div>
           </div>
         </div>
       `;
@@ -1061,41 +1051,21 @@ function showErrorInSocialTab(message) {
  * Initialize social tabs functionality with improved error handling
  */
 function initSocialTabs() {
-  const socialTabs = document.querySelectorAll('.social-tab');
-  
-  if (!socialTabs || socialTabs.length === 0) {
-    console.warn('No social tabs found to initialize');
-    return;
-  }
-  
-  console.log(`Initializing ${socialTabs.length} social tabs`);
-  
-  socialTabs.forEach(tab => {
-    if (!tab || !tab.parentNode) return;
-    
-    // Remove existing event listeners to avoid duplicates
-    const newTab = tab.cloneNode(true);
-    tab.parentNode.replaceChild(newTab, tab);
-    
-    newTab.addEventListener('click', () => {
+  const tabs = document.querySelectorAll('.social-tab');
+  if (!tabs.length) return;
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
       try {
-        // Get the target preview ID
+        const newTab = tab;
         const previewId = newTab.getAttribute('data-preview');
-        if (!previewId) {
-          console.warn('Social tab missing data-preview attribute');
-          return;
-        }
         
-        // Skip if already active
-        if (newTab.classList.contains('active')) return;
-        
-        console.log(`Switching to ${previewId} preview`);
-        
-        // Remove active class from all tabs and preview content
+        // Remove active class from all tabs
         document.querySelectorAll('.social-tab').forEach(t => {
           if (t && t.classList) t.classList.remove('active');
         });
         
+        // Remove active class from all preview content
         document.querySelectorAll('.preview-content').forEach(content => {
           if (content && content.classList) content.classList.remove('active');
         });
@@ -1105,12 +1075,11 @@ function initSocialTabs() {
         
         // Find and activate corresponding preview
         const previewElement = document.getElementById(`${previewId}-preview`);
+        
         if (previewElement && previewElement.classList) {
           previewElement.classList.add('active');
         } else {
           console.warn(`Preview element #${previewId}-preview not found`);
-          
-          // Create missing preview element if needed
           createMissingPreviewElement(previewId);
         }
         
@@ -1130,444 +1099,22 @@ function initSocialTabs() {
   });
 }
 
-/**
- * Initialize device toggle (mobile/desktop)
- */
-function initDeviceToggle() {
-  // Check if toggle already exists
-  if (document.querySelector('.device-toggle-container')) {
-    return;
-  }
+// Helper function to create missing preview elements
+function createMissingPreviewElement(previewId) {
+  const previewContainer = document.querySelector('.preview-container');
+  if (!previewContainer) return;
   
-  const deviceToggleContainer = document.createElement('div');
-  deviceToggleContainer.className = 'device-toggle-container';
-  deviceToggleContainer.innerHTML = `
-    <span class="device-label">Desktop</span>
-    <label class="switch">
-      <input type="checkbox" id="device-toggle">
-      <span class="slider round"></span>
-    </label>
-    <span class="device-label">Mobile</span>
+  const previewElement = document.createElement('div');
+  previewElement.id = `${previewId}-preview`;
+  previewElement.className = 'preview-content';
+  previewElement.innerHTML = `
+    <div class="loading-indicator">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading ${previewId} preview...</div>
+    </div>
   `;
   
-  // Find appropriate place to insert
-  const socialTabs = document.querySelector('.social-tabs');
-  const previewContainer = document.querySelector('.preview-container');
-  
-  if (socialTabs) {
-    socialTabs.after(deviceToggleContainer);
-  } else if (previewContainer) {
-    previewContainer.before(deviceToggleContainer);
-  } else {
-    // Can't find a good place, don't add the toggle
-    console.warn('Could not find appropriate place to add device toggle');
-    return;
-  }
-  
-  // Add event listener
-  const deviceToggle = document.getElementById('device-toggle');
-  if (deviceToggle) {
-    deviceToggle.addEventListener('change', () => {
-      previewState.currentDevice = deviceToggle.checked ? 'mobile' : 'desktop';
-      
-      // Update preview containers
-      const previewContainers = document.querySelectorAll('.preview-container');
-      if (!previewContainers || previewContainers.length === 0) {
-        console.warn('No preview containers found to update device view');
-        return;
-      }
-      
-      previewContainers.forEach(container => {
-        if (previewState.currentDevice === 'mobile') {
-          container.classList.add('mobile-view');
-          container.classList.remove('desktop-view');
-        } else {
-          container.classList.add('desktop-view');
-          container.classList.remove('mobile-view');
-        }
-      });
-      
-      // Refresh the current preview
-      refreshCurrentPreview();
-    });
-  }
-}
-
-/**
- * Initialize edit mode for social previews
- */
-function initEditMode() {
-  // Check if edit toggle already exists
-  if (document.querySelector('.edit-toggle')) {
-    return;
-  }
-  
-  // Create edit mode toggle button
-  const editToggle = document.createElement('button');
-  editToggle.className = 'btn-icon-text edit-toggle';
-  editToggle.innerHTML = `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-    </svg>
-    Edit Preview
-  `;
-  
-  // Insert before the preview container
-  const previewContainer = document.querySelector('.preview-container');
-  if (previewContainer) {
-    previewContainer.before(editToggle);
-  } else {
-    console.warn('No preview container found to attach edit toggle');
-    return;
-  }
-  
-  // Add event listener
-  editToggle.addEventListener('click', () => {
-    previewState.editMode = !previewState.editMode;
-    
-    if (previewState.editMode) {
-      // Enable editing
-      editToggle.classList.add('active');
-      editToggle.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 6L9 17l-5-5"></path>
-        </svg>
-        Save Changes
-      `;
-      
-      // Setup edited metadata
-      setupEditedMetadata();
-      
-      // Enable preview editing
-      enablePreviewEditing();
-    } else {
-      // Disable editing
-      editToggle.classList.remove('active');
-      editToggle.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-        </svg>
-        Edit Preview
-      `;
-      
-      // Disable preview editing
-      disablePreviewEditing();
-      
-      // Refresh all previews with edited metadata
-      refreshAllPreviews();
-    }
-  });
-}
-
-/**
- * Setup edited metadata for preview editing
- */
-function setupEditedMetadata() {
-  if (!previewState.editedMetadata) {
-    previewState.editedMetadata = {
-      title: previewState.originalMetadata.title || '',
-      description: previewState.originalMetadata.description || '',
-      ogTitle: previewState.originalMetadata.ogTitle || '',
-      ogDescription: previewState.originalMetadata.ogDescription || '',
-      ogImage: previewState.originalMetadata.ogImage || '',
-      twitterTitle: previewState.originalMetadata.twitterTitle || '',
-      twitterDescription: previewState.originalMetadata.twitterDescription || '',
-      twitterImage: previewState.originalMetadata.twitterImage || '',
-      siteName: previewState.originalMetadata.siteName || ''
-    };
-  }
-}
-
-/**
- * Enable editing on preview elements
- */
-function enablePreviewEditing() {
-  const previews = document.querySelectorAll('.preview-content');
-  if (!previews || previews.length === 0) {
-    console.warn('No preview elements found to enable editing');
-    return;
-  }
-  
-  previews.forEach(preview => {
-    // Make title editable
-    const titleElement = preview.querySelector('.preview-title');
-    if (titleElement) {
-      titleElement.contentEditable = true;
-      titleElement.addEventListener('input', () => {
-        const platform = preview.id.split('-')[0];
-        if (platform === 'google') {
-          previewState.editedMetadata.title = titleElement.textContent;
-        } else if (platform === 'facebook' || platform === 'linkedin') {
-          previewState.editedMetadata.ogTitle = titleElement.textContent;
-        } else if (platform === 'twitter') {
-          previewState.editedMetadata.twitterTitle = titleElement.textContent;
-        }
-      });
-    }
-    
-    // Make description editable
-    const descriptionElement = preview.querySelector('.preview-description');
-    if (descriptionElement) {
-      descriptionElement.contentEditable = true;
-      descriptionElement.addEventListener('input', () => {
-        const platform = preview.id.split('-')[0];
-        if (platform === 'google') {
-          previewState.editedMetadata.description = descriptionElement.textContent;
-        } else if (platform === 'facebook' || platform === 'linkedin') {
-          previewState.editedMetadata.ogDescription = descriptionElement.textContent;
-        } else if (platform === 'twitter') {
-          previewState.editedMetadata.twitterDescription = descriptionElement.textContent;
-        }
-      });
-    }
-    
-    // Make site name editable
-    const siteNameElement = preview.querySelector('.preview-site-name');
-    if (siteNameElement) {
-      siteNameElement.contentEditable = true;
-      siteNameElement.addEventListener('input', () => {
-        previewState.editedMetadata.siteName = siteNameElement.textContent;
-      });
-    }
-    
-    // Add image upload functionality
-    const imageElement = preview.querySelector('.preview-image');
-    if (imageElement) {
-      imageElement.style.cursor = 'pointer';
-      imageElement.addEventListener('click', () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        
-        fileInput.addEventListener('change', (event) => {
-          if (event.target.files && event.target.files[0]) {
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-              // Create image to get dimensions
-              const img = new Image();
-              img.onload = function() {
-                const platform = preview.id.split('-')[0];
-                if (platform === 'facebook' || platform === 'linkedin') {
-                  previewState.editedMetadata.ogImage = e.target.result;
-                } else if (platform === 'twitter') {
-                  previewState.editedMetadata.twitterImage = e.target.result;
-                }
-                
-                // Show image dimensions and recommendation if needed
-                showImageDimensions(this.width, this.height);
-                
-                // Update the image
-                imageElement.src = e.target.result;
-              };
-              
-              img.src = e.target.result;
-            };
-            
-            reader.readAsDataURL(event.target.files[0]);
-          }
-        });
-        
-        fileInput.click();
-      });
-    }
-  });
-}
-
-/**
- * Disable editing on preview elements
- */
-function disablePreviewEditing() {
-  const previews = document.querySelectorAll('.preview-content');
-  if (!previews || previews.length === 0) {
-    console.warn('No preview elements found to disable editing');
-    return;
-  }
-  
-  previews.forEach(preview => {
-    // Disable title editing
-    const titleElement = preview.querySelector('.preview-title');
-    if (titleElement) {
-      titleElement.contentEditable = false;
-      titleElement.removeEventListener('input', () => {});
-    }
-    
-    // Disable description editing
-    const descriptionElement = preview.querySelector('.preview-description');
-    if (descriptionElement) {
-      descriptionElement.contentEditable = false;
-      descriptionElement.removeEventListener('input', () => {});
-    }
-    
-    // Disable site name editing
-    const siteNameElement = preview.querySelector('.preview-site-name');
-    if (siteNameElement) {
-      siteNameElement.contentEditable = false;
-      siteNameElement.removeEventListener('input', () => {});
-    }
-    
-    // Disable image upload
-    const imageElement = preview.querySelector('.preview-image');
-    if (imageElement) {
-      imageElement.style.cursor = 'default';
-      imageElement.removeEventListener('click', () => {});
-    }
-  });
-}
-
-/**
- * Show image dimensions and recommendations
- * @param {number} width - Image width in pixels
- * @param {number} height - Image height in pixels
- */
-function showImageDimensions(width, height) {
-  // Remove any existing dimension info
-  const existingInfo = document.querySelector('.image-dimensions-info');
-  if (existingInfo) {
-    existingInfo.remove();
-  }
-  
-  // Create dimension info element
-  const dimensionInfo = document.createElement('div');
-  dimensionInfo.className = 'image-dimensions-info';
-  
-  // Add dimension text
-  const dimensionText = document.createElement('div');
-  dimensionText.className = 'dimension-text';
-  dimensionText.textContent = `${width} × ${height} pixels`;
-  dimensionInfo.appendChild(dimensionText);
-  
-  // Add recommendations based on platform
-  const recommendations = [];
-  
-  if (width < 1200 || height < 630) {
-    recommendations.push('Facebook/LinkedIn: Recommended size is 1200 × 630 pixels');
-  }
-  
-  if (width < 1200 || height < 600) {
-    recommendations.push('Twitter: Recommended size is 1200 × 600 pixels');
-  }
-  
-  if (recommendations.length > 0) {
-    const recommendationText = document.createElement('div');
-    recommendationText.className = 'recommendation-text';
-    recommendationText.textContent = recommendations.join('\n');
-    dimensionInfo.appendChild(recommendationText);
-  }
-  
-  // Add to preview container
-  const previewContainer = document.querySelector('.preview-container');
-  if (previewContainer) {
-    previewContainer.appendChild(dimensionInfo);
-    
-    // Remove after 5 seconds
-    setTimeout(() => {
-      dimensionInfo.classList.add('fade-out');
-      setTimeout(() => {
-        dimensionInfo.remove();
-      }, 500);
-    }, 5000);
-  }
-}
-
-/**
- * Refresh all social previews with current metadata
- */
-function refreshAllPreviews() {
-  const metadata = previewState.editedMetadata || previewState.originalMetadata;
-  if (!metadata) {
-    console.warn('No metadata available for previews');
-    return;
-  }
-
-  const hostname = previewState.pageHostname || metadata.hostname || window.location.hostname;
-  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle;
-  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription;
-  // Always use ogImage for Facebook, fallback to a default image if missing
-  let facebookImage = metadata.ogImage;
-  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
-    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
-    console.warn('[MetaPeek] No og:image found, using default placeholder for Facebook preview.');
-  }
-  const image = metadata.ogImage || metadata.twitterImage;
-  const siteName = metadata.siteName || metadata.ogSiteName;
-
-  // Debug log for Facebook preview image
-  console.log('[MetaPeek] Facebook preview image used:', facebookImage);
-
-  // Update each preview
-  updateGooglePreview(hostname, title, description);
-  updateFacebookPreview(hostname, title, description, facebookImage, siteName);
-  updateTwitterPreview(metadata, hostname, title, description, image);
-  updateLinkedInPreview(hostname, title, description, image, siteName);
-  updatePinterestPreview(hostname, title, description, image);
-}
-
-/**
- * Refresh the currently active preview
- */
-function refreshCurrentPreview() {
-  const activePreview = document.querySelector('.preview-content.active');
-  if (!activePreview) {
-    console.warn('No active preview found to refresh');
-    return;
-  }
-  
-  const platform = activePreview.id.split('-')[0];
-  const hostname = previewState.pageHostname || 'example.com';
-  
-  try {
-    switch (platform) {
-      case 'google':
-        updateGooglePreview(
-          hostname,
-          previewState.editedMetadata.title,
-          previewState.editedMetadata.description
-        );
-        break;
-      case 'facebook':
-        updateFacebookPreview(
-          hostname,
-          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage,
-          previewState.editedMetadata.siteName
-        );
-        break;
-      case 'twitter':
-        updateTwitterPreview(
-          previewState.editedMetadata,
-          hostname,
-          previewState.editedMetadata.twitterTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.twitterDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.twitterImage
-        );
-        break;
-      case 'linkedin':
-        updateLinkedInPreview(
-          hostname,
-          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage,
-          previewState.editedMetadata.siteName
-        );
-        break;
-      case 'pinterest':
-        updatePinterestPreview(
-          hostname,
-          previewState.editedMetadata.title,
-          previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage
-        );
-        break;
-      default:
-        console.warn(`Unknown platform: ${platform}`);
-    }
-  } catch (error) {
-    console.error(`Error refreshing ${platform} preview:`, error);
-  }
+  previewContainer.appendChild(previewElement);
 }
 
 /**
@@ -1594,7 +1141,7 @@ function updateSocialPreviews(metadata) {
   // Debug log for og:image
   console.log('[MetaPeek] og:image extracted for Facebook preview:', ogImage);
 
-  // Store original metadata, including ogImage
+  // Store original metadata
   previewState.originalMetadata = {
     title,
     description,
@@ -1607,10 +1154,8 @@ function updateSocialPreviews(metadata) {
     siteName
   };
   
-  // Initialize edited metadata if not exists
-  if (!previewState.editedMetadata) {
-    setupEditedMetadata();
-  }
+  // Set edited metadata to be the same as original
+  previewState.editedMetadata = { ...previewState.originalMetadata };
   
   // Refresh all previews
   refreshAllPreviews();
@@ -1688,18 +1233,16 @@ function updateTwitterPreview(metadata, hostname, title, description, image) {
 function updateLinkedInPreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('linkedin-preview');
   if (!preview) return;
-  
+
+  // Prefer og:site_name if available, otherwise use hostname
+  const domain = siteName || hostname;
+
   preview.innerHTML = `
     <div class="linkedin-preview">
-      ${image ? 
-        `<div class="preview-image" style="background-image: url('${image}')"></div>` :
-        `<div class="preview-image-placeholder">No image available</div>`
-      }
-      <div class="preview-content">
-        <div class="preview-domain">${hostname}</div>
-        <div class="preview-title">${title || 'No title available'}</div>
-        <div class="preview-description">${description || 'No description available'}</div>
-        ${siteName ? `<div class="preview-site-name">${siteName}</div>` : ''}
+      <img src="${image || ''}" alt="preview image" class="thumbnail" />
+      <div class="text-content">
+        <h3 class="title">${title || 'No title available'}</h3>
+        <div class="site-name">${domain || ''}</div>
       </div>
     </div>
   `;
@@ -1722,6 +1265,33 @@ function updatePinterestPreview(hostname, title, description, image) {
         <div class="preview-domain">${hostname}</div>
         <div class="preview-title">${title || 'No title available'}</div>
         <div class="preview-description">${description || 'No description available'}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Update Slack preview with metadata
+ */
+function updateSlackPreview(hostname, title, description, image, siteName) {
+  const preview = document.getElementById('slack-preview');
+  if (!preview) return;
+
+  const domain = siteName || hostname;
+  // Always use the actual favicon, not og:image
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}`;
+
+  preview.innerHTML = `
+    <div class="card-seo-slack">
+      <div class="card-seo-slack__bar"></div>
+      <div class="card-seo-slack__content">
+        <div class="flex">
+          <img src="${faviconUrl}" class="card-seo-slack__favicon" alt="favicon">
+          <span class="card-seo-slack__link js-preview-site-name">${domain || ''}</span>
+        </div>
+        <div class="card-seo-slack__title js-preview-title">${title || 'No title available'}</div>
+        <span class="card-seo-slack__description js-preview-description">${description || ''}</span>
+        ${image ? `<div class=\"card-seo-slack__image js-preview-image js-slack-image\" style=\"background-image:url('${image}')\"></div>` : ''}
       </div>
     </div>
   `;
@@ -2085,5 +1655,99 @@ function extractHostname(url) {
     return new URL(url).hostname;
   } catch (e) {
     return url || 'example.com';
+  }
+}
+
+// Update refreshAllPreviews and refreshCurrentPreview to support Slack
+function refreshAllPreviews() {
+  const metadata = previewState.editedMetadata || previewState.originalMetadata;
+  if (!metadata) {
+    console.warn('No metadata available for previews');
+    return;
+  }
+  const hostname = previewState.pageHostname || metadata.hostname || window.location.hostname;
+  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle;
+  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription;
+  let facebookImage = metadata.ogImage;
+  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
+    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
+  }
+  const image = metadata.ogImage || metadata.twitterImage;
+  const siteName = metadata.siteName || metadata.ogSiteName;
+
+  updateGooglePreview(hostname, title, description);
+  updateFacebookPreview(hostname, title, description, facebookImage, siteName);
+  updateTwitterPreview(metadata, hostname, title, description, image);
+  updateLinkedInPreview(hostname, title, description, image, siteName);
+  updatePinterestPreview(hostname, title, description, image);
+  updateSlackPreview(hostname, title, description, image, siteName);
+}
+
+function refreshCurrentPreview() {
+  const activePreview = document.querySelector('.preview-content.active');
+  if (!activePreview) {
+    console.warn('No active preview found to refresh');
+    return;
+  }
+  const platform = activePreview.id.split('-')[0];
+  const hostname = previewState.pageHostname || 'example.com';
+  try {
+    switch (platform) {
+      case 'google':
+        updateGooglePreview(
+          hostname,
+          previewState.editedMetadata.title,
+          previewState.editedMetadata.description
+        );
+        break;
+      case 'facebook':
+        updateFacebookPreview(
+          hostname,
+          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
+          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
+          previewState.editedMetadata.ogImage,
+          previewState.editedMetadata.siteName
+        );
+        break;
+      case 'twitter':
+        updateTwitterPreview(
+          previewState.editedMetadata,
+          hostname,
+          previewState.editedMetadata.twitterTitle || previewState.editedMetadata.title,
+          previewState.editedMetadata.twitterDescription || previewState.editedMetadata.description,
+          previewState.editedMetadata.twitterImage
+        );
+        break;
+      case 'linkedin':
+        updateLinkedInPreview(
+          hostname,
+          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
+          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
+          previewState.editedMetadata.ogImage,
+          previewState.editedMetadata.siteName
+        );
+        break;
+      case 'pinterest':
+        updatePinterestPreview(
+          hostname,
+          previewState.editedMetadata.title,
+          previewState.editedMetadata.description,
+          previewState.editedMetadata.ogImage
+        );
+        break;
+      case 'slack':
+        updateSlackPreview(
+          hostname,
+          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
+          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
+          previewState.editedMetadata.ogImage,
+          previewState.editedMetadata.siteName
+        );
+        break;
+      default:
+        console.warn(`Unknown platform: ${platform}`);
+    }
+  } catch (error) {
+    console.error(`Error refreshing ${platform} preview:`, error);
   }
 } 

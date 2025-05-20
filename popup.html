@@ -185,13 +185,11 @@
             <button class="social-tab active" data-preview="google">Google</button>
             <button class="social-tab" data-preview="facebook">Facebook</button>
             <button class="social-tab" data-preview="twitter">Twitter</button>
-            <!-- LinkedIn and Pinterest tabs will be added dynamically via JavaScript -->
+            <button class="social-tab" data-preview="linkedin">LinkedIn</button>
+            <button class="social-tab" data-preview="slack">Slack</button>
           </div>
-          
-          <!-- Device Toggle will be added here via JavaScript -->
-          
-          <!-- Preview editing controls will be added here via JavaScript -->
-          
+
+          <!-- Desktop Previews -->
           <div class="preview-container desktop-view">
             <div id="google-preview" class="preview-content active">
               <div class="loading-indicator">
@@ -199,43 +197,34 @@
                 <div class="loading-text">Loading Google preview...</div>
               </div>
             </div>
-            
             <div id="facebook-preview" class="preview-content">
               <div class="loading-indicator">
                 <div class="loading-spinner"></div>
                 <div class="loading-text">Loading Facebook preview...</div>
               </div>
             </div>
-            
             <div id="twitter-preview" class="preview-content">
               <div class="loading-indicator">
                 <div class="loading-spinner"></div>
                 <div class="loading-text">Loading Twitter preview...</div>
               </div>
             </div>
-            
-            <!-- LinkedIn and Pinterest preview containers will be added dynamically via JavaScript -->
-          </div>
-          
-          <div class="preview-tips">
-            <div class="tip-card">
-              <div class="tip-header">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="16" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>
-                <h4>Social Sharing Tips</h4>
+            <div id="linkedin-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading LinkedIn preview...</div>
               </div>
-              <ul class="tip-list">
-                <li>Use engaging, descriptive titles (30-60 characters)</li>
-                <li>Write compelling descriptions (120-160 characters)</li>
-                <li>Use high-quality images (1200×630px recommended)</li>
-                <li>Ensure consistency across platforms</li>
-                <li>Test your previews before publishing</li>
-              </ul>
+            </div>
+            <div id="slack-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Slack preview...</div>
+              </div>
             </div>
           </div>
+
+          <!-- Mobile Previews -->
+          <!-- Remove all preview-content.mobile containers for Google, Facebook, Twitter, LinkedIn, Pinterest -->
         </section>
         
         <!-- Performance Tab -->
