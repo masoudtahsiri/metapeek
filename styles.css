@@ -834,7 +834,7 @@ body {
 /* Social Tabs */
 .social-tabs {
   display: flex;
-  margin-bottom: var(--space-4);
+  margin-bottom: 40px;
   background-color: var(--bg-surface);
   border-radius: var(--radius-lg);
   padding: var(--space-1);
