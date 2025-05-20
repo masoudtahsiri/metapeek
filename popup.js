@@ -49,7 +49,8 @@ const previewState = {
   originalMetadata: null,
   editedMetadata: null,
   lastMetricsUpdate: 0,
-  cachedMetrics: null
+  cachedMetrics: null,
+  pageHostname: null
 };
 
 /**
@@ -99,6 +100,12 @@ function loadPageData() {
     
     const activeTab = tabs[0];
     updateUrlDisplay(activeTab.url);
+    // Store the real hostname for previews
+    try {
+      previewState.pageHostname = new URL(activeTab.url).hostname;
+    } catch (e) {
+      previewState.pageHostname = activeTab.url;
+    }
     console.log('Getting metadata for tab:', activeTab.id);
     
     // Add a timeout to prevent indefinite waiting
@@ -1469,54 +1476,33 @@ function showImageDimensions(width, height) {
  * Refresh all social previews with current metadata
  */
 function refreshAllPreviews() {
-  if (!previewState.editedMetadata) {
-    console.warn('No edited metadata available to refresh previews');
+  const metadata = previewState.editedMetadata || previewState.originalMetadata;
+  if (!metadata) {
+    console.warn('No metadata available for previews');
     return;
   }
-  
-  const hostname = extractHostname(window.location.href);
-  
-  // Update Google preview
-  updateGooglePreview(
-    hostname,
-    previewState.editedMetadata.title,
-    previewState.editedMetadata.description
-  );
-  
-  // Update Facebook preview
-  updateFacebookPreview(
-    hostname,
-    previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-    previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-    previewState.editedMetadata.ogImage,
-    previewState.editedMetadata.siteName
-  );
-  
-  // Update Twitter preview
-  updateTwitterPreview(
-    previewState.editedMetadata,
-    hostname,
-    previewState.editedMetadata.twitterTitle || previewState.editedMetadata.title,
-    previewState.editedMetadata.twitterDescription || previewState.editedMetadata.description,
-    previewState.editedMetadata.twitterImage
-  );
-  
-  // Update LinkedIn preview
-  updateLinkedInPreview(
-    hostname,
-    previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-    previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-    previewState.editedMetadata.ogImage,
-    previewState.editedMetadata.siteName
-  );
-  
-  // Update Pinterest preview
-  updatePinterestPreview(
-    hostname,
-    previewState.editedMetadata.title,
-    previewState.editedMetadata.description,
-    previewState.editedMetadata.ogImage
-  );
+
+  const hostname = previewState.pageHostname || metadata.hostname || window.location.hostname;
+  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle;
+  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription;
+  // Always use ogImage for Facebook, fallback to a default image if missing
+  let facebookImage = metadata.ogImage;
+  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
+    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
+    console.warn('[MetaPeek] No og:image found, using default placeholder for Facebook preview.');
+  }
+  const image = metadata.ogImage || metadata.twitterImage;
+  const siteName = metadata.siteName || metadata.ogSiteName;
+
+  // Debug log for Facebook preview image
+  console.log('[MetaPeek] Facebook preview image used:', facebookImage);
+
+  // Update each preview
+  updateGooglePreview(hostname, title, description);
+  updateFacebookPreview(hostname, title, description, facebookImage, siteName);
+  updateTwitterPreview(metadata, hostname, title, description, image);
+  updateLinkedInPreview(hostname, title, description, image, siteName);
+  updatePinterestPreview(hostname, title, description, image);
 }
 
 /**
@@ -1530,7 +1516,7 @@ function refreshCurrentPreview() {
   }
   
   const platform = activePreview.id.split('-')[0];
-  const hostname = extractHostname(window.location.href);
+  const hostname = previewState.pageHostname || 'example.com';
   
   try {
     switch (platform) {
@@ -1541,7 +1527,6 @@ function refreshCurrentPreview() {
           previewState.editedMetadata.description
         );
         break;
-        
       case 'facebook':
         updateFacebookPreview(
           hostname,
@@ -1551,7 +1536,6 @@ function refreshCurrentPreview() {
           previewState.editedMetadata.siteName
         );
         break;
-        
       case 'twitter':
         updateTwitterPreview(
           previewState.editedMetadata,
@@ -1561,7 +1545,6 @@ function refreshCurrentPreview() {
           previewState.editedMetadata.twitterImage
         );
         break;
-        
       case 'linkedin':
         updateLinkedInPreview(
           hostname,
@@ -1571,7 +1554,6 @@ function refreshCurrentPreview() {
           previewState.editedMetadata.siteName
         );
         break;
-        
       case 'pinterest':
         updatePinterestPreview(
           hostname,
@@ -1580,7 +1562,6 @@ function refreshCurrentPreview() {
           previewState.editedMetadata.ogImage
         );
         break;
-        
       default:
         console.warn(`Unknown platform: ${platform}`);
     }
@@ -1599,8 +1580,32 @@ function updateSocialPreviews(metadata) {
     return;
   }
   
-  // Store original metadata
-  previewState.originalMetadata = metadata;
+  // Extract metadata from the response
+  const title = metadata.basicMeta?.find(tag => tag.label === 'Title')?.value || '';
+  const description = metadata.basicMeta?.find(tag => tag.label === 'Description')?.value || '';
+  const ogTitle = metadata.ogMeta?.find(tag => tag.label === 'og:title')?.value || '';
+  const ogDescription = metadata.ogMeta?.find(tag => tag.label === 'og:description')?.value || '';
+  const ogImage = metadata.ogMeta?.find(tag => tag.label === 'og:image')?.value || '';
+  const twitterTitle = metadata.twitterMeta?.find(tag => tag.label === 'twitter:title')?.value || '';
+  const twitterDescription = metadata.twitterMeta?.find(tag => tag.label === 'twitter:description')?.value || '';
+  const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || '';
+  const siteName = metadata.ogMeta?.find(tag => tag.label === 'og:site_name')?.value || '';
+
+  // Debug log for og:image
+  console.log('[MetaPeek] og:image extracted for Facebook preview:', ogImage);
+
+  // Store original metadata, including ogImage
+  previewState.originalMetadata = {
+    title,
+    description,
+    ogTitle,
+    ogDescription,
+    ogImage,
+    twitterTitle,
+    twitterDescription,
+    twitterImage,
+    siteName
+  };
   
   // Initialize edited metadata if not exists
   if (!previewState.editedMetadata) {
@@ -1612,275 +1617,114 @@ function updateSocialPreviews(metadata) {
 }
 
 /**
- * Update Google search preview
- * @param {string} hostname - The hostname to display
- * @param {string} title - The title to display
- * @param {string} description - The description to display
+ * Update Google preview with metadata
  */
 function updateGooglePreview(hostname, title, description) {
   const preview = document.getElementById('google-preview');
-  if (!preview) {
-    console.warn('Google preview element not found');
-    return;
-  }
+  if (!preview) return;
   
-  // Update title
-  const titleElement = preview.querySelector('.preview-title');
-  if (titleElement) {
-    titleElement.textContent = title || 'No title available';
-  }
-  
-  // Update URL
-  const urlElement = preview.querySelector('.preview-url');
-  if (urlElement) {
-    urlElement.textContent = hostname || 'example.com';
-  }
-  
-  // Update description
-  const descriptionElement = preview.querySelector('.preview-description');
-  if (descriptionElement) {
-    descriptionElement.textContent = description || 'No description available';
-  }
+  preview.innerHTML = `
+    <div class="google-preview">
+      <div class="preview-url">${hostname}</div>
+      <div class="preview-title">${title || 'No title available'}</div>
+      <div class="preview-description">${description || 'No description available'}</div>
+    </div>
+  `;
 }
 
 /**
- * Update Facebook preview
- * @param {string} hostname - The hostname to display
- * @param {string} title - The title to display
- * @param {string} description - The description to display
- * @param {string} image - The image URL to display
- * @param {string} siteName - The site name to display
+ * Update Facebook preview with metadata
  */
 function updateFacebookPreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('facebook-preview');
-  if (!preview) {
-    console.warn('Facebook preview element not found');
-    return;
-  }
+  if (!preview) return;
   
-  // Update title
-  const titleElement = preview.querySelector('.preview-title');
-  if (titleElement) {
-    titleElement.textContent = title || 'No title available';
-  }
-  
-  // Update URL
-  const urlElement = preview.querySelector('.preview-url');
-  if (urlElement) {
-    urlElement.textContent = hostname || 'example.com';
-  }
-  
-  // Update description
-  const descriptionElement = preview.querySelector('.preview-description');
-  if (descriptionElement) {
-    descriptionElement.textContent = description || 'No description available';
-  }
-  
-  // Update site name
-  const siteNameElement = preview.querySelector('.preview-site-name');
-  if (siteNameElement) {
-    siteNameElement.textContent = siteName || hostname || 'example.com';
-  }
-  
-  // Update image
-  const imageElement = preview.querySelector('.preview-image');
-  if (imageElement) {
-    if (image) {
-      imageElement.src = image;
-      imageElement.style.display = 'block';
-    } else {
-      imageElement.style.display = 'none';
-    }
-  }
+  preview.innerHTML = `
+    <div class="card-seo-facebook">
+      ${image ? 
+        `<img class="card-seo-facebook__image" src="${image}" alt="Facebook preview image">` :
+        `<div class="preview-image-placeholder">No image available</div>`
+      }
+      <div class="card-seo-facebook__footer">
+        <div class="card-seo-facebook__domain">${hostname.toUpperCase()}</div>
+        <div class="card-seo-facebook__title">${title || 'No title available'}</div>
+        <div class="card-seo-facebook__description">${description || 'No description available'}</div>
+      </div>
+    </div>
+  `;
 }
 
 /**
- * Update Twitter preview
- * @param {Object} metadata - The metadata object containing Twitter-specific data
- * @param {string} hostname - The hostname to display
- * @param {string} title - The title to display
- * @param {string} description - The description to display
- * @param {string} image - The image URL to display
+ * Update Twitter preview with metadata
  */
 function updateTwitterPreview(metadata, hostname, title, description, image) {
   const preview = document.getElementById('twitter-preview');
-  if (!preview) {
-    console.warn('Twitter preview element not found');
-    return;
-  }
-  
-  // Update title
-  const titleElement = preview.querySelector('.preview-title');
-  if (titleElement) {
-    titleElement.textContent = title || 'No title available';
-  }
-  
-  // Update URL
-  const urlElement = preview.querySelector('.preview-url');
-  if (urlElement) {
-    urlElement.textContent = hostname || 'example.com';
-  }
-  
-  // Update description
-  const descriptionElement = preview.querySelector('.preview-description');
-  if (descriptionElement) {
-    descriptionElement.textContent = description || 'No description available';
-  }
-  
-  // Update site name
-  const siteNameElement = preview.querySelector('.preview-site-name');
-  if (siteNameElement) {
-    siteNameElement.textContent = metadata.twitterSite || hostname || 'example.com';
-  }
-  
-  // Update image
-  const imageElement = preview.querySelector('.preview-image');
-  if (imageElement) {
-    if (image) {
-      imageElement.src = image;
-      imageElement.style.display = 'block';
-    } else {
-      imageElement.style.display = 'none';
-    }
-  }
-  
-  // Update card type
-  const cardType = metadata.twitterCard || 'summary_large_image';
-  preview.className = `preview-content twitter-preview ${cardType}`;
+  if (!preview) return;
+
+  // Fallback logic for Twitter card
+  const cardImage = metadata.twitterImage || metadata.ogImage || '';
+  const cardTitle = metadata.twitterTitle || metadata.ogTitle || title || '';
+  const cardDescription = metadata.twitterDescription || metadata.ogDescription || description || '';
+  const cardDomain = hostname || '';
+
+  preview.innerHTML = `
+    <div class="card-seo-twitter">
+      ${cardImage ?
+        `<img class="card-seo-twitter__image" src="${cardImage}" alt="Twitter preview image">` :
+        `<div class="preview-image-placeholder">No image available</div>`
+      }
+      <div class="card-seo-twitter__footer">
+        <div class="card-seo-twitter__title">${cardTitle || 'No title available'}</div>
+        <div class="card-seo-twitter__description">${cardDescription || 'No description available'}</div>
+        <div class="card-seo-twitter__domain">${cardDomain}</div>
+      </div>
+    </div>
+  `;
 }
 
 /**
- * Update LinkedIn preview
- * @param {string} hostname - The hostname to display
- * @param {string} title - The title to display
- * @param {string} description - The description to display
- * @param {string} image - The image URL to display
- * @param {string} siteName - The site name to display
+ * Update LinkedIn preview with metadata
  */
 function updateLinkedInPreview(hostname, title, description, image, siteName) {
-  let preview = document.getElementById('linkedin-preview');
-  if (!preview) {
-    // Create the preview element if it doesn't exist
-    const previewContainer = document.querySelector('.preview-container');
-    if (!previewContainer) {
-      console.warn('Preview container not found');
-      return;
-    }
-    
-    preview = document.createElement('div');
-    preview.id = 'linkedin-preview';
-    preview.className = 'preview-content';
-    preview.innerHTML = `
-      <div class="linkedin-preview">
-        <div class="preview-image"></div>
-        <div class="preview-content">
-          <div class="preview-title"></div>
-          <div class="preview-description"></div>
-          <div class="preview-site-name"></div>
-          <div class="preview-url"></div>
-        </div>
+  const preview = document.getElementById('linkedin-preview');
+  if (!preview) return;
+  
+  preview.innerHTML = `
+    <div class="linkedin-preview">
+      ${image ? 
+        `<div class="preview-image" style="background-image: url('${image}')"></div>` :
+        `<div class="preview-image-placeholder">No image available</div>`
+      }
+      <div class="preview-content">
+        <div class="preview-domain">${hostname}</div>
+        <div class="preview-title">${title || 'No title available'}</div>
+        <div class="preview-description">${description || 'No description available'}</div>
+        ${siteName ? `<div class="preview-site-name">${siteName}</div>` : ''}
       </div>
-    `;
-    previewContainer.appendChild(preview);
-  }
-  
-  // Update title
-  const titleElement = preview.querySelector('.preview-title');
-  if (titleElement) {
-    titleElement.textContent = title || 'No title available';
-  }
-  
-  // Update URL
-  const urlElement = preview.querySelector('.preview-url');
-  if (urlElement) {
-    urlElement.textContent = hostname || 'example.com';
-  }
-  
-  // Update description
-  const descriptionElement = preview.querySelector('.preview-description');
-  if (descriptionElement) {
-    descriptionElement.textContent = description || 'No description available';
-  }
-  
-  // Update site name
-  const siteNameElement = preview.querySelector('.preview-site-name');
-  if (siteNameElement) {
-    siteNameElement.textContent = siteName || hostname || 'example.com';
-  }
-  
-  // Update image
-  const imageElement = preview.querySelector('.preview-image');
-  if (imageElement) {
-    if (image) {
-      imageElement.style.backgroundImage = `url('${image}')`;
-      imageElement.style.display = 'block';
-    } else {
-      imageElement.style.display = 'none';
-    }
-  }
+    </div>
+  `;
 }
 
 /**
- * Update Pinterest preview
- * @param {string} hostname - The hostname to display
- * @param {string} title - The title to display
- * @param {string} description - The description to display
- * @param {string} image - The image URL to display
+ * Update Pinterest preview with metadata
  */
 function updatePinterestPreview(hostname, title, description, image) {
-  let preview = document.getElementById('pinterest-preview');
-  if (!preview) {
-    // Create the preview element if it doesn't exist
-    const previewContainer = document.querySelector('.preview-container');
-    if (!previewContainer) {
-      console.warn('Preview container not found');
-      return;
-    }
-    
-    preview = document.createElement('div');
-    preview.id = 'pinterest-preview';
-    preview.className = 'preview-content';
-    preview.innerHTML = `
-      <div class="pinterest-preview">
-        <div class="preview-image"></div>
-        <div class="preview-content">
-          <div class="preview-title"></div>
-          <div class="preview-description"></div>
-          <div class="preview-url"></div>
-        </div>
+  const preview = document.getElementById('pinterest-preview');
+  if (!preview) return;
+  
+  preview.innerHTML = `
+    <div class="pinterest-preview">
+      ${image ? 
+        `<div class="preview-image" style="background-image: url('${image}')"></div>` :
+        `<div class="preview-image-placeholder">No image available</div>`
+      }
+      <div class="preview-content">
+        <div class="preview-domain">${hostname}</div>
+        <div class="preview-title">${title || 'No title available'}</div>
+        <div class="preview-description">${description || 'No description available'}</div>
       </div>
-    `;
-    previewContainer.appendChild(preview);
-  }
-  
-  // Update title
-  const titleElement = preview.querySelector('.preview-title');
-  if (titleElement) {
-    titleElement.textContent = title || 'No title available';
-  }
-  
-  // Update URL
-  const urlElement = preview.querySelector('.preview-url');
-  if (urlElement) {
-    urlElement.textContent = hostname || 'example.com';
-  }
-  
-  // Update description
-  const descriptionElement = preview.querySelector('.preview-description');
-  if (descriptionElement) {
-    descriptionElement.textContent = description || 'No description available';
-  }
-  
-  // Update image
-  const imageElement = preview.querySelector('.preview-image');
-  if (imageElement) {
-    if (image) {
-      imageElement.style.backgroundImage = `url('${image}')`;
-      imageElement.style.display = 'block';
-    } else {
-      imageElement.style.display = 'none';
-    }
-  }
+    </div>
+  `;
 }
 
 /**
