@@ -2531,3 +2531,122 @@ a:focus-visible {
   width: 100%;
   margin-top: 0;
 }
+
+/* Impact Level Tabs */
+.impact-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  background-color: var(--bg-surface);
+  border-radius: 16px;
+  padding: 4px;
+  border: 2px solid var(--border-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  min-height: 44px;
+}
+
+.impact-tab {
+  flex: 1 1 auto;
+  padding: 10px 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  text-align: center;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.impact-tab:hover {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.impact-tab.active {
+  color: #fff;
+  background-color: #3b82f6;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+  transition: all 0.2s ease;
+}
+
+/* Impact panes container */
+.impact-content {
+  position: relative;
+}
+
+/* Impact content panes */
+.impact-pane {
+  display: none;
+  padding: 0.25rem;
+}
+
+.impact-pane.active {
+  display: block;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .impact-tabs {
+  background-color: var(--color-gray-800);
+  border-color: var(--color-gray-700);
+}
+
+[data-theme="dark"] .impact-tab:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .impact-tab.active {
+  background-color: #3b82f6;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+}
+
+/* Issue Counter Bubbles */
+.impact-tab .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 9px;
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+.impact-tab.active .count {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* Issue item style improvements */
+.issue-item {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  border-left: 5px solid;
+  border-top: 3px solid var(--border-light);
+  border-right: 3px solid var(--border-light);
+  border-bottom: 3px solid var(--border-light);
+  margin-bottom: 12px;
+}
+
+.issue-item.high {
+  border-left-color: var(--status-error);
+}
+
+.issue-item.medium {
+  border-left-color: var(--status-warning);
+}
+
+.issue-item.low {
+  border-left-color: var(--status-good);
+}
