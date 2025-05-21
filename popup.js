@@ -575,6 +575,7 @@ function updateBasicMetaTags(metaTags) {
       <div class="meta-cell status">
         <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
           ${tag.status || 'Missing'}
+          <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
         </span>
       </div>
     `;
@@ -621,6 +622,7 @@ function updateOGMetaTags(metaTags) {
       <div class="meta-cell status">
         <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
           ${tag.status || 'Missing'}
+          <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
         </span>
       </div>
     `;
@@ -667,6 +669,7 @@ function updateTwitterMetaTags(metaTags) {
       <div class="meta-cell status">
         <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
           ${tag.status || 'Missing'}
+          <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
         </span>
       </div>
     `;

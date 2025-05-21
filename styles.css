@@ -802,6 +802,21 @@ body {
   color: var(--status-error);
 }
 
+.status-badge .info-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 4px;
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.status-badge:hover .info-icon {
+  opacity: 1;
+  color: var(--primary);
+}
+
 /* Meta Tables */
 .meta-tags-container {
   display: flex;
