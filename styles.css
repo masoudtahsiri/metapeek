@@ -886,24 +886,62 @@ body {
 
 /* Preview Content */
 .preview-container {
-  background-color: var(--bg-card);
+  position: relative;
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
   border: 1px solid var(--border-light);
+  background-color: var(--bg-card);
+  overflow: hidden;
+  height: 400px; /* Fixed height to accommodate all content types */
 }
 
+/* Smooth opacity transitions for preview content */
 .preview-content {
-  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .preview-content.active {
-  display: block;
+  opacity: 1;
+  visibility: visible;
+  z-index: 1;
 }
 
-.preview-content.mobile {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-light);
+/* Ensure all preview cards have consistent sizing */
+.google-preview,
+.card-seo-facebook,
+.card-seo-twitter,
+.linkedin-preview,
+.card-seo-slack {
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Fixed dimensions for images to prevent layout shifts */
+.card-seo-facebook__image,
+.card-seo-twitter__image {
+  height: 242px;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* Center loading indicators */
+.preview-content .loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* Mobile preview specific styles */
@@ -2344,4 +2382,146 @@ a:focus-visible {
 [data-theme="dark"] .collapse-btn:hover {
   color: var(--text-primary);
   background-color: var(--bg-hover);
+}
+
+/* Tab content transitions */
+.meta-section-pane,
+.preview-content {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+  position: absolute;
+  width: 100%;
+  left: 0;
+  right: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.meta-section-pane.active,
+.preview-content.active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear;
+  position: relative;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Container positioning with consistent sizing */
+.meta-section-content,
+.preview-container {
+  position: relative;
+  transition: height 0.2s ease;
+  will-change: height;
+  height: auto;
+}
+
+/* Unified Tab Design - Works for both Meta and Social tabs */
+.meta-section-tabs, 
+.social-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  background-color: var(--bg-surface);
+  border-radius: 16px;
+  padding: 4px;
+  border: 2px solid var(--border-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  min-height: 44px;
+}
+
+.meta-section-tab,
+.social-tab {
+  flex: 1 1 auto;
+  padding: 10px 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  text-align: center;
+  min-width: 0;
+  /* Allow text to display in full */
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.meta-section-tab:hover,
+.social-tab:hover {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Active tab transition - remove transform to prevent zoom perception */
+.meta-section-tab.active,
+.social-tab.active {
+  color: #fff;
+  background-color: #3b82f6;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+  transition: all 0.2s ease;
+}
+
+/* Add a subtle pulse animation on tab selection */
+@keyframes tab-pulse {
+  0% { box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25); }
+  50% { box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35); }
+  100% { box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25); }
+}
+
+.meta-section-tab.active:active,
+.social-tab.active:active {
+  animation: tab-pulse 0.3s ease;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .meta-section-tabs,
+[data-theme="dark"] .social-tabs {
+  background-color: var(--color-gray-800);
+  border-color: var(--color-gray-700);
+}
+
+[data-theme="dark"] .meta-section-tab:hover,
+[data-theme="dark"] .social-tab:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .meta-section-tab.active,
+[data-theme="dark"] .social-tab.active {
+  background-color: #3b82f6;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+}
+
+/* Meta Section Content */
+.meta-section-content {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-medium);
+  overflow: hidden;
+}
+
+.meta-section-pane {
+  display: none;
+  padding: 1.25rem;
+}
+
+.meta-section-pane.active {
+  display: block;
+}
+
+.meta-section-pane .section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+/* Adjust meta table for the new layout */
+.meta-section-pane .meta-table {
+  width: 100%;
+  margin-top: 0;
 }

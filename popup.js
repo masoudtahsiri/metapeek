@@ -54,6 +54,19 @@ const previewState = {
 };
 
 /**
+ * Social Preview Module - Complete Implementation
+ * This includes all functions needed for the social preview functionality
+ */
+
+// Global preview state
+const socialPreviewState = {
+  currentPlatform: 'google',
+  currentDevice: 'desktop',
+  originalMetadata: null,
+  pageHostname: null
+};
+
+/**
  * Document Ready Handler
  * Initialize the app when the DOM is fully loaded
  */
@@ -65,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load data from the active tab
   loadPageData();
-  initCollapsibleSections();
+  initMetaSectionTabs();
 });
 
 /**
@@ -1049,7 +1062,8 @@ function showErrorInSocialTab(message) {
 }
 
 /**
- * Initialize social tabs functionality with improved error handling
+ * Initialize social tabs functionality
+ * Only toggles visibility without regenerating content
  */
 function initSocialTabs() {
   const tabs = document.querySelectorAll('.social-tab');
@@ -1058,40 +1072,33 @@ function initSocialTabs() {
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       try {
-        const newTab = tab;
-        const previewId = newTab.getAttribute('data-preview');
+        // Get the target preview ID
+        const previewId = tab.getAttribute('data-preview');
+        if (!previewId) return;
         
-        // Remove active class from all tabs
+        // Skip if already active
+        if (tab.classList.contains('active')) return;
+        
+        // Remove active class from all tabs and previews
         document.querySelectorAll('.social-tab').forEach(t => {
-          if (t && t.classList) t.classList.remove('active');
+          t.classList.remove('active');
         });
         
-        // Remove active class from all preview content
         document.querySelectorAll('.preview-content').forEach(content => {
-          if (content && content.classList) content.classList.remove('active');
+          content.classList.remove('active');
         });
         
         // Add active class to clicked tab
-        newTab.classList.add('active');
+        tab.classList.add('active');
         
         // Find and activate corresponding preview
         const previewElement = document.getElementById(`${previewId}-preview`);
-        
-        if (previewElement && previewElement.classList) {
+        if (previewElement) {
           previewElement.classList.add('active');
+          // Just update the current platform in state, DON'T regenerate content
+          socialPreviewState.currentPlatform = previewId;
         } else {
           console.warn(`Preview element #${previewId}-preview not found`);
-          createMissingPreviewElement(previewId);
-        }
-        
-        // Update current platform
-        previewState.currentPlatform = previewId;
-        
-        // Refresh the preview content
-        try {
-          refreshCurrentPreview();
-        } catch (refreshError) {
-          console.error(`Error refreshing ${previewId} preview:`, refreshError);
         }
       } catch (error) {
         console.error('Error handling tab click:', error);
@@ -1100,33 +1107,17 @@ function initSocialTabs() {
   });
 }
 
-// Helper function to create missing preview elements
-function createMissingPreviewElement(previewId) {
-  const previewContainer = document.querySelector('.preview-container');
-  if (!previewContainer) return;
-  
-  const previewElement = document.createElement('div');
-  previewElement.id = `${previewId}-preview`;
-  previewElement.className = 'preview-content';
-  previewElement.innerHTML = `
-    <div class="loading-indicator">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Loading ${previewId} preview...</div>
-    </div>
-  `;
-  
-  previewContainer.appendChild(previewElement);
-}
-
 /**
- * Update all social previews with new metadata
- * @param {Object} metadata - The metadata to update previews with
+ * Update all social previews with metadata
+ * Generate all previews only ONCE when metadata is loaded
  */
 function updateSocialPreviews(metadata) {
   if (!metadata) {
     console.warn('No metadata provided to update social previews');
     return;
   }
+  
+  console.log('Updating social previews with metadata', metadata);
   
   // Extract metadata from the response
   const title = metadata.basicMeta?.find(tag => tag.label === 'Title')?.value || '';
@@ -1139,11 +1130,8 @@ function updateSocialPreviews(metadata) {
   const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || '';
   const siteName = metadata.ogMeta?.find(tag => tag.label === 'og:site_name')?.value || '';
 
-  // Debug log for og:image
-  console.log('[MetaPeek] og:image extracted for Facebook preview:', ogImage);
-
-  // Store original metadata
-  previewState.originalMetadata = {
+  // Store metadata in state
+  socialPreviewState.originalMetadata = {
     title,
     description,
     ogTitle,
@@ -1155,17 +1143,52 @@ function updateSocialPreviews(metadata) {
     siteName
   };
   
-  // Set edited metadata to be the same as original
-  previewState.editedMetadata = { ...previewState.originalMetadata };
+  // Generate social preview content for all platforms
+  generateAllPreviews();
   
-  // Refresh all previews
-  refreshAllPreviews();
+  // Activate the first tab if none is active
+  const activeTab = document.querySelector('.social-tab.active');
+  if (!activeTab) {
+    const firstTab = document.querySelector('.social-tab');
+    if (firstTab) {
+      firstTab.click();
+    }
+  }
 }
 
 /**
- * Update Google preview with metadata
+ * Generate preview content for all platforms
+ * This runs only once when metadata is loaded
  */
-function updateGooglePreview(hostname, title, description) {
+function generateAllPreviews() {
+  console.log('Generating all social preview content');
+  
+  if (!socialPreviewState.originalMetadata) {
+    console.warn('No metadata available for previews');
+    return;
+  }
+  
+  const metadata = socialPreviewState.originalMetadata;
+  const hostname = socialPreviewState.pageHostname || 'example.com';
+  
+  // Get values with fallbacks
+  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle || '';
+  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription || '';
+  const image = metadata.ogImage || metadata.twitterImage || '';
+  const siteName = metadata.siteName || '';
+
+  // Generate previews for each platform
+  generateGooglePreview(hostname, title, description);
+  generateFacebookPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
+  generateTwitterPreview(metadata, hostname, metadata.twitterTitle || metadata.ogTitle || title, metadata.twitterDescription || metadata.ogDescription || description, metadata.twitterImage || image);
+  generateLinkedInPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
+  generateSlackPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
+}
+
+/**
+ * Generate Google preview with metadata
+ */
+function generateGooglePreview(hostname, title, description) {
   const preview = document.getElementById('google-preview');
   if (!preview) return;
   
@@ -1179,16 +1202,21 @@ function updateGooglePreview(hostname, title, description) {
 }
 
 /**
- * Update Facebook preview with metadata
+ * Generate Facebook preview with metadata
  */
-function updateFacebookPreview(hostname, title, description, image, siteName) {
+function generateFacebookPreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('facebook-preview');
   if (!preview) return;
   
+  let facebookImage = image;
+  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
+    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
+  }
+  
   preview.innerHTML = `
     <div class="card-seo-facebook">
-      ${image ? 
-        `<img class="card-seo-facebook__image" src="${image}" alt="Facebook preview image">` :
+      ${facebookImage ? 
+        `<img class="card-seo-facebook__image" src="${facebookImage}" alt="Facebook preview image">` :
         `<div class="preview-image-placeholder">No image available</div>`
       }
       <div class="card-seo-facebook__footer">
@@ -1201,14 +1229,14 @@ function updateFacebookPreview(hostname, title, description, image, siteName) {
 }
 
 /**
- * Update Twitter preview with metadata
+ * Generate Twitter preview with metadata
  */
-function updateTwitterPreview(metadata, hostname, title, description, image) {
+function generateTwitterPreview(metadata, hostname, title, description, image) {
   const preview = document.getElementById('twitter-preview');
   if (!preview) return;
 
   // Fallback logic for Twitter card
-  const cardImage = metadata.twitterImage || metadata.ogImage || '';
+  const cardImage = metadata.twitterImage || metadata.ogImage || image || '';
   const cardTitle = metadata.twitterTitle || metadata.ogTitle || title || '';
   const cardDescription = metadata.twitterDescription || metadata.ogDescription || description || '';
   const cardDomain = hostname || '';
@@ -1229,9 +1257,9 @@ function updateTwitterPreview(metadata, hostname, title, description, image) {
 }
 
 /**
- * Update LinkedIn preview with metadata
+ * Generate LinkedIn preview with metadata
  */
-function updateLinkedInPreview(hostname, title, description, image, siteName) {
+function generateLinkedInPreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('linkedin-preview');
   if (!preview) return;
 
@@ -1250,31 +1278,9 @@ function updateLinkedInPreview(hostname, title, description, image, siteName) {
 }
 
 /**
- * Update Pinterest preview with metadata
+ * Generate Slack preview with metadata
  */
-function updatePinterestPreview(hostname, title, description, image) {
-  const preview = document.getElementById('pinterest-preview');
-  if (!preview) return;
-  
-  preview.innerHTML = `
-    <div class="pinterest-preview">
-      ${image ? 
-        `<div class="preview-image" style="background-image: url('${image}')"></div>` :
-        `<div class="preview-image-placeholder">No image available</div>`
-      }
-      <div class="preview-content">
-        <div class="preview-domain">${hostname}</div>
-        <div class="preview-title">${title || 'No title available'}</div>
-        <div class="preview-description">${description || 'No description available'}</div>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Update Slack preview with metadata
- */
-function updateSlackPreview(hostname, title, description, image, siteName) {
+function generateSlackPreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('slack-preview');
   if (!preview) return;
 
@@ -1292,7 +1298,7 @@ function updateSlackPreview(hostname, title, description, image, siteName) {
         </div>
         <div class="card-seo-slack__title js-preview-title">${title || 'No title available'}</div>
         <span class="card-seo-slack__description js-preview-description">${description || ''}</span>
-        ${image ? `<div class=\"card-seo-slack__image js-preview-image js-slack-image\" style=\"background-image:url('${image}')\"></div>` : ''}
+        ${image ? `<div class="card-seo-slack__image js-preview-image js-slack-image" style="background-image:url('${image}')"></div>` : ''}
       </div>
     </div>
   `;
@@ -1659,203 +1665,35 @@ function extractHostname(url) {
   }
 }
 
-// Update refreshAllPreviews and refreshCurrentPreview to support Slack
-function refreshAllPreviews() {
-  const metadata = previewState.editedMetadata || previewState.originalMetadata;
-  if (!metadata) {
-    console.warn('No metadata available for previews');
-    return;
-  }
-  const hostname = previewState.pageHostname || metadata.hostname || window.location.hostname;
-  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle;
-  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription;
-  let facebookImage = metadata.ogImage;
-  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
-    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
-  }
-  const image = metadata.ogImage || metadata.twitterImage;
-  const siteName = metadata.siteName || metadata.ogSiteName;
-
-  updateGooglePreview(hostname, title, description);
-  updateFacebookPreview(hostname, title, description, facebookImage, siteName);
-  updateTwitterPreview(metadata, hostname, title, description, image);
-  updateLinkedInPreview(hostname, title, description, image, siteName);
-  updatePinterestPreview(hostname, title, description, image);
-  updateSlackPreview(hostname, title, description, image, siteName);
-}
-
-function refreshCurrentPreview() {
-  const activePreview = document.querySelector('.preview-content.active');
-  if (!activePreview) {
-    console.warn('No active preview found to refresh');
-    return;
-  }
-  const platform = activePreview.id.split('-')[0];
-  const hostname = previewState.pageHostname || 'example.com';
-  try {
-    switch (platform) {
-      case 'google':
-        updateGooglePreview(
-          hostname,
-          previewState.editedMetadata.title,
-          previewState.editedMetadata.description
-        );
-        break;
-      case 'facebook':
-        updateFacebookPreview(
-          hostname,
-          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage,
-          previewState.editedMetadata.siteName
-        );
-        break;
-      case 'twitter':
-        updateTwitterPreview(
-          previewState.editedMetadata,
-          hostname,
-          previewState.editedMetadata.twitterTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.twitterDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.twitterImage
-        );
-        break;
-      case 'linkedin':
-        updateLinkedInPreview(
-          hostname,
-          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage,
-          previewState.editedMetadata.siteName
-        );
-        break;
-      case 'pinterest':
-        updatePinterestPreview(
-          hostname,
-          previewState.editedMetadata.title,
-          previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage
-        );
-        break;
-      case 'slack':
-        updateSlackPreview(
-          hostname,
-          previewState.editedMetadata.ogTitle || previewState.editedMetadata.title,
-          previewState.editedMetadata.ogDescription || previewState.editedMetadata.description,
-          previewState.editedMetadata.ogImage,
-          previewState.editedMetadata.siteName
-        );
-        break;
-      default:
-        console.warn(`Unknown platform: ${platform}`);
-    }
-  } catch (error) {
-    console.error(`Error refreshing ${platform} preview:`, error);
-  }
-}
-
 /**
- * Initialize collapse/expand functionality for meta tag sections
- * Implements accordion behavior where only one section can be expanded at a time
+ * Initialize meta section tabs functionality
  */
-function initCollapsibleSections() {
-  const collapseButtons = document.querySelectorAll('.collapse-btn');
-
-  // Get the first section's header and the tab navigation as our reference points
-  const firstSectionHeader = document.querySelector('#meta-tags-tab .section-header:first-child');
-  const tabNavigation = document.querySelector('.tab-navigation');
-
-  collapseButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const targetId = button.getAttribute('data-target');
-      const targetContent = document.getElementById(targetId);
-      const sectionCard = targetContent.closest('.section-card');
-      const sectionHeader = button.closest('.section-header');
-
-      // If the clicked section is already expanded, just collapse it
-      if (!button.classList.contains('collapsed')) {
-        button.classList.add('collapsed');
-        targetContent.classList.add('collapsed');
-        sectionCard.classList.add('collapsed');
-        sectionHeader.classList.add('collapsed');
-        const icon = button.querySelector('svg');
-        if (icon) {
-          icon.style.transform = 'rotate(-90deg)';
-        }
-        return;
-      }
-
-      // Collapse all other sections first
-      collapseButtons.forEach(otherButton => {
-        if (otherButton !== button) {
-          const otherTargetId = otherButton.getAttribute('data-target');
-          const otherContent = document.getElementById(otherTargetId);
-          const otherCard = otherContent.closest('.section-card');
-          const otherHeader = otherButton.closest('.section-header');
-
-          otherButton.classList.add('collapsed');
-          otherContent.classList.add('collapsed');
-          otherCard.classList.add('collapsed');
-          otherHeader.classList.add('collapsed');
-
-          const otherIcon = otherButton.querySelector('svg');
-          if (otherIcon) {
-            otherIcon.style.transform = 'rotate(-90deg)';
-          }
-        }
+function initMetaSectionTabs() {
+  const metaSectionTabs = document.querySelectorAll('.meta-section-tab');
+  
+  metaSectionTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Get the target pane ID
+      const targetId = tab.getAttribute('data-target');
+      if (!targetId) return;
+      
+      // Remove active class from all tabs and panes
+      document.querySelectorAll('.meta-section-tab').forEach(t => {
+        t.classList.remove('active');
       });
-
-      // Pixel-perfect scroll: align expanded section header with the same distance from tab navigation as the first section
-      const appContent = document.querySelector('.app-content');
-      if (firstSectionHeader && sectionHeader && tabNavigation) {
-        // Get the distance from the first section header to the tab navigation
-        const tabNavRect = tabNavigation.getBoundingClientRect();
-        const firstHeaderRect = firstSectionHeader.getBoundingClientRect();
-        const idealDistance = firstHeaderRect.top - tabNavRect.bottom;
-
-        // Get the current section header's position
-        const sectionHeaderRect = sectionHeader.getBoundingClientRect();
-        const currentDistance = sectionHeaderRect.top - tabNavRect.bottom;
-
-        // Calculate the scroll delta needed
-        const scrollDelta = currentDistance - idealDistance;
-        appContent.scrollBy({
-          top: scrollDelta,
-          behavior: 'smooth'
-        });
+      
+      document.querySelectorAll('.meta-section-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab
+      tab.classList.add('active');
+      
+      // Add active class to corresponding pane
+      const targetPane = document.getElementById(targetId);
+      if (targetPane) {
+        targetPane.classList.add('active');
       }
-
-      // Expand the clicked section after scrolling starts
-      setTimeout(() => {
-        button.classList.remove('collapsed');
-        targetContent.classList.remove('collapsed');
-        sectionCard.classList.remove('collapsed');
-        sectionHeader.classList.remove('collapsed');
-
-        const icon = button.querySelector('svg');
-        if (icon) {
-          icon.style.transform = 'rotate(0)';
-        }
-      }, 50); // Small delay to let the scroll start first
     });
-  });
-
-  // Initially collapse all sections except the first one
-  collapseButtons.forEach((button, index) => {
-    if (index !== 0) {
-      const targetId = button.getAttribute('data-target');
-      const targetContent = document.getElementById(targetId);
-      const sectionCard = targetContent.closest('.section-card');
-      const sectionHeader = button.closest('.section-header');
-
-      button.classList.add('collapsed');
-      targetContent.classList.add('collapsed');
-      sectionCard.classList.add('collapsed');
-      sectionHeader.classList.add('collapsed');
-
-      const icon = button.querySelector('svg');
-      if (icon) {
-        icon.style.transform = 'rotate(-90deg)';
-      }
-    }
   });
 } 
