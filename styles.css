@@ -2725,7 +2725,7 @@ a:focus-visible {
   position: relative;
 }
 
-/* Improved Tooltip CSS with better positioning logic */
+/* Improved Tooltip CSS with better positioning */
 [data-tooltip] {
   position: relative;
   cursor: help;
@@ -2780,46 +2780,39 @@ a:focus-visible {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Dark mode styling for tooltips */
+/* Dark mode styling for tooltips - improved color */
 [data-theme="dark"] [data-tooltip]::after {
-  background: rgba(55, 65, 81, 0.95);
-  color: #f3f4f6;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(75, 85, 99, 0.4);
+  background: rgba(30, 41, 59, 0.95); /* Darker, more saturated blue-gray */
+  color: #f8fafc; /* Brighter text for better contrast */
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(100, 116, 139, 0.5); /* Slightly brighter border */
 }
 
 [data-theme="dark"] [data-tooltip]::before {
-  border-bottom: 5px solid rgba(55, 65, 81, 0.95);
+  border-bottom: 5px solid rgba(30, 41, 59, 0.95);
 }
 
-/* LEFT tooltip positioning for elements on the right side */
-.meta-cell.status [data-tooltip].tooltip-left::after {
-  right: 100%; 
+/* Tooltip adjustment for narrow screens */
+@media (max-width: 480px) {
+  [data-tooltip]::after {
+    width: 180px; /* Narrower tooltip on small screens */
+  }
+}
+
+/* Ensure tooltip stays within viewport bounds */
+[data-tooltip].tooltip-right-edge::after {
+  transform: translateY(-10px);
   left: auto;
-  top: 50%;
-  transform: translateY(-50%) translateX(10px);
-  margin-right: 5px;
+  right: 0;
 }
 
-.meta-cell.status [data-tooltip].tooltip-left:hover::after {
-  transform: translateY(-50%) translateX(0);
+[data-tooltip].tooltip-right-edge:hover::after {
+  transform: translateY(0);
 }
 
-.meta-cell.status [data-tooltip].tooltip-left::before {
-  border-left: none;
-  border-right: 5px solid rgba(17, 24, 39, 0.9);
-  border-bottom: 5px solid transparent;
-  border-top: 5px solid transparent;
-  top: 50%;
+[data-tooltip].tooltip-right-edge::before {
   left: auto;
-  right: 100%;
-  margin-top: -5px;
-  margin-right: -5px;
-}
-
-/* Dark mode adjustments for left tooltip */
-[data-theme="dark"] .meta-cell.status [data-tooltip].tooltip-left::before {
-  border-right-color: rgba(55, 65, 81, 0.95);
+  right: 10px;
 }
 
 /* Additional adjustments for status badges with tooltips */
