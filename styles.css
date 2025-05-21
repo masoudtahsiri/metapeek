@@ -2532,27 +2532,28 @@ a:focus-visible {
   margin-top: 0;
 }
 
-/* Impact Level Tabs */
+/* Impact Level Tabs - Styled to match Meta Tags tabs */
 .impact-tabs {
   display: flex;
-  margin-bottom: 20px;
+  margin: 0 0 20px 0;
   background-color: var(--bg-surface);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 4px;
-  border: 2px solid var(--border-light);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
   min-height: 44px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 2px solid var(--border-light);
 }
 
 .impact-tab {
   flex: 1 1 auto;
-  padding: 10px 8px;
+  padding: 12px 8px;
   background: none;
   border: none;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -2569,25 +2570,30 @@ a:focus-visible {
 
 .impact-tab.active {
   color: #fff;
-  background-color: #3b82f6;
+  background-color: var(--primary);
   font-weight: 600;
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 /* Impact panes container */
 .impact-content {
   position: relative;
+  margin-top: 0;
 }
 
 /* Impact content panes */
 .impact-pane {
   display: none;
   padding: 0.25rem;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .impact-pane.active {
   display: block;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Dark mode adjustments */
@@ -2601,8 +2607,8 @@ a:focus-visible {
 }
 
 [data-theme="dark"] .impact-tab.active {
-  background-color: #3b82f6;
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+  background-color: var(--primary);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 /* Issue Counter Bubbles */
@@ -2627,6 +2633,16 @@ a:focus-visible {
   color: white;
 }
 
+/* Empty state styling */
+.impact-pane .empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  margin: 0;
+}
+
 /* Issue item style improvements */
 .issue-item {
   padding: 1rem 1.25rem;
@@ -2649,4 +2665,228 @@ a:focus-visible {
 
 .issue-item.low {
   border-left-color: var(--status-good);
+}
+
+/* Issue category label */
+.issue-category {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background-color: var(--bg-surface);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+}
+
+/* Add a subtle hover effect to issue items */
+.issue-item {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.issue-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Adapt for dark mode */
+[data-theme="dark"] .issue-category {
+  background-color: var(--color-gray-750, #2a3441);
+  border-color: var(--color-gray-700);
+}
+
+/* Empty state styling */
+.impact-pane .empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  margin: 0;
+}
+
+/* Animation for tab switching */
+.impact-pane {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transform: translateY(8px);
+  position: absolute;
+  width: 100%;
+}
+
+.impact-pane.active {
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+}
+
+/* Improved Tooltip CSS with better positioning logic */
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: all 0.18s ease-out;
+  transform: translate3d(0, -10px, 0);
+  visibility: hidden;
+}
+
+/* Tooltip arrow */
+[data-tooltip]::before {
+  content: '';
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid rgba(17, 24, 39, 0.9);
+  top: -5px;
+  left: 50%;
+  margin-left: -5px;
+}
+
+/* Tooltip content - CENTER by default */
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  background: rgba(17, 24, 39, 0.9);
+  color: white;
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 220px;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  line-height: 1.4;
+  white-space: normal;
+}
+
+/* Show the tooltip on hover */
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Tooltip placement for meta cells to avoid border issues */
+.meta-cell.status [data-tooltip]::after {
+  width: 220px;
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(-10px);
+}
+
+.meta-cell.status [data-tooltip]:hover::after {
+  transform: translateX(0) translateY(0);
+}
+
+.meta-cell.status [data-tooltip]::before {
+  left: auto;
+  right: 10px;
+}
+
+/* Additional adjustments for status badges with tooltips */
+.status-badge[data-tooltip] {
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.status-badge[data-tooltip]:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode styling for tooltips */
+[data-theme="dark"] [data-tooltip]::after {
+  background: rgba(31, 41, 55, 0.95);
+  color: #e5e7eb;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] [data-tooltip]::before {
+  border-bottom: 5px solid rgba(31, 41, 55, 0.95);
+}
+
+/* LEFT tooltip positioning for elements on the right side */
+.meta-cell.status [data-tooltip].tooltip-left::after {
+  right: 100%; 
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%) translateX(10px);
+  margin-right: 5px;
+}
+
+.meta-cell.status [data-tooltip].tooltip-left:hover::after {
+  transform: translateY(-50%) translateX(0);
+}
+
+.meta-cell.status [data-tooltip].tooltip-left::before {
+  border-left: none;
+  border-right: 5px solid rgba(17, 24, 39, 0.9);
+  border-bottom: 5px solid transparent;
+  border-top: 5px solid transparent;
+  top: 50%;
+  left: auto;
+  right: 100%;
+  margin-top: -5px;
+  margin-right: -5px;
+}
+
+/* Dark mode adjustments for left tooltip */
+[data-theme="dark"] .meta-cell.status [data-tooltip].tooltip-left::before {
+  border-right-color: rgba(31, 41, 55, 0.95);
+}
+
+/* Info notice styling */
+.info-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary-border);
+  border-radius: 6px;
+  margin: 16px 0 8px 0;
+  font-size: 12px;
+  color: var(--primary);
+}
+
+.info-notice svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+/* Dark mode adjustment */
+[data-theme="dark"] .info-notice {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Add info notice to each meta section pane */
+.meta-section-pane .section-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Make the info notice appear on first load, then fade out */
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-5px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-5px); }
+}
+
+.info-notice.auto-hide {
+  animation: fadeInOut 5s ease forwards;
 }

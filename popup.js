@@ -75,6 +75,7 @@ function initUI() {
     initTabNavigation();
     initSocialPreviews();
     initCopyButtons();
+    initImpactTabs();
   } catch (error) {
     console.error('Error initializing UI:', error);
   }
@@ -269,67 +270,132 @@ function updateSEOScore(scoreData) {
 }
 
 /**
- * Update priority issues section
+ * Update priority issues section with tabbed interface
  * @param {Object} metadata - Metadata from content script
  */
 function updatePriorityIssues(metadata) {
-  const issuesContainer = document.querySelector('.issues-list');
+  // Initialize impact tabs
+  initImpactTabs();
+  
+  const allIssuesContainer = document.getElementById('all-issues');
+  const highIssuesContainer = document.getElementById('high-issues');
+  const mediumIssuesContainer = document.getElementById('medium-issues');
+  const lowIssuesContainer = document.getElementById('low-issues');
   const issueBadge = document.querySelector('.section-title .badge');
   
-  if (!issuesContainer || !metadata.seoScore) return;
+  if (!allIssuesContainer || !metadata.seoScore) return;
   
   // Clear existing issues
-  issuesContainer.innerHTML = '';
+  allIssuesContainer.innerHTML = '';
+  highIssuesContainer.innerHTML = '';
+  mediumIssuesContainer.innerHTML = '';
+  lowIssuesContainer.innerHTML = '';
   
   // Get recommendations from metadata
   const recommendations = metadata.seoScore.recommendations || [];
   
-  // Filter to get only high and medium impact items
-  const priorityIssues = [];
+  // Categorize issues by impact level
+  const allIssues = [];
+  const highIssues = [];
+  const mediumIssues = [];
+  const lowIssues = [];
   
   recommendations.forEach(category => {
     if (category.items) {
       category.items.forEach(item => {
-        if (item.impact === 'High' || item.impact === 'Medium') {
-          priorityIssues.push({
-            title: item.issue,
-            description: item.details,
-            impact: item.impact
-          });
+        const issueItem = {
+          title: item.issue,
+          description: item.details,
+          impact: item.impact || 'Low',
+          category: category.category
+        };
+        
+        allIssues.push(issueItem);
+        
+        if (item.impact === 'High') {
+          highIssues.push(issueItem);
+        } else if (item.impact === 'Medium') {
+          mediumIssues.push(issueItem);
+        } else {
+          lowIssues.push(issueItem);
         }
       });
     }
   });
   
-  // Update counter badge
+  // Sort allIssues by impact level (High > Medium > Low), normalizing case
+  allIssues.sort((a, b) => {
+    const impactOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+    const normalize = v => v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+    const impactA = normalize(a.impact);
+    const impactB = normalize(b.impact);
+    return (impactOrder[impactA] || 99) - (impactOrder[impactB] || 99);
+  });
+  
+  // Update issue counts in tabs
+  updateTabCounter('all', allIssues.length);
+  updateTabCounter('high', highIssues.length);
+  updateTabCounter('medium', mediumIssues.length);
+  updateTabCounter('low', lowIssues.length);
+  
+  // Update total issue count in badge
   if (issueBadge) {
-    issueBadge.textContent = priorityIssues.length;
+    issueBadge.textContent = allIssues.length;
   }
   
-  // Add issues to container
-  if (priorityIssues.length > 0) {
-    priorityIssues.forEach(issue => {
-      const issueElement = document.createElement('div');
-      issueElement.className = `issue-item ${issue.impact.toLowerCase()}`;
-      
-      issueElement.innerHTML = `
-        <div class="issue-header">
-          <h4>${issue.title}</h4>
-          <span class="issue-impact ${issue.impact.toLowerCase()}">${issue.impact} Impact</span>
-        </div>
-        <p class="issue-description">${issue.description}</p>
-      `;
-      
-      issuesContainer.appendChild(issueElement);
-    });
-  } else {
-    // Show no issues message
-    issuesContainer.innerHTML = `
+  // Render issues in each container
+  renderIssues(allIssuesContainer, allIssues);
+  renderIssues(highIssuesContainer, highIssues);
+  renderIssues(mediumIssuesContainer, mediumIssues);
+  renderIssues(lowIssuesContainer, lowIssues);
+}
+
+/**
+ * Render issues in a container
+ * @param {HTMLElement} container - Container element
+ * @param {Array} issues - Array of issues to render
+ */
+function renderIssues(container, issues) {
+  if (!container) return;
+  
+  if (issues.length === 0) {
+    container.innerHTML = `
       <div class="empty-state">
-        <p>No priority issues found. Your page is looking good!</p>
+        <p>No issues found.</p>
       </div>
     `;
+    return;
   }
+  
+  container.innerHTML = issues.map(issue => `
+    <div class="issue-item ${issue.impact.toLowerCase()}">
+      <div class="issue-header">
+        <h4>${issue.title}</h4>
+        <span class="issue-impact ${issue.impact.toLowerCase()}">${issue.impact} Impact</span>
+      </div>
+      <p class="issue-description">${issue.description}</p>
+      <span class="issue-category">${issue.category}</span>
+    </div>
+  `).join('');
+}
+
+/**
+ * Update the counter in a tab
+ * @param {string} impactLevel - Impact level identifier
+ * @param {number} count - Number of issues
+ */
+function updateTabCounter(impactLevel, count) {
+  const tab = document.querySelector(`.impact-tab[data-impact="${impactLevel}"]`);
+  if (!tab) return;
+  
+  let counter = tab.querySelector('.count');
+  if (!counter) {
+    counter = document.createElement('span');
+    counter.className = 'count';
+    tab.appendChild(counter);
+  }
+  
+  counter.textContent = count;
 }
 
 /**
@@ -424,7 +490,42 @@ function updateMetaTagSummary(metadata) {
 }
 
 /**
- * Update basic meta tags in Meta Tags tab
+ * Initialize tooltips and adjust their positions to prevent overflow
+ * This should be called after loading meta tags or whenever new tooltips are added
+ */
+function initTooltips() {
+  // Wait a brief moment for the DOM to fully render
+  setTimeout(function() {
+    const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
+    
+    statusBadges.forEach(badge => {
+      // Get the badge's position relative to the viewport
+      const rect = badge.getBoundingClientRect();
+      const windowWidth = window.innerWidth || document.documentElement.clientWidth;
+      
+      // Right edge detection - if too close to the right edge of the window
+      if (rect.right > windowWidth - 120) {
+        badge.classList.add('tooltip-left');
+      }
+      
+      // Add hover event listener to dynamically check positioning
+      badge.addEventListener('mouseenter', function() {
+        // Re-check position in case window was resized
+        const updatedRect = badge.getBoundingClientRect();
+        const updatedWindowWidth = window.innerWidth || document.documentElement.clientWidth;
+        
+        if (updatedRect.right > updatedWindowWidth - 120) {
+          badge.classList.add('tooltip-left');
+        } else {
+          badge.classList.remove('tooltip-left');
+        }
+      });
+    });
+  }, 100);
+}
+
+/**
+ * Update basic meta tags in Meta Tags tab with tooltips
  * @param {Array} metaTags - Basic meta tags
  */
 function updateBasicMetaTags(metaTags) {
@@ -449,20 +550,28 @@ function updateBasicMetaTags(metaTags) {
     const isEmpty = !tag.value || tag.value.trim() === '';
     const valueClass = isEmpty ? 'meta-cell value empty' : 'meta-cell value';
     
+    // Add tooltip attribute for the status badge
+    const statusTooltip = tag.message || getStatusMessage(tag.status, tag.label);
+    
     row.innerHTML = `
       <div class="meta-cell name">${tag.label}</div>
       <div class="${valueClass}">${isEmpty ? 'Not set' : tag.value}</div>
       <div class="meta-cell status">
-        <span class="status-badge ${tag.status || 'warning'}">${tag.status || 'Missing'}</span>
+        <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
+          ${tag.status || 'Missing'}
+        </span>
       </div>
     `;
     
     container.appendChild(row);
   });
+  
+  // Initialize tooltips after updating the badges
+  initTooltips();
 }
 
 /**
- * Update Open Graph meta tags in Meta Tags tab
+ * Update Open Graph meta tags in Meta Tags tab with tooltips
  * @param {Array} metaTags - OG meta tags
  */
 function updateOGMetaTags(metaTags) {
@@ -481,26 +590,34 @@ function updateOGMetaTags(metaTags) {
   container.innerHTML = '';
   
   metaTags.forEach(tag => {
-      const row = document.createElement('div');
-      row.className = 'meta-row';
-      
-      const isEmpty = !tag.value || tag.value.trim() === '';
-      const valueClass = isEmpty ? 'meta-cell value empty' : 'meta-cell value';
-      
-      row.innerHTML = `
-        <div class="meta-cell name">${tag.label}</div>
-        <div class="${valueClass}">${isEmpty ? 'Not set' : tag.value}</div>
-        <div class="meta-cell status">
-        <span class="status-badge ${tag.status || 'warning'}">${tag.status || 'Missing'}</span>
-        </div>
-      `;
-      
+    const row = document.createElement('div');
+    row.className = 'meta-row';
+    
+    const isEmpty = !tag.value || tag.value.trim() === '';
+    const valueClass = isEmpty ? 'meta-cell value empty' : 'meta-cell value';
+    
+    // Add tooltip attribute for the status badge
+    const statusTooltip = tag.message || getStatusMessage(tag.status, tag.label);
+    
+    row.innerHTML = `
+      <div class="meta-cell name">${tag.label}</div>
+      <div class="${valueClass}">${isEmpty ? 'Not set' : tag.value}</div>
+      <div class="meta-cell status">
+        <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
+          ${tag.status || 'Missing'}
+        </span>
+      </div>
+    `;
+    
     container.appendChild(row);
-    });
+  });
+  
+  // Initialize tooltips after updating the badges
+  initTooltips();
 }
 
 /**
- * Update Twitter Card meta tags in Meta Tags tab
+ * Update Twitter Card meta tags in Meta Tags tab with tooltips
  * @param {Array} metaTags - Twitter meta tags
  */
 function updateTwitterMetaTags(metaTags) {
@@ -525,18 +642,44 @@ function updateTwitterMetaTags(metaTags) {
     const isEmpty = !tag.value || tag.value.trim() === '';
     const valueClass = isEmpty ? 'meta-cell value empty' : 'meta-cell value';
     
+    // Add tooltip attribute for the status badge
+    const statusTooltip = tag.message || getStatusMessage(tag.status, tag.label);
+    
     row.innerHTML = `
       <div class="meta-cell name">${tag.label}</div>
       <div class="${valueClass}">${isEmpty ? 'Not set' : tag.value}</div>
       <div class="meta-cell status">
-        <span class="status-badge ${tag.status || 'warning'}">${tag.status || 'Missing'}</span>
+        <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
+          ${tag.status || 'Missing'}
+        </span>
       </div>
     `;
     
     container.appendChild(row);
   });
-  }
   
+  // Initialize tooltips after updating the badges
+  initTooltips();
+}
+
+/**
+ * Get a generic status message if a specific one isn't provided
+ * @param {string} status - Status value (good, warning, error)
+ * @param {string} tagName - Name of the meta tag
+ * @returns {string} Status message
+ */
+function getStatusMessage(status, tagName) {
+  switch (status) {
+    case 'good':
+      return `${tagName} is properly optimized.`;
+    case 'warning':
+      return `${tagName} needs attention. It may be too short, too long, or missing recommended content.`;
+    case 'error':
+    default:
+      return `${tagName} is missing or has critical issues that need to be addressed.`;
+  }
+}
+
 /**
  * Update canonical URL in Meta Tags tab
  * @param {string} canonicalUrl - Canonical URL
@@ -1101,6 +1244,9 @@ function initTabNavigation() {
       } else {
         console.warn(`Target tab pane #${targetPaneId} not found`);
       }
+      
+      // Initialize tooltips after tab change
+      initTooltips();
     });
   });
 }
@@ -1232,6 +1378,42 @@ function initMetaSectionTabs() {
       
       // Add active class to corresponding pane
       const targetPane = document.getElementById(targetId);
+      if (targetPane) {
+        targetPane.classList.add('active');
+      }
+      
+      // Initialize tooltips after meta section tab change
+      initTooltips();
+    });
+  });
+}
+
+/**
+ * Initialize impact tabs functionality
+ */
+function initImpactTabs() {
+  const impactTabs = document.querySelectorAll('.impact-tab');
+  
+  impactTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Get the target impact level
+      const impactLevel = tab.getAttribute('data-impact');
+      if (!impactLevel) return;
+      
+      // Remove active class from all tabs and panes
+      document.querySelectorAll('.impact-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.impact-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab
+      tab.classList.add('active');
+      
+      // Add active class to corresponding pane
+      const targetPane = document.getElementById(`${impactLevel}-issues`);
       if (targetPane) {
         targetPane.classList.add('active');
       }
