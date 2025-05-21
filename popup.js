@@ -1754,46 +1754,18 @@ function refreshCurrentPreview() {
 }
 
 /**
- * Scrolls the expanded section header to align with the first section header below the tab navigation
+ * Initialize collapse/expand functionality for meta tag sections
+ * Implements accordion behavior where only one section can be expanded at a time
  */
-function scrollSectionIntoAlignedView({
-  containerSelector,
-  sectionHeaderSelector,
-  sectionHeaderToScrollTo
-}) {
-  const container = document.querySelector(containerSelector);
-  const allSectionHeaders = Array.from(document.querySelectorAll(sectionHeaderSelector));
-  const targetSectionHeader = sectionHeaderToScrollTo;
-
-  if (!container || !targetSectionHeader) return;
-
-  const firstSectionHeader = allSectionHeaders[0];
-  const firstSectionHeaderY = firstSectionHeader.getBoundingClientRect().top;
-  const targetSectionHeaderY = targetSectionHeader.getBoundingClientRect().top;
-
-  // The scroll delta is the difference between the two header positions
-  const scrollDelta = targetSectionHeaderY - firstSectionHeaderY;
-
-  // Debug logs
-  console.log('[MetaPeek scroll alignment]');
-  console.log('container.scrollTop before:', container.scrollTop);
-  console.log('firstSectionHeaderY:', firstSectionHeaderY);
-  console.log('targetSectionHeaderY:', targetSectionHeaderY);
-  console.log('scrollDelta:', scrollDelta);
-
-  container.scrollTop += scrollDelta;
-  console.log('container.scrollTop after:', container.scrollTop);
-}
-
 function initCollapsibleSections() {
-  console.log('[MetaPeek] initCollapsibleSections called');
   const collapseButtons = document.querySelectorAll('.collapse-btn');
-  const sectionHeaderSelector = '#meta-tags-tab .section-header';
-  const containerSelector = '.app-content';
+
+  // Get the first section's header and the tab navigation as our reference points
+  const firstSectionHeader = document.querySelector('#meta-tags-tab .section-header:first-child');
+  const tabNavigation = document.querySelector('.tab-navigation');
 
   collapseButtons.forEach(button => {
     button.addEventListener('click', () => {
-      console.log('[MetaPeek] collapse button clicked');
       const targetId = button.getAttribute('data-target');
       const targetContent = document.getElementById(targetId);
       const sectionCard = targetContent.closest('.section-card');
@@ -1832,24 +1804,38 @@ function initCollapsibleSections() {
         }
       });
 
-      // Expand the clicked section first
-      button.classList.remove('collapsed');
-      targetContent.classList.remove('collapsed');
-      sectionCard.classList.remove('collapsed');
-      sectionHeader.classList.remove('collapsed');
-      const icon = button.querySelector('svg');
-      if (icon) {
-        icon.style.transform = 'rotate(0)';
+      // Pixel-perfect scroll: align expanded section header with the same distance from tab navigation as the first section
+      const appContent = document.querySelector('.app-content');
+      if (firstSectionHeader && sectionHeader && tabNavigation) {
+        // Get the distance from the first section header to the tab navigation
+        const tabNavRect = tabNavigation.getBoundingClientRect();
+        const firstHeaderRect = firstSectionHeader.getBoundingClientRect();
+        const idealDistance = firstHeaderRect.top - tabNavRect.bottom;
+
+        // Get the current section header's position
+        const sectionHeaderRect = sectionHeader.getBoundingClientRect();
+        const currentDistance = sectionHeaderRect.top - tabNavRect.bottom;
+
+        // Calculate the scroll delta needed
+        const scrollDelta = currentDistance - idealDistance;
+        appContent.scrollBy({
+          top: scrollDelta,
+          behavior: 'smooth'
+        });
       }
 
-      // After DOM/layout update, scroll for pixel-perfect alignment
-      requestAnimationFrame(() => {
-        scrollSectionIntoAlignedView({
-          containerSelector,
-          sectionHeaderSelector,
-          sectionHeaderToScrollTo: sectionHeader
-        });
-      });
+      // Expand the clicked section after scrolling starts
+      setTimeout(() => {
+        button.classList.remove('collapsed');
+        targetContent.classList.remove('collapsed');
+        sectionCard.classList.remove('collapsed');
+        sectionHeader.classList.remove('collapsed');
+
+        const icon = button.querySelector('svg');
+        if (icon) {
+          icon.style.transform = 'rotate(0)';
+        }
+      }, 50); // Small delay to let the scroll start first
     });
   });
 
