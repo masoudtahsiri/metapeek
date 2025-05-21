@@ -965,8 +965,8 @@ function calculateSEOHealthScore(metadata) {
 function generateRecommendations(metadata) {
   const recommendations = [];
   
-  // Add basic recommendations based on metadata
-  if (metadata.basicMeta.some(tag => tag.status !== 'good')) {
+  // Add basic meta tag recommendations
+  if (metadata.basicMeta && metadata.basicMeta.some(tag => tag.status !== 'good')) {
     recommendations.push({
       category: 'Basic Meta Tags',
       items: metadata.basicMeta
@@ -976,6 +976,58 @@ function generateRecommendations(metadata) {
           details: tag.message,
           impact: tag.label === 'Title' || tag.label === 'Description' ? 'High' : 'Medium'
         }))
+    });
+  }
+  
+  // Add Open Graph recommendations
+  if (metadata.ogMeta && metadata.ogMeta.some(tag => tag.status !== 'good')) {
+    recommendations.push({
+      category: 'Open Graph Tags',
+      items: metadata.ogMeta
+        .filter(tag => tag.status !== 'good')
+        .map(tag => ({
+          issue: `Optimize ${tag.label}`,
+          details: tag.message,
+          impact: tag.label === 'og:title' || tag.label === 'og:description' || tag.label === 'og:image' ? 'High' : 'Medium'
+        }))
+    });
+  }
+  
+  // Add Twitter Card recommendations
+  if (metadata.twitterMeta && metadata.twitterMeta.some(tag => tag.status !== 'good')) {
+    recommendations.push({
+      category: 'Twitter Card Tags',
+      items: metadata.twitterMeta
+        .filter(tag => tag.status !== 'good')
+        .map(tag => ({
+          issue: `Optimize ${tag.label}`,
+          details: tag.message,
+          impact: tag.label === 'twitter:title' || tag.label === 'twitter:description' || tag.label === 'twitter:image' ? 'High' : 'Medium'
+        }))
+    });
+  }
+  
+  // Add canonical URL recommendation if missing
+  if (!metadata.canonicalUrl) {
+    recommendations.push({
+      category: 'Technical SEO',
+      items: [{
+        issue: 'Add Canonical URL',
+        details: 'Canonical URL is missing. This is important to prevent duplicate content issues.',
+        impact: 'High'
+      }]
+    });
+  }
+  
+  // Add schema.org recommendation if missing or invalid
+  if (!metadata.schemaData || metadata.schemaData.length === 0 || metadata.schemaData.some(s => !s.valid)) {
+    recommendations.push({
+      category: 'Structured Data',
+      items: [{
+        issue: 'Implement Schema.org Markup',
+        details: 'Schema.org structured data is missing or invalid. Adding proper structured data can improve search engine understanding of your content.',
+        impact: 'Medium'
+      }]
     });
   }
   
