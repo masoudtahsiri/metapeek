@@ -6,7 +6,6 @@
   <title>MetaPeek</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-  <script src="lib/web-vitals.js"></script>
   <script src="popup.js"></script>
 </head>
 <body>
@@ -45,7 +44,6 @@
         <button class="tab-button active" data-tab="overview">Overview</button>
         <button class="tab-button" data-tab="meta-tags">Meta Tags</button>
         <button class="tab-button" data-tab="social">Social Preview</button>
-        <button class="tab-button" data-tab="performance">Performance</button>
       </nav>
       
       <!-- Tab Content -->
@@ -217,29 +215,6 @@
 
           <!-- Mobile Previews -->
           <!-- Remove all preview-content.mobile containers for Google, Facebook, Twitter, LinkedIn, Pinterest -->
-        </section>
-        
-        <!-- Performance Tab -->
-        <section id="performance-tab" class="tab-pane">
-          <div class="section-header">
-            <h3 class="section-title">Core Web Vitals</h3>
-          </div>
-          <div class="section-card">
-            <div id="metrics-grid" class="metrics-grid">
-              <div class="loading-indicator">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Collecting performance metrics...</div>
-              </div>
-            </div>
-            <div id="performance-tip" class="performance-tip">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              <p>Analyzing page performance...</p>
-            </div>
-          </div>
         </section>
       </div>
     </main>

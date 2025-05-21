@@ -1,8 +1,8 @@
 {
   "name": "metapeek",
   "version": "1.0.0",
-  "description": "MetaPeek is a Chrome extension that helps you audit and preview meta tags for web pages. It provides a comprehensive view of your page's meta information, including basic meta tags, Open Graph tags, Twitter Card tags, and canonical URLs.",
-  "main": "background.js",
+  "description": "Analyze and optimize your page's meta tags and SEO.",
+  "main": "popup.js",
   "directories": {
     "lib": "lib"
   },
@@ -13,7 +13,11 @@
     "type": "git",
     "url": "git+https://github.com/masoudtahsiri/metapeek.git"
   },
-  "keywords": [],
+  "keywords": [
+    "seo",
+    "meta-tags",
+    "chrome-extension"
+  ],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -21,6 +25,6 @@
   },
   "homepage": "https://github.com/masoudtahsiri/metapeek#readme",
   "dependencies": {
-    "web-vitals": "^5.0.1"
+    "webextension-polyfill": "^0.10.0"
   }
 }
