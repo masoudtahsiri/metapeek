@@ -2725,99 +2725,109 @@ a:focus-visible {
   position: relative;
 }
 
-/* Enhanced Tooltip CSS with better visual distinction */
+/* Completely fixed tooltip CSS with proper arrow positioning */
 [data-tooltip] {
   position: relative;
   cursor: help;
 }
 
-[data-tooltip]::before,
+/* Remove the pseudo-element approach for the arrow and use a simpler approach */
 [data-tooltip]::after {
+  content: attr(data-tooltip);
   position: absolute;
   opacity: 0;
   pointer-events: none;
   z-index: 10;
-  transition: all 0.18s ease-out;
-  transform: translate3d(0, -10px, 0);
+  transition: all 0.2s ease-out;
   visibility: hidden;
-}
-
-/* Tooltip arrow - slightly larger and more defined */
-[data-tooltip]::before {
-  content: '';
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 6px solid white; /* Light color arrow for better visibility */
-  top: -6px;
-  left: 50%;
-  margin-left: -6px;
-  filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.15));
-}
-
-/* Tooltip content - completely redesigned for better visibility */
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  background: white; /* Light background for strong contrast */
-  color: #111827; /* Dark text for readability */
-  font-size: 12px;
-  font-weight: normal;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 8px;
+  
+  /* Position and styling */
   width: 220px;
-  top: calc(100% + 6px);
+  padding: 10px 14px;
+  border-radius: 8px;
+  top: 100%;
   left: 50%;
-  transform: translateX(-50%) translateY(-10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  line-height: 1.4;
+  transform: translateX(-50%) translateY(10px);
+  margin-top: 10px;
+  
+  /* Arrow styling using borders */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.5;
   white-space: normal;
 }
 
-/* Show the tooltip on hover with improved animation */
+/* Create arrow with ::before */
+[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  opacity: 0;
+  z-index: 11; /* Higher than the tooltip */
+  width: 0;
+  height: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  visibility: hidden;
+  transition: all 0.2s ease-out;
+  
+  /* Arrow pointing up to badge */
+  bottom: -10px; /* Position at bottom of badge */
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid; /* Color will be set in theme styles */
+}
+
+/* Light mode styling */
+[data-tooltip]::after {
+  background: #1f2937;
+  color: white;
+}
+
+[data-tooltip]::before {
+  border-bottom-color: #1f2937;
+}
+
+/* Show tooltip on hover */
 [data-tooltip]:hover::before,
 [data-tooltip]:hover::after {
   opacity: 1;
   visibility: visible;
+}
+
+[data-tooltip]:hover::after {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Dark mode styling for tooltips - now uses light tooltip for better contrast */
+/* Dark mode styling */
 [data-theme="dark"] [data-tooltip]::after {
-  background: white; /* Keep light background even in dark mode */
-  color: #111827; /* Dark text for contrast */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  border: none; /* Remove border for cleaner look */
+  background: white;
+  color: #111827;
 }
 
 [data-theme="dark"] [data-tooltip]::before {
-  border-bottom: 6px solid white; /* White arrow for visibility */
+  border-bottom-color: white;
 }
 
-/* Status-specific tooltip styling */
+/* Status-specific colored borders */
 .status-badge.good[data-tooltip]::after {
-  border-left: 3px solid var(--status-good); /* Green accent for "good" status */
+  border-left: 4px solid var(--status-good);
 }
 
 .status-badge.warning[data-tooltip]::after {
-  border-left: 3px solid var(--status-warning); /* Yellow accent for "warning" status */
+  border-left: 4px solid var(--status-warning);
 }
 
 .status-badge.error[data-tooltip]::after {
-  border-left: 3px solid var(--status-error); /* Red accent for "error" status */
+  border-left: 4px solid var(--status-error);
 }
 
-/* Tooltip adjustment for narrow screens */
-@media (max-width: 480px) {
-  [data-tooltip]::after {
-    width: 180px; /* Narrower tooltip on small screens */
-  }
-}
-
-/* Ensure tooltip stays within viewport bounds */
+/* Right-edge positioning */
 [data-tooltip].tooltip-right-edge::after {
-  transform: translateY(-10px);
   left: auto;
   right: 0;
+  transform: translateY(10px);
 }
 
 [data-tooltip].tooltip-right-edge:hover::after {
@@ -2829,7 +2839,7 @@ a:focus-visible {
   right: 10px;
 }
 
-/* Enhanced hover effect for status badges with tooltips */
+/* Badge hover effect */
 .status-badge[data-tooltip] {
   cursor: help;
   transition: all 0.2s ease;
@@ -2837,50 +2847,11 @@ a:focus-visible {
 
 .status-badge[data-tooltip]:hover {
   transform: scale(1.08);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-/* Info notice styling */
-.info-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background-color: var(--primary-light);
-  border: 1px solid var(--primary-border);
-  border-radius: 6px;
-  margin: 16px 0 8px 0;
-  font-size: 12px;
-  color: var(--primary);
-}
-
-.info-notice svg {
-  flex-shrink: 0;
-  color: var(--primary);
-}
-
-/* Dark mode adjustment */
-[data-theme="dark"] .info-notice {
-  background-color: rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.3);
-}
-
-/* Add info notice to each meta section pane */
-.meta-section-pane .section-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-/* Make the info notice appear on first load, then fade out */
-@keyframes fadeInOut {
-  0% { opacity: 0; transform: translateY(-5px); }
-  10% { opacity: 1; transform: translateY(0); }
-  90% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-5px); }
-}
-
-.info-notice.auto-hide {
-  animation: fadeInOut 5s ease forwards;
+/* Tooltip adjustment for narrow screens */
+@media (max-width: 480px) {
+  [data-tooltip]::after {
+    width: 180px;
+  }
 }
