@@ -490,7 +490,7 @@ function updateMetaTagSummary(metadata) {
 }
 
 /**
- * Initialize tooltips and adjust their positions to prevent overflow
+ * Initialize tooltips and adjust their positions to stay within viewport
  * This should be called after loading meta tags or whenever new tooltips are added
  */
 function initTooltips() {
@@ -503,9 +503,14 @@ function initTooltips() {
       const rect = badge.getBoundingClientRect();
       const windowWidth = window.innerWidth || document.documentElement.clientWidth;
       
-      // Right edge detection - if too close to the right edge of the window
+      // Remove any existing positioning classes
+      badge.classList.remove('tooltip-left');
+      
+      // Right edge detection - if close to right edge, align tooltip right
       if (rect.right > windowWidth - 120) {
-        badge.classList.add('tooltip-left');
+        badge.classList.add('tooltip-right-edge');
+      } else {
+        badge.classList.remove('tooltip-right-edge');
       }
       
       // Add hover event listener to dynamically check positioning
@@ -514,10 +519,13 @@ function initTooltips() {
         const updatedRect = badge.getBoundingClientRect();
         const updatedWindowWidth = window.innerWidth || document.documentElement.clientWidth;
         
+        // Remove any existing positioning classes
+        badge.classList.remove('tooltip-left');
+        
         if (updatedRect.right > updatedWindowWidth - 120) {
-          badge.classList.add('tooltip-left');
+          badge.classList.add('tooltip-right-edge');
         } else {
-          badge.classList.remove('tooltip-left');
+          badge.classList.remove('tooltip-right-edge');
         }
       });
     });
