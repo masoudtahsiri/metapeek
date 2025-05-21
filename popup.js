@@ -494,42 +494,50 @@ function updateMetaTagSummary(metadata) {
  * This should be called after loading meta tags or whenever new tooltips are added
  */
 function initTooltips() {
-  // Wait a brief moment for the DOM to fully render
-  setTimeout(function() {
-    const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
-    
-    statusBadges.forEach(badge => {
-      // Get the badge's position relative to the viewport
-      const rect = badge.getBoundingClientRect();
-      const windowWidth = window.innerWidth || document.documentElement.clientWidth;
-      
-      // Remove any existing positioning classes
-      badge.classList.remove('tooltip-left');
-      
-      // Right edge detection - if close to right edge, align tooltip right
-      if (rect.right > windowWidth - 120) {
-        badge.classList.add('tooltip-right-edge');
-      } else {
-        badge.classList.remove('tooltip-right-edge');
+  const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
+  const globalTooltip = document.getElementById('global-tooltip');
+
+  statusBadges.forEach(badge => {
+    badge.addEventListener('mouseenter', function(e) {
+      const tooltipText = this.getAttribute('data-tooltip');
+      if (!tooltipText) return;
+
+      // Find the closest .meta-section-content ancestor
+      const container = this.closest('.meta-section-content');
+      if (!container) return;
+
+      globalTooltip.textContent = tooltipText;
+      globalTooltip.style.display = 'block';
+
+      const rect = this.getBoundingClientRect();
+      const tooltipRect = globalTooltip.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      // Calculate position relative to container
+      let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
+      let top = rect.top - containerRect.top - tooltipRect.height - 10;
+
+      // Adjust if tooltip would go off screen horizontally
+      if (left < 10) {
+        left = 10;
+      } else if (left + tooltipRect.width > containerRect.width - 10) {
+        left = containerRect.width - tooltipRect.width - 10;
       }
-      
-      // Add hover event listener to dynamically check positioning
-      badge.addEventListener('mouseenter', function() {
-        // Re-check position in case window was resized
-        const updatedRect = badge.getBoundingClientRect();
-        const updatedWindowWidth = window.innerWidth || document.documentElement.clientWidth;
-        
-        // Remove any existing positioning classes
-        badge.classList.remove('tooltip-left');
-        
-        if (updatedRect.right > updatedWindowWidth - 120) {
-          badge.classList.add('tooltip-right-edge');
-        } else {
-          badge.classList.remove('tooltip-right-edge');
-        }
-      });
+
+      // Adjust if tooltip would go off screen vertically
+      if (top < 10) {
+        // If tooltip would go above container, position it below the badge
+        top = rect.bottom - containerRect.top + 10;
+      }
+
+      globalTooltip.style.left = `${left + containerRect.left}px`;
+      globalTooltip.style.top = `${top + containerRect.top}px`;
     });
-  }, 100);
+
+    badge.addEventListener('mouseleave', function() {
+      globalTooltip.style.display = 'none';
+    });
+  });
 }
 
 /**
@@ -1427,4 +1435,77 @@ function initImpactTabs() {
       }
     });
   });
-} 
+}
+
+document.addEventListener('mouseover', function (e) {
+  const target = e.target.closest('[data-tooltip]');
+  const tooltip = document.getElementById('global-tooltip');
+  if (target && tooltip) {
+    // Remove any previous arrow
+    let arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) arrow.remove();
+
+    // Set content
+    tooltip.textContent = target.getAttribute('data-tooltip');
+
+    // Add left border for status badges
+    tooltip.style.borderLeft = '';
+    if (target.classList.contains('good')) {
+      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-good');
+    } else if (target.classList.contains('warning')) {
+      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-warning');
+    } else if (target.classList.contains('error')) {
+      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-error');
+    }
+
+    // Style
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    tooltip.style.background = isDark ? '#fff' : '#1f2937';
+    tooltip.style.color = isDark ? '#111827' : '#fff';
+    tooltip.style.padding = '10px 14px';
+    tooltip.style.borderRadius = '8px';
+    tooltip.style.fontSize = '12.5px';
+    tooltip.style.fontWeight = '500';
+    tooltip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    tooltip.style.whiteSpace = 'normal';
+    tooltip.style.maxWidth = '220px';
+    tooltip.style.position = 'fixed';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.display = 'block';
+    tooltip.style.transition = 'opacity 0.2s cubic-bezier(0.16,1,0.3,1), transform 0.2s cubic-bezier(0.16,1,0.3,1)';
+    tooltip.style.opacity = '1';
+
+    // Position tooltip
+    const rect = target.getBoundingClientRect();
+    const tooltipWidth = 220;
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tooltipWidth - 8));
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${rect.bottom + 10}px`;
+
+    // Add arrow
+    arrow = document.createElement('div');
+    arrow.className = 'tooltip-arrow';
+    arrow.style.position = 'absolute';
+    arrow.style.top = '-6px';
+    arrow.style.left = '50%';
+    arrow.style.transform = 'translateX(-50%)';
+    arrow.style.width = '0';
+    arrow.style.height = '0';
+    arrow.style.borderLeft = '6px solid transparent';
+    arrow.style.borderRight = '6px solid transparent';
+    arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
+    arrow.style.zIndex = '100000';
+    tooltip.prepend(arrow);
+  }
+});
+
+document.addEventListener('mouseout', function (e) {
+  const tooltip = document.getElementById('global-tooltip');
+  if (tooltip) {
+    tooltip.style.display = 'none';
+    tooltip.textContent = '';
+    let arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) arrow.remove();
+  }
+}); 
