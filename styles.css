@@ -173,14 +173,15 @@
   background: linear-gradient(to bottom, var(--bg-card), var(--color-gray-800));
   /* Enhanced border with stronger weight */
   border: 2px solid var(--border-medium);
+  border-top: 2px solid var(--border-medium);
   /* More pronounced shadow */
   box-shadow: var(--shadow-md), 0 0 2px var(--primary-border);
   /* Subtle highlight on the top edge */
-  border-top: 2px solid var(--border-medium);
+  border-left: 2px solid var(--border-medium);
   border-left-width: 5px;
   border-left-color: var(--primary);
   border-top-right-radius: 1rem;
-  border-top: none;
+  border-top-left-radius: 1rem;
   padding: 0;
 }
 
@@ -405,10 +406,10 @@ body {
 .section-card {
   background-color: var(--bg-card);
   border: 2px solid var(--border-medium);
-  border-top: 2px solid var(--border-medium) !important;
+  border-top: 2px solid var(--border-medium);
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
-  border-top-left-radius: 0;
+  border-top-left-radius: 1rem;
   border-top-right-radius: 1rem;
   border-left-width: 5px;
   border-left-color: var(--primary);
@@ -558,7 +559,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-5);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-12);
   padding: 1.5rem;
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -1607,8 +1608,8 @@ a:focus-visible {
 }
 
 #overview-tab .section-card {
-  margin-top: 88px;
-  padding-top: 19px;
+  margin-top: 0;
+  padding-top: 0;
 }
 
 #overview-tab .section-card > *:first-child {
@@ -2432,7 +2433,7 @@ a:focus-visible {
   background-color: var(--bg-surface);
   border-radius: 16px;
   padding: 4px;
-  border: 2px solid var(--border-light);
+  border: 2px solid var(--border-medium);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   min-height: 44px;
 }
@@ -2489,7 +2490,7 @@ a:focus-visible {
 [data-theme="dark"] .meta-section-tabs,
 [data-theme="dark"] .social-tabs {
   background-color: var(--color-gray-800);
-  border-color: var(--color-gray-700);
+  border-color: var(--border-medium);
 }
 
 [data-theme="dark"] .meta-section-tab:hover,
@@ -2537,23 +2538,22 @@ a:focus-visible {
   display: flex;
   margin: 0 0 20px 0;
   background-color: var(--bg-surface);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 4px;
-  overflow: hidden;
+  border: 2px solid var(--border-medium);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   min-height: 44px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 2px solid var(--border-light);
 }
 
 .impact-tab {
   flex: 1 1 auto;
-  padding: 12px 8px;
+  padding: 10px 8px;
   background: none;
   border: none;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -2570,9 +2570,28 @@ a:focus-visible {
 
 .impact-tab.active {
   color: #fff;
-  background-color: var(--primary);
+  background-color: #3b82f6;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+  transition: all 0.2s ease;
+}
+
+.impact-tab.active:active {
+  animation: tab-pulse 0.3s ease;
+}
+
+[data-theme="dark"] .impact-tabs {
+  background-color: var(--color-gray-800);
+  border-color: var(--border-medium);
+}
+
+[data-theme="dark"] .impact-tab:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .impact-tab.active {
+  background-color: #3b82f6;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
 }
 
 /* Impact panes container */
@@ -2594,21 +2613,6 @@ a:focus-visible {
   display: block;
   opacity: 1;
   transform: translateY(0);
-}
-
-/* Dark mode adjustments */
-[data-theme="dark"] .impact-tabs {
-  background-color: var(--color-gray-800);
-  border-color: var(--color-gray-700);
-}
-
-[data-theme="dark"] .impact-tab:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-[data-theme="dark"] .impact-tab.active {
-  background-color: var(--primary);
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
 }
 
 /* Issue Counter Bubbles */
