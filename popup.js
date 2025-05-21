@@ -368,13 +368,15 @@ function renderIssues(container, issues) {
   }
   
   container.innerHTML = issues.map(issue => `
-    <div class="issue-item ${issue.impact.toLowerCase()}">
+    <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
       <div class="issue-header">
         <h4>${issue.title}</h4>
         <span class="issue-impact ${issue.impact.toLowerCase()}">${issue.impact} Impact</span>
       </div>
       <p class="issue-description">${issue.description}</p>
-      <span class="issue-category">${issue.category}</span>
+      <div class="issue-category-wrapper">
+        <span class="issue-category">${issue.category}</span>
+      </div>
     </div>
   `).join('');
 }
@@ -733,7 +735,7 @@ function updateCanonicalURL(canonicalUrl) {
 }
 
 /**
- * Update schema.org data in Meta Tags tab
+ * Update schema.org data in Meta Tags tab with tooltips
  * @param {Array} schemaData - Schema.org data
  */
 function updateSchemaData(schemaData) {
@@ -751,6 +753,9 @@ function updateSchemaData(schemaData) {
   
   container.innerHTML = '';
   
+  // Add a generic schema explanation tooltip
+  const schemaTooltip = "Schema.org markup is structured data that helps search engines understand your content. It enables rich search results like FAQ snippets, recipe cards, and product information. Valid implementation can improve click-through rates by enhancing how your content appears in search results.";
+  
   schemaData.forEach(schema => {
     if (schema.valid && schema.data) {
       const schemaType = schema.data['@type'] || 'Unknown Type';
@@ -762,10 +767,13 @@ function updateSchemaData(schemaData) {
         <div class="meta-cell name">@type</div>
         <div class="meta-cell value">${Array.isArray(schemaType) ? schemaType.join(', ') : schemaType}</div>
         <div class="meta-cell status">
-          <span class="status-badge good">Valid</span>
-      </div>
-    `;
-    
+          <span class="status-badge good" data-tooltip="${schemaTooltip}">
+            Valid
+            <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
+          </span>
+        </div>
+      `;
+      
       container.appendChild(row);
       
       // Add a few key properties if available
@@ -785,7 +793,10 @@ function updateSchemaData(schemaData) {
             <div class="meta-cell name">${prop}</div>
             <div class="meta-cell value">${propValue}</div>
             <div class="meta-cell status">
-              <span class="status-badge good">Present</span>
+              <span class="status-badge good" data-tooltip="This property is properly defined in your Schema.org markup.">
+                Present
+                <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
+              </span>
             </div>
           `;
           
@@ -794,19 +805,25 @@ function updateSchemaData(schemaData) {
       });
     } else {
       const row = document.createElement('div');
-      row.className = 'meta-cell name';
+      row.className = 'meta-row';
       
       row.innerHTML = `
         <div class="meta-cell name">Schema</div>
         <div class="meta-cell value empty">Invalid Schema</div>
         <div class="meta-cell status">
-          <span class="status-badge error">Error</span>
+          <span class="status-badge error" data-tooltip="${schemaTooltip} Your Schema.org markup has errors that need to be fixed.">
+            Error
+            <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
+          </span>
         </div>
       `;
       
       container.appendChild(row);
     }
   });
+  
+  // Initialize tooltips after updating the badges
+  initTooltips();
 }
 
 /**
