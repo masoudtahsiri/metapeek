@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load data from the active tab
   loadPageData();
+  initCollapsibleSections();
 });
 
 /**
@@ -897,7 +898,7 @@ function updateSchemaData(schemaData) {
       });
     } else {
       const row = document.createElement('div');
-      row.className = 'meta-row';
+      row.className = 'meta-cell name';
       
       row.innerHTML = `
         <div class="meta-cell name">Schema</div>
@@ -1750,4 +1751,125 @@ function refreshCurrentPreview() {
   } catch (error) {
     console.error(`Error refreshing ${platform} preview:`, error);
   }
+}
+
+/**
+ * Scrolls the expanded section header to align with the first section header below the tab navigation
+ */
+function scrollSectionIntoAlignedView({
+  containerSelector,
+  sectionHeaderSelector,
+  sectionHeaderToScrollTo
+}) {
+  const container = document.querySelector(containerSelector);
+  const allSectionHeaders = Array.from(document.querySelectorAll(sectionHeaderSelector));
+  const targetSectionHeader = sectionHeaderToScrollTo;
+
+  if (!container || !targetSectionHeader) return;
+
+  const firstSectionHeader = allSectionHeaders[0];
+  const firstSectionHeaderY = firstSectionHeader.getBoundingClientRect().top;
+  const targetSectionHeaderY = targetSectionHeader.getBoundingClientRect().top;
+
+  // The scroll delta is the difference between the two header positions
+  const scrollDelta = targetSectionHeaderY - firstSectionHeaderY;
+
+  // Debug logs
+  console.log('[MetaPeek scroll alignment]');
+  console.log('container.scrollTop before:', container.scrollTop);
+  console.log('firstSectionHeaderY:', firstSectionHeaderY);
+  console.log('targetSectionHeaderY:', targetSectionHeaderY);
+  console.log('scrollDelta:', scrollDelta);
+
+  container.scrollTop += scrollDelta;
+  console.log('container.scrollTop after:', container.scrollTop);
+}
+
+function initCollapsibleSections() {
+  console.log('[MetaPeek] initCollapsibleSections called');
+  const collapseButtons = document.querySelectorAll('.collapse-btn');
+  const sectionHeaderSelector = '#meta-tags-tab .section-header';
+  const containerSelector = '.app-content';
+
+  collapseButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      console.log('[MetaPeek] collapse button clicked');
+      const targetId = button.getAttribute('data-target');
+      const targetContent = document.getElementById(targetId);
+      const sectionCard = targetContent.closest('.section-card');
+      const sectionHeader = button.closest('.section-header');
+
+      // If the clicked section is already expanded, just collapse it
+      if (!button.classList.contains('collapsed')) {
+        button.classList.add('collapsed');
+        targetContent.classList.add('collapsed');
+        sectionCard.classList.add('collapsed');
+        sectionHeader.classList.add('collapsed');
+        const icon = button.querySelector('svg');
+        if (icon) {
+          icon.style.transform = 'rotate(-90deg)';
+        }
+        return;
+      }
+
+      // Collapse all other sections first
+      collapseButtons.forEach(otherButton => {
+        if (otherButton !== button) {
+          const otherTargetId = otherButton.getAttribute('data-target');
+          const otherContent = document.getElementById(otherTargetId);
+          const otherCard = otherContent.closest('.section-card');
+          const otherHeader = otherButton.closest('.section-header');
+
+          otherButton.classList.add('collapsed');
+          otherContent.classList.add('collapsed');
+          otherCard.classList.add('collapsed');
+          otherHeader.classList.add('collapsed');
+
+          const otherIcon = otherButton.querySelector('svg');
+          if (otherIcon) {
+            otherIcon.style.transform = 'rotate(-90deg)';
+          }
+        }
+      });
+
+      // Expand the clicked section first
+      button.classList.remove('collapsed');
+      targetContent.classList.remove('collapsed');
+      sectionCard.classList.remove('collapsed');
+      sectionHeader.classList.remove('collapsed');
+      const icon = button.querySelector('svg');
+      if (icon) {
+        icon.style.transform = 'rotate(0)';
+      }
+
+      // After DOM/layout update, scroll for pixel-perfect alignment
+      requestAnimationFrame(() => {
+        scrollSectionIntoAlignedView({
+          containerSelector,
+          sectionHeaderSelector,
+          sectionHeaderToScrollTo: sectionHeader
+        });
+      });
+    });
+  });
+
+  // Initially collapse all sections except the first one
+  collapseButtons.forEach((button, index) => {
+    if (index !== 0) {
+      const targetId = button.getAttribute('data-target');
+      const targetContent = document.getElementById(targetId);
+      const sectionCard = targetContent.closest('.section-card');
+      const sectionHeader = button.closest('.section-header');
+
+      button.classList.add('collapsed');
+      targetContent.classList.add('collapsed');
+      sectionCard.classList.add('collapsed');
+      sectionHeader.classList.add('collapsed');
+
+      const icon = button.querySelector('svg');
+      if (icon) {
+        icon.style.transform = 'rotate(-90deg)';
+      }
+    }
+  });
 } 

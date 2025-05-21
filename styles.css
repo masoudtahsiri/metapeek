@@ -481,9 +481,9 @@ body {
 
 .section-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   margin-top: 0.5rem;
-  margin-bottom: 0;
+  margin-bottom: -1.1rem;
   padding: 0;
   background: transparent;
   border: none;
@@ -521,9 +521,26 @@ body {
 }
 
 .section-title .btn-icon-text {
-  margin-left: auto;
-  position: static;
-  z-index: 2;
+  margin-left: 0.5rem;
+}
+
+.section-title .collapse-btn {
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast);
+  margin-left: 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.section-title .collapse-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-hover);
+}
+
+.section-title .collapse-btn.collapsed svg {
+  transform: rotate(-90deg);
 }
 
 .badge {
@@ -2272,4 +2289,59 @@ a:focus-visible {
   height: 189px;
   background-size: cover;
   background-position: 50%;
+}
+
+/* Collapsible Sections */
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.collapse-btn {
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast);
+  margin-left: 0.5rem;
+}
+
+.collapse-btn.collapsed {
+  transform: rotate(-90deg);
+}
+
+.meta-table {
+  transition: max-height var(--transition-fast), opacity var(--transition-fast);
+  max-height: 1000px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.meta-table.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Ensure section cards maintain their border when content is collapsed */
+.section-card {
+  transition: border-color var(--transition-fast);
+}
+
+.section-card.collapsed {
+  border-color: var(--border-light);
+}
+
+/* Adjust section header spacing when collapsed */
+.section-header.collapsed {
+  margin-bottom: 0;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .collapse-btn {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .collapse-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
