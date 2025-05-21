@@ -69,7 +69,19 @@ const META_TAG_STANDARDS = {
   },
   robots: { 
     required: false,
-    valid: ["index", "noindex", "follow", "nofollow", "none", "noarchive", "nosnippet", "notranslate", "noimageindex", "unavailable_after"],
+    // Expanded list of valid robot directives including modern values
+    valid: [
+      // Basic directives
+      "index", "noindex", "follow", "nofollow", "none", "noarchive", 
+      "nosnippet", "notranslate", "noimageindex", "unavailable_after",
+      // Modern Google directives
+      "max-image-preview:large", "max-image-preview:standard", "max-image-preview:none",
+      "max-snippet:-1", "max-snippet:0", 
+      "max-video-preview:-1", "max-video-preview:0",
+      // Additional valid directives
+      "noydir", "noodp", "nocache", "noodyp", "noyaca",
+      "max-image-preview", "max-snippet", "max-video-preview"
+    ],
     message: {
       missing: "Robots tag is optional but recommended for crawl control",
       invalid: "Contains invalid robots directives",
@@ -517,14 +529,28 @@ function extractBasicMetaTags(metadata) {
     }
   }
   
-  // Robots validation
-    const robots = document.querySelector('meta[name="robots"]')?.content || '';
+  // Robots validation with improved directive parsing
+  const robots = document.querySelector('meta[name="robots"]')?.content || '';
   let robotsStatus = 'warning';
   let robotsMessage = META_TAG_STANDARDS.robots.message.missing;
-  
+
   if (robots) {
-    const directives = robots.toLowerCase().split(',').map(d => d.trim());
-    const hasInvalid = directives.some(d => !META_TAG_STANDARDS.robots.valid.includes(d));
+    // Split into individual directives, including those with parameters
+    const directivesRaw = robots.toLowerCase().split(',').map(d => d.trim());
+    let hasInvalid = false;
+    
+    // Check each directive against our valid list
+    directivesRaw.forEach(directive => {
+      // Get the base directive (part before any colon)
+      const baseDirective = directive.split(':')[0].trim();
+      
+      // Check if the full directive is valid OR if the base directive is valid
+      // This allows for parameter variations like max-snippet:50 that we haven't explicitly listed
+      if (!META_TAG_STANDARDS.robots.valid.includes(directive) && 
+          !META_TAG_STANDARDS.robots.valid.includes(baseDirective)) {
+        hasInvalid = true;
+      }
+    });
     
     if (hasInvalid) {
       robotsStatus = 'warning';
