@@ -2753,7 +2753,7 @@ a:focus-visible {
   margin-left: -5px;
 }
 
-/* Tooltip content - CENTER by default */
+/* Tooltip content */
 [data-tooltip]::after {
   content: attr(data-tooltip);
   background: rgba(17, 24, 39, 0.9);
@@ -2780,44 +2780,16 @@ a:focus-visible {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Tooltip placement for meta cells to avoid border issues */
-.meta-cell.status [data-tooltip]::after {
-  width: 220px;
-  left: auto;
-  right: 0;
-  transform: translateX(0) translateY(-10px);
-}
-
-.meta-cell.status [data-tooltip]:hover::after {
-  transform: translateX(0) translateY(0);
-}
-
-.meta-cell.status [data-tooltip]::before {
-  left: auto;
-  right: 10px;
-}
-
-/* Additional adjustments for status badges with tooltips */
-.status-badge[data-tooltip] {
-  cursor: help;
-  transition: all 0.2s ease;
-}
-
-.status-badge[data-tooltip]:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
 /* Dark mode styling for tooltips */
 [data-theme="dark"] [data-tooltip]::after {
-  background: rgba(31, 41, 55, 0.95);
-  color: #e5e7eb;
+  background: rgba(55, 65, 81, 0.95);
+  color: #f3f4f6;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(75, 85, 99, 0.4);
 }
 
 [data-theme="dark"] [data-tooltip]::before {
-  border-bottom: 5px solid rgba(31, 41, 55, 0.95);
+  border-bottom: 5px solid rgba(55, 65, 81, 0.95);
 }
 
 /* LEFT tooltip positioning for elements on the right side */
@@ -2847,7 +2819,18 @@ a:focus-visible {
 
 /* Dark mode adjustments for left tooltip */
 [data-theme="dark"] .meta-cell.status [data-tooltip].tooltip-left::before {
-  border-right-color: rgba(31, 41, 55, 0.95);
+  border-right-color: rgba(55, 65, 81, 0.95);
+}
+
+/* Additional adjustments for status badges with tooltips */
+.status-badge[data-tooltip] {
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.status-badge[data-tooltip]:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* Info notice styling */
