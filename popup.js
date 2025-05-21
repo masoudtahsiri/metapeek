@@ -114,11 +114,13 @@ function loadPageData() {
     
     const activeTab = tabs[0];
     updateUrlDisplay(activeTab.url);
-    // Store the real hostname for previews
+    // Store the real hostname for previews (for both previewState and socialPreviewState)
     try {
       previewState.pageHostname = new URL(activeTab.url).hostname;
+      socialPreviewState.pageHostname = new URL(activeTab.url).hostname;
     } catch (e) {
       previewState.pageHostname = activeTab.url;
+      socialPreviewState.pageHostname = activeTab.url;
     }
     console.log('Getting metadata for tab:', activeTab.id);
     
