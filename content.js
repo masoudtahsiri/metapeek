@@ -28,7 +28,7 @@ window.MetaPeek = window.MetaPeek || {
 const META_TAG_STANDARDS = {
   // Basic Meta Tags
   title: { 
-    min: 30,
+    min: 30, 
     max: 60, 
     required: true,
     impact: "high",
@@ -809,12 +809,23 @@ function validateCanonicalUrl(metadata) {
 }
 
 /**
- * Extract Schema.org data from the page
- * @param {Object} metadata - Metadata object to populate
+ * Extract Schema.org structured data from the page
+ * @param {Object} metadata - Metadata object to update
  */
 function extractSchemaData(metadata) {
     const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
     let schemas = [];
+
+  // List of important types (can be expanded)
+  const importantTypes = [
+    'WebPage', 'Article', 'NewsArticle', 'BlogPosting', 'FAQPage', 'Product', 'Person', 'Event', 'Recipe', 'VideoObject', 'HowTo', 'Course', 'Review', 'LocalBusiness', 'Service', 'JobPosting', 'ProfilePage', 'ContactPage', 'CollectionPage', 'CheckoutPage'
+  ];
+
+  function isImportantType(type) {
+    if (!type) return false;
+    if (Array.isArray(type)) return type.some(t => importantTypes.includes(t));
+    return importantTypes.includes(type);
+  }
     
     schemaScripts.forEach(script => {
       let json;
@@ -831,68 +842,49 @@ function extractSchemaData(metadata) {
         const jsonArray = Array.isArray(json) ? json : [json];
         
         jsonArray.forEach(item => {
-          // Recursively find all objects with @type
-          const found = findSchemaTypes(item);
-          if (found.length > 0) {
-            schemas.push(...found);
-          } else if (item['@type']) {
+        // Root-level object with @type
+        if (item && typeof item === 'object' && item['@type']) {
             schemas.push({ valid: true, data: item, hasType: true });
           }
+        // One level deep: check direct children for @type
+        if (item && typeof item === 'object') {
+          Object.values(item).forEach(val => {
+            if (val && typeof val === 'object') {
+              if (Array.isArray(val)) {
+                val.forEach(child => {
+                  if (child && typeof child === 'object' && child['@type'] && isImportantType(child['@type'])) {
+                    schemas.push({ valid: true, data: child, hasType: true });
+                  }
+                });
+              } else if (val['@type'] && isImportantType(val['@type'])) {
+                schemas.push({ valid: true, data: val, hasType: true });
+              }
+            }
+          });
+        }
         });
       } else {
         schemas.push({ valid: false, data: null, hasType: false });
       }
     });
     
-    // Filter for objects that directly describe the current page
-    const pageSchemas = schemas.filter(obj => isPageSchema(obj.data, window.location.href));
-    
-    // Prefer the most specific type
-    const specificity = [
-      'NewsArticle', 'Article', 'BlogPosting', 'FAQPage', 'AboutPage', 'ContactPage',
-      'ProfilePage', 'SearchResultsPage', 'CollectionPage', 'CheckoutPage', 'WebPage'
-    ];
-    
-    let best = null;
-    let bestScore = specificity.length;
-    
-    for (const obj of pageSchemas) {
-      const types = Array.isArray(obj.data['@type']) ? obj.data['@type'] : [obj.data['@type']];
-      for (const type of types) {
-        const score = specificity.indexOf(type);
-        if (score !== -1 && score < bestScore) {
-          best = obj;
-          bestScore = score;
-        }
-      }
-    }
-    
-    metadata.schemaData = best ? [best] : [];
+  // Remove duplicates (by stringified data)
+  const seen = new Set();
+  schemas = schemas.filter(schema => {
+    const str = JSON.stringify(schema.data);
+    if (seen.has(str)) return false;
+    seen.add(str);
+    return schema.valid && schema.data;
+  });
+
+  metadata.schemaData = schemas;
 }
 
 /**
- * Helper function to find schema types recursively
- * @param {Object} obj - The object to search within
- * @param {Array} schemas - Accumulator for found schemas
- * @returns {Array} Array of found schemas
- */
-function findSchemaTypes(obj, schemas = []) {
-  if (Array.isArray(obj)) {
-    obj.forEach(item => findSchemaTypes(item, schemas));
-  } else if (obj && typeof obj === 'object') {
-    if (obj['@type']) {
-      schemas.push({ valid: true, data: obj, hasType: true });
-    }
-    Object.values(obj).forEach(val => findSchemaTypes(val, schemas));
-  }
-  return schemas;
-}
-
-/**
- * Helper function to check if schema is relevant to current page
- * @param {Object} obj - Schema.org object
+ * Check if a schema object is relevant to the current page
+ * @param {Object} obj - Schema object to check
  * @param {string} currentUrl - Current page URL
- * @returns {boolean} True if the schema is relevant to the current page
+ * @returns {boolean} True if schema is relevant to current page
  */
 function isPageSchema(obj, currentUrl) {
   if (!obj || !obj['@type']) return false;
@@ -1029,13 +1021,13 @@ function generateRecommendations(metadata) {
   // Basic Meta Tags Issues
   if (metadata.basicMeta && metadata.basicMeta.some(tag => tag.status !== 'good')) {
     const basicIssues = metadata.basicMeta
-      .filter(tag => tag.status !== 'good')
-      .map(tag => {
+        .filter(tag => tag.status !== 'good')
+        .map(tag => {
         const standardKey = getStandardKey(tag.label);
         const standard = META_TAG_STANDARDS[standardKey];
         const impact = getImpactLevel(standard?.impact);
-        
-        return {
+            
+            return {
           issue: getIssueTitle(tag.label, tag.status),
           details: tag.message || getDefaultMessage(tag.label, tag.status),
           impact: impact,
@@ -1059,8 +1051,8 @@ function generateRecommendations(metadata) {
         const standardKey = getStandardKey(tag.label);
         const standard = META_TAG_STANDARDS[standardKey];
         const impact = getImpactLevel(standard?.impact);
-        
-        return {
+            
+            return {
           issue: getIssueTitle(tag.label, tag.status),
           details: tag.message || getDefaultMessage(tag.label, tag.status),
           impact: impact,
@@ -1085,7 +1077,7 @@ function generateRecommendations(metadata) {
         const standard = META_TAG_STANDARDS[standardKey];
         const impact = getImpactLevel(standard?.impact);
         
-        return {
+            return {
           issue: getIssueTitle(tag.label, tag.status),
           details: tag.message || getDefaultMessage(tag.label, tag.status),
           impact: impact,
@@ -1207,3 +1199,212 @@ function getDefaultMessage(label, status) {
 // Initialize on load
 initializeMetaPeek();
 setupMessageListener(); 
+
+/**
+ * REPLACE the updateSchemaData function in content.js with this:
+ */
+function updateSchemaData(schemaData) {
+  const container = document.getElementById('schema-content');
+  if (!container) return;
+  
+  if (!schemaData || schemaData.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>No Schema.org data found on this page.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = '';
+  
+  const schemaTooltip = "Schema.org markup is structured data that helps search engines understand your content.";
+  
+  schemaData.forEach((schema, index) => {
+    if (schema.valid && schema.data) {
+      // Create a section for each schema item
+      const schemaSection = document.createElement('div');
+      schemaSection.className = 'schema-item';
+      if (index > 0) schemaSection.style.marginTop = '1.5rem';
+      
+      // Properties to check in order
+      const propertiesToCheck = [
+        { key: '@type', label: '@type' },
+        { key: 'url', label: 'url' },
+        { key: 'name', label: 'name' },
+        { key: 'description', label: 'description' },
+        { key: 'datePublished', label: 'datePublished' },
+        { key: 'dateModified', label: 'dateModified' },
+        { key: 'author', label: 'author name', isAuthor: true }
+      ];
+      
+      // Check each property and add rows for ones that have values
+      propertiesToCheck.forEach(prop => {
+        let value = getPropertyValue(schema.data, prop);
+        
+        if (value) {
+          const row = document.createElement('div');
+          row.className = 'meta-row';
+          
+          row.innerHTML = `
+            <div class="meta-cell name">${prop.label}</div>
+            <div class="meta-cell value">${value}</div>
+            <div class="meta-cell status">
+              <span class="status-badge good" data-tooltip="${schemaTooltip}">
+                Present
+                <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/>
+                  <rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/>
+                  <rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/>
+                </svg>
+              </span>
+            </div>
+          `;
+          
+          schemaSection.appendChild(row);
+        }
+      });
+      
+      // Only add the section if it has at least one property
+      if (schemaSection.children.length > 0) {
+        container.appendChild(schemaSection);
+      }
+    }
+  });
+  
+  // Add separator styling between schema items
+  if (container.children.length > 1) {
+    Array.from(container.children).forEach((child, index) => {
+      if (index > 0) {
+        child.style.borderTop = '2px solid var(--border-light)';
+        child.style.paddingTop = '1rem';
+      }
+    });
+  }
+  
+  // Initialize tooltips after updating the badges
+  initTooltips();
+}
+
+/**
+ * ADD this new helper function to content.js:
+ */
+function getPropertyValue(data, prop) {
+  let value = data[prop.key];
+  
+  if (!value) return null;
+  
+  // Handle @type specifically
+  if (prop.key === '@type') {
+    return Array.isArray(value) ? value.join(', ') : value;
+  }
+  
+  // Handle author name extraction
+  if (prop.isAuthor) {
+    return extractAuthorName(value);
+  }
+  
+  // Handle regular properties
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  if (typeof value === 'object' && value !== null) {
+    // If it's an object, try to get name or @id
+    if (value.name) return value.name;
+    if (value['@id']) return value['@id'];
+    if (value.url) return value.url;
+    return '[Object]';
+  }
+  
+  return String(value);
+}
+
+/**
+ * ADD this new helper function to content.js:
+ */
+function extractAuthorName(authorData) {
+  if (!authorData) return null;
+  
+  // If it's a string, return it directly
+  if (typeof authorData === 'string') {
+    return authorData;
+  }
+  
+  // If it's an array, process each author
+  if (Array.isArray(authorData)) {
+    const names = authorData.map(author => {
+      if (typeof author === 'string') return author;
+      if (author.name) return author.name;
+      if (author.givenName && author.familyName) {
+        return `${author.givenName} ${author.familyName}`;
+      }
+      if (author.givenName) return author.givenName;
+      if (author.familyName) return author.familyName;
+      return null;
+    }).filter(name => name);
+    
+    return names.length > 0 ? names.join(', ') : null;
+  }
+  
+  // If it's an object, extract name
+  if (typeof authorData === 'object') {
+    if (authorData.name) return authorData.name;
+    if (authorData.givenName && authorData.familyName) {
+      return `${authorData.givenName} ${authorData.familyName}`;
+    }
+    if (authorData.givenName) return authorData.givenName;
+    if (authorData.familyName) return authorData.familyName;
+  }
+  
+  return null;
+}
+
+/**
+ * Initialize tooltips and adjust their positions to stay within viewport
+ * This should be called after loading meta tags or whenever new tooltips are added
+ */
+function initTooltips() {
+  // Create global tooltip element if it doesn't exist
+  let globalTooltip = document.getElementById('global-tooltip');
+  if (!globalTooltip) {
+    globalTooltip = document.createElement('div');
+    globalTooltip.id = 'global-tooltip';
+    globalTooltip.style.cssText = 'position: fixed; pointer-events: none; z-index: 99999; display: none;';
+    document.body.appendChild(globalTooltip);
+  }
+
+  const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
+  
+  statusBadges.forEach(badge => {
+    badge.addEventListener('mouseenter', function() {
+      const tooltipText = this.getAttribute('data-tooltip');
+      if (!tooltipText) return;
+      
+      const rect = this.getBoundingClientRect();
+      const containerRect = document.documentElement.getBoundingClientRect();
+      
+      globalTooltip.textContent = tooltipText;
+      globalTooltip.style.display = 'block';
+      
+      const tooltipRect = globalTooltip.getBoundingClientRect();
+      const top = rect.bottom + 5;
+      let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
+      
+      // Adjust if tooltip would go off screen horizontally
+      if (left < 10) {
+        left = 10;
+      } else if (left + tooltipRect.width > containerRect.width - 10) {
+        left = containerRect.width - tooltipRect.width - 10;
+      }
+      
+      globalTooltip.style.left = `${left + containerRect.left}px`;
+      globalTooltip.style.top = `${top + containerRect.top}px`;
+    });
+    
+    badge.addEventListener('mouseleave', function() {
+      globalTooltip.style.display = 'none';
+      globalTooltip.textContent = '';
+    });
+  });
+} 

@@ -449,7 +449,7 @@ function renderIssues(container, issues) {
   const getImpactBadge = (impact, description) => {
     const impactClass = impact.toLowerCase();
     const statusClass = getStatusClass(impact);
-    return `<span class="issue-impact ${impactClass} ${statusClass}\" data-tooltip="${description}">${impact}
+    return `<span class="status-badge ${impactClass} ${statusClass}" data-tooltip="${description}">${impact}
       <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
     </span>`;
   };
@@ -697,8 +697,7 @@ function updateCanonicalURL(canonicalUrl) {
 }
 
 /**
- * Update schema.org data in Meta Tags tab with tooltips
- * @param {Array} schemaData - Schema.org data
+ * REPLACE the updateSchemaData function (around line 680-750) with this:
  */
 function updateSchemaData(schemaData) {
   const container = document.getElementById('schema-content');
@@ -708,84 +707,311 @@ function updateSchemaData(schemaData) {
     container.innerHTML = `
       <div class="empty-state">
         <p>No Schema.org data found on this page.</p>
-        </div>
+      </div>
     `;
     return;
   }
   
   container.innerHTML = '';
   
-  // Add a generic schema explanation tooltip
-  const schemaTooltip = "Schema.org markup is structured data that helps search engines understand your content. It enables rich search results like FAQ snippets, recipe cards, and product information. Valid implementation can improve click-through rates by enhancing how your content appears in search results.";
+  const schemaTooltip = "Schema.org markup is structured data that helps search engines understand your content.";
   
-  schemaData.forEach(schema => {
-    if (schema.valid && schema.data) {
-      const schemaType = schema.data['@type'] || 'Unknown Type';
-      
-      const row = document.createElement('div');
-      row.className = 'meta-row';
-      
-      row.innerHTML = `
-        <div class="meta-cell name">@type</div>
-        <div class="meta-cell value">${Array.isArray(schemaType) ? schemaType.join(', ') : schemaType}</div>
-        <div class="meta-cell status">
-          <span class="status-badge good" data-tooltip="${schemaTooltip}">
-            Valid
-            <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
-          </span>
-        </div>
-      `;
-      
-      container.appendChild(row);
-      
-      // Add a few key properties if available
-      const keyProperties = ['name', 'headline', 'description', 'author', 'publisher'];
-      
-      keyProperties.forEach(prop => {
-        if (schema.data[prop]) {
-          const propRow = document.createElement('div');
-          propRow.className = 'meta-row';
-          
-          let propValue = schema.data[prop];
-          if (typeof propValue === 'object') {
-            propValue = propValue['@type'] ? `[${propValue['@type']}]` : '[Object]';
-          }
-          
-          propRow.innerHTML = `
-            <div class="meta-cell name">${prop}</div>
-            <div class="meta-cell value">${propValue}</div>
-            <div class="meta-cell status">
-              <span class="status-badge good" data-tooltip="This property is properly defined in your Schema.org markup.">
-                Present
-                <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
-              </span>
-            </div>
-          `;
-          
-          container.appendChild(propRow);
+  // Group schemas by type
+  const groupedSchemas = groupSchemasByType(schemaData);
+
+  // Sort schema types so 'Person' (Author) is last
+  const schemaTypeEntries = Object.entries(groupedSchemas);
+  schemaTypeEntries.sort(([a], [b]) => {
+    if (a === 'Person') return 1;
+    if (b === 'Person') return -1;
+    return 0;
+  });
+
+  Object.entries(groupedSchemas).forEach(([schemaType, schemas], index) => {
+    // Create collapsible card for each schema type
+    const displayType = schemaType === 'Person' ? 'Author' : schemaType;
+    const schemaCard = document.createElement('div');
+    schemaCard.className = 'schema-card';
+    schemaCard.setAttribute('data-schema-type', schemaType);
+    
+    // Create header with toggle functionality
+    const header = document.createElement('div');
+    header.className = 'schema-card-header collapsed';
+    header.innerHTML = `
+      <div class="schema-type-info">
+        <span class="schema-type-name">${displayType}</span>
+      </div>
+      <svg class="expand-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    `;
+    
+    // Create content container
+    const content = document.createElement('div');
+    content.className = 'schema-card-content collapsed';
+    
+    // Add properties for all schemas of this type
+    schemas.forEach((schema, schemaIndex) => {
+      if (schema.valid && schema.data) {
+        // Properties to check in order
+        let propertiesToCheck = [
+          { key: '@type', label: '@type' },
+          { key: 'url', label: 'url' },
+          { key: 'name', label: 'name' },
+          { key: 'description', label: 'description' },
+          { key: 'datePublished', label: 'datePublished' },
+          { key: 'dateModified', label: 'dateModified' },
+          { key: 'author', label: 'author name', isAuthor: true }
+        ];
+        // Remove description for Person/author
+        if (schemaType === 'Person') {
+          propertiesToCheck = propertiesToCheck.filter(p => p.key !== 'description');
         }
-      });
-    } else {
-      const row = document.createElement('div');
-      row.className = 'meta-row';
-      
-      row.innerHTML = `
-        <div class="meta-cell name">Schema</div>
-        <div class="meta-cell value empty">Invalid Schema</div>
-        <div class="meta-cell status">
-          <span class="status-badge error" data-tooltip="${schemaTooltip} Your Schema.org markup has errors that need to be fixed.">
-            Error
-            <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
-          </span>
-        </div>
-      `;
-      
-      container.appendChild(row);
-    }
+        
+        // Check each property and add rows for ones that have values
+        propertiesToCheck.forEach(prop => {
+          let value = getPropertyValue(schema.data, prop);
+          
+          if (value) {
+            const row = document.createElement('div');
+            row.className = 'meta-row';
+            
+            row.innerHTML = `
+              <div class="meta-cell name">${prop.label}</div>
+              <div class="meta-cell value">${value}</div>
+              <div class="meta-cell status">
+                <span class="status-badge good">
+                  Present
+                </span>
+              </div>
+            `;
+            
+            content.appendChild(row);
+          }
+        });
+        
+        // Add separator between multiple schemas of same type
+        if (schemaIndex < schemas.length - 1 && content.children.length > 0) {
+          const separator = document.createElement('div');
+          separator.className = 'schema-item-separator';
+          content.appendChild(separator);
+        }
+      }
+    });
+    
+    // Add click handler for accordion functionality
+    header.addEventListener('click', function() {
+      toggleSchemaCard(schemaCard);
+    });
+    
+    schemaCard.appendChild(header);
+    schemaCard.appendChild(content);
+    container.appendChild(schemaCard);
   });
   
   // Initialize tooltips after updating the badges
   initTooltips();
+}
+
+/**
+ * ALSO REPLACE the collectSchemaHTML function in popup.js (around line 500-505) with this:
+ */
+function collectSchemaHTML(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) {
+    console.warn(`Container with ID ${containerId} not found`);
+    return '';
+  }
+
+  const schemaCards = container.querySelectorAll('.schema-card');
+  if (!schemaCards.length) {
+    return '<!-- No Schema.org data found -->';
+  }
+
+  const schemaObjects = [];
+  
+  schemaCards.forEach(card => {
+    const metaRows = card.querySelectorAll('.meta-row');
+    const schemaObject = {};
+    
+    metaRows.forEach(row => {
+      const nameCell = row.querySelector('.meta-cell.name');
+      const valueCell = row.querySelector('.meta-cell.value:not(.empty)');
+      
+      if (!nameCell || !valueCell) return;
+      
+      const propName = nameCell.textContent.trim();
+      const propValue = valueCell.textContent.trim();
+      
+      if (!propValue || propValue === 'Not set') return;
+      
+      // Convert display names back to schema properties
+      const schemaKey = getSchemaKey(propName);
+      schemaObject[schemaKey] = propValue;
+    });
+    
+    // Only add if we have properties
+    if (Object.keys(schemaObject).length > 0) {
+      schemaObjects.push(schemaObject);
+    }
+  });
+  
+  if (schemaObjects.length === 0) {
+    return '<!-- No valid Schema.org data found -->';
+  }
+  
+  // Format as JSON-LD
+  const jsonLD = {
+    "@context": "https://schema.org",
+    ...(schemaObjects.length === 1 ? schemaObjects[0] : schemaObjects)
+  };
+  
+  return `<script type="application/ld+json">
+${JSON.stringify(jsonLD, null, 2)}
+</script>`;
+}
+
+// Helper functions for schema grouping, toggling, and value extraction
+function groupSchemasByType(schemaData) {
+  const grouped = {};
+  
+  schemaData.forEach(schema => {
+    if (schema.valid && schema.data && schema.data['@type']) {
+      const schemaType = Array.isArray(schema.data['@type']) 
+        ? schema.data['@type'][0] 
+        : schema.data['@type'];
+      
+      if (!grouped[schemaType]) {
+        grouped[schemaType] = [];
+      }
+      grouped[schemaType].push(schema);
+    }
+  });
+  
+  return grouped;
+}
+
+function toggleSchemaCard(clickedCard) {
+  const container = document.getElementById('schema-content');
+  const allCards = container.querySelectorAll('.schema-card');
+
+  // Close all other cards
+  allCards.forEach(card => {
+    if (card !== clickedCard) {
+      const header = card.querySelector('.schema-card-header');
+      const content = card.querySelector('.schema-card-content');
+      const arrow = card.querySelector('.expand-arrow');
+
+      header.classList.remove('expanded');
+      header.classList.add('collapsed');
+      content.classList.remove('expanded');
+      content.classList.add('collapsed');
+      arrow.classList.remove('expanded');
+    }
+  });
+
+  // Toggle the clicked card
+  const header = clickedCard.querySelector('.schema-card-header');
+  const content = clickedCard.querySelector('.schema-card-content');
+  const arrow = clickedCard.querySelector('.expand-arrow');
+
+  if (header.classList.contains('expanded')) {
+    // Collapse this card
+    header.classList.remove('expanded');
+    header.classList.add('collapsed');
+    content.classList.remove('expanded');
+    content.classList.add('collapsed');
+    arrow.classList.remove('expanded');
+  } else {
+    // Expand this card
+    header.classList.remove('collapsed');
+    header.classList.add('expanded');
+    content.classList.remove('collapsed');
+    content.classList.add('expanded');
+    arrow.classList.add('expanded');
+  }
+}
+
+function getPropertyValue(data, prop) {
+  let value = data[prop.key];
+  
+  if (!value) return null;
+  
+  // Handle @type specifically
+  if (prop.key === '@type') {
+    return Array.isArray(value) ? value.join(', ') : value;
+  }
+  
+  // Handle author name extraction
+  if (prop.isAuthor) {
+    return extractAuthorName(value);
+  }
+  
+  // Handle regular properties
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  if (typeof value === 'object' && value !== null) {
+    // If it's an object, try to get name or @id
+    if (value.name) return value.name;
+    if (value['@id']) return value['@id'];
+    if (value.url) return value.url;
+    return '[Object]';
+  }
+  
+  return String(value);
+}
+
+function extractAuthorName(authorData) {
+  if (!authorData) return null;
+  
+  // If it's a string, return it directly
+  if (typeof authorData === 'string') {
+    return authorData;
+  }
+  
+  // If it's an array, process each author
+  if (Array.isArray(authorData)) {
+    const names = authorData.map(author => {
+      if (typeof author === 'string') return author;
+      if (author.name) return author.name;
+      if (author.givenName && author.familyName) {
+        return `${author.givenName} ${author.familyName}`;
+      }
+      if (author.givenName) return author.givenName;
+      if (author.familyName) return author.familyName;
+      return null;
+    }).filter(name => name);
+    
+    return names.length > 0 ? names.join(', ') : null;
+  }
+  
+  // If it's an object, extract name
+  if (typeof authorData === 'object') {
+    if (authorData.name) return authorData.name;
+    if (authorData.givenName && authorData.familyName) {
+      return `${authorData.givenName} ${authorData.familyName}`;
+    }
+    if (authorData.givenName) return authorData.givenName;
+    if (authorData.familyName) return authorData.familyName;
+  }
+  
+  return null;
+}
+
+function getSchemaKey(displayName) {
+  const mapping = {
+    '@type': '@type',
+    'url': 'url',
+    'name': 'name',
+    'description': 'description',
+    'datePublished': 'datePublished',
+    'dateModified': 'dateModified',
+    'author name': 'author'
+  };
+  
+  return mapping[displayName] || displayName;
 }
 
 /**
@@ -1347,14 +1573,6 @@ function collectMetaTagsHTML(containerId) {
 }
 
 /**
- * Helper function for schema HTML collection
- */
-function collectSchemaHTML(containerId) {
-  // Return schema data as JSON-LD format
-  return '<!-- Schema.org data would be in JSON-LD format -->';
-}
-
-/**
  * Show a toast notification
  * @param {string} message - Message to display
  */
@@ -1472,8 +1690,11 @@ function initTooltips() {
       // Always define isDark at the top
       const isDark = document.body.getAttribute('data-theme') === 'dark';
       // Find the closest .meta-section-content ancestor
-      const container = this.closest('.meta-section-content');
-      if (!container) return;
+      let container = this.closest('.meta-section-content');
+      if (!container) {
+        // Fallback: use body as container (viewport)
+        container = document.body;
+      }
 
       globalTooltip.textContent = tooltipText;
       globalTooltip.style.display = 'block';
@@ -1528,21 +1749,21 @@ function initTooltips() {
       const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
 
       // Set left border based on status
-      tooltip.style.borderLeft = '';
-      if (target.classList.contains('good')) {
-        tooltip.style.borderLeft = `7px solid ${statusGood}`;
-      } else if (target.classList.contains('warning')) {
-        tooltip.style.borderLeft = `7px solid ${statusWarning}`;
-      } else if (target.classList.contains('error')) {
-        tooltip.style.borderLeft = `7px solid ${statusError}`;
-      } else if (target.classList.contains('low')) {
-        tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
+      globalTooltip.style.borderLeft = '';
+      if (this.classList.contains('good')) {
+        globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
+      } else if (this.classList.contains('warning')) {
+        globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
+      } else if (this.classList.contains('error')) {
+        globalTooltip.style.borderLeft = `7px solid ${statusError}`;
+      } else if (this.classList.contains('low')) {
+        globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
       }
 
       // Set top, right, and bottom borders using --border-light
-      tooltip.style.borderTop = `3px solid ${borderLight}`;
-      tooltip.style.borderRight = `3px solid ${borderLight}`;
-      tooltip.style.borderBottom = `3px solid ${borderLight}`;
+      globalTooltip.style.borderTop = `3px solid ${borderLight}`;
+      globalTooltip.style.borderRight = `3px solid ${borderLight}`;
+      globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
     });
 
     badge.addEventListener('mouseleave', function() {
@@ -1585,82 +1806,9 @@ document.addEventListener('mouseover', function (e) {
       tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
     }
 
-    tooltip.style.background = isDark ? '#fff' : '#1f2937';
-    tooltip.style.color = isDark ? '#111827' : '#fff';
-    tooltip.style.padding = '10px 14px';
-    tooltip.style.borderRadius = '8px';
-    tooltip.style.fontSize = '12.5px';
-    tooltip.style.fontWeight = '500';
-    tooltip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-    tooltip.style.whiteSpace = 'normal';
-    tooltip.style.maxWidth = '220px';
-    tooltip.style.position = 'fixed';
-    tooltip.style.pointerEvents = 'none';
-    tooltip.style.display = 'block';
-    tooltip.style.transition = 'opacity 0.2s cubic-bezier(0.16,1,0.3,1), transform 0.2s cubic-bezier(0.16,1,0.3,1)';
-    tooltip.style.opacity = '1';
-    
-    // Add borders on top, right, and bottom using a visible gray color for debugging
-    const borderColor = '#888'; // medium gray for visibility
-    tooltip.style.borderTop = `3px solid ${borderColor}`;
-    tooltip.style.borderRight = `3px solid ${borderColor}`;
-    tooltip.style.borderBottom = `3px solid ${borderColor}`;
-
-    let container = target.closest('.meta-section-content');
-    if (!container) {
-      container = target.closest('.section-card');
-    }
-    if (!container) {
-      container = document.body;
-    }
-
-    const rect = target.getBoundingClientRect();
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-
-    // Always open below the badge (arrow on top)
-    let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
-    let top = rect.bottom - containerRect.top + 10;
-
-    // Adjust if tooltip would go off screen horizontally
-    if (left < 10) {
-      left = 10;
-    } else if (left + tooltipRect.width > containerRect.width - 10) {
-      left = containerRect.width - tooltipRect.width - 10;
-    }
-
-    tooltip.style.left = `${left + containerRect.left}px`;
-    tooltip.style.top = `${top + containerRect.top}px`;
-
-    // Add arrow, always on top (pointing up)
-    arrow = document.createElement('div');
-    arrow.className = 'tooltip-arrow';
-    arrow.style.position = 'absolute';
-    const badgeCenter = rect.left + rect.width / 2;
-    const tooltipLeft = left + containerRect.left;
-    let arrowLeft = badgeCenter - tooltipLeft;
-    arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
-    arrow.style.left = `${arrowLeft}px`;
-    arrow.style.transform = 'translateX(-50%)';
-    arrow.style.width = '0';
-    arrow.style.height = '0';
-    arrow.style.zIndex = '100000';
-    // Arrow on top (tooltip below badge, arrow points up)
-    arrow.style.top = '-6px';
-    arrow.style.borderLeft = '6px solid transparent';
-    arrow.style.borderRight = '6px solid transparent';
-    arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
-    arrow.style.borderTop = 'none';
-    tooltip.appendChild(arrow);
+    // Set top, right, and bottom borders using --border-light
+    tooltip.style.borderTop = `3px solid ${borderLight}`;
+    tooltip.style.borderRight = `3px solid ${borderLight}`;
+    tooltip.style.borderBottom = `3px solid ${borderLight}`;
   }
 });
-
-document.addEventListener('mouseout', function (e) {
-  const tooltip = document.getElementById('global-tooltip');
-  if (tooltip) {
-    tooltip.style.display = 'none';
-    tooltip.textContent = '';
-    let arrow = tooltip.querySelector('.tooltip-arrow');
-    if (arrow) arrow.remove();
-  }
-}); 
