@@ -28,25 +28,25 @@ window.MetaPeek = window.MetaPeek || {
 const META_TAG_STANDARDS = {
   // Basic Meta Tags
   title: { 
-    min: 15, 
+    min: 30,
     max: 60, 
     required: true,
     impact: "high",
     message: {
       missing: "Title tag is required for SEO",
-      tooShort: "Title too short (under 15 chars); consider adding more descriptive content",
+      tooShort: "Title too short (under 30 chars); consider adding more descriptive content",
       tooLong: "Title too long (over 60 chars); will be truncated in search results",
       good: "Title length is optimal for search engines"
     }
   },
   description: { 
-    min: 100, 
+    min: 120, 
     max: 160, 
     required: true,
     impact: "high",
     message: {
       missing: "Meta description is highly recommended for SEO",
-      tooShort: "Description too short (under 100 chars); add more relevant content",
+      tooShort: "Description too short (under 120 chars); add more relevant content",
       tooLong: "Description too long (over 160 chars); will be truncated in search results",
       good: "Description length is optimal for search engines"
     }
@@ -92,14 +92,14 @@ const META_TAG_STANDARDS = {
   
   // Open Graph Tags
   ogTitle: { 
-    min: 30, 
-    max: 90, 
+    min: 40,
+    max: 70,
     required: true,
     impact: "high",
     message: {
       missing: "og:title is required for social sharing",
-      tooShort: "og:title too short (under 30 chars)",
-      tooLong: "og:title too long (over 90 chars); may be truncated on social media",
+      tooShort: "og:title too short (under 40 chars)",
+      tooLong: "og:title too long (over 70 chars); may be truncated on social media",
       good: "og:title length is good for social sharing"
     }
   },
@@ -166,25 +166,25 @@ const META_TAG_STANDARDS = {
     }
   },
   twitterTitle: {
-    min: 30, 
+    min: 40,
     max: 70, 
     required: true,
     impact: "medium",
     message: {
       missing: "twitter:title is required for Twitter sharing",
-      tooShort: "twitter:title too short (under 30 chars)",
+      tooShort: "twitter:title too short (under 40 chars)",
       tooLong: "twitter:title too long (over 70 chars); may be truncated",
       good: "twitter:title length is good for Twitter"
     }
   },
   twitterDescription: {
-    min: 120, 
+    min: 125,
     max: 200, 
     required: true,
     impact: "medium",
     message: {
       missing: "twitter:description is required for Twitter sharing",
-      tooShort: "twitter:description too short (under 120 chars)",
+      tooShort: "twitter:description too short (under 125 chars)",
       tooLong: "twitter:description too long (over 200 chars); may be truncated",
       good: "twitter:description length is good for Twitter"
     }
