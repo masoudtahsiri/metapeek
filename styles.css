@@ -1610,7 +1610,7 @@ a:focus-visible {
 .preview-container {
   position: relative;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
+  border: 2px solid var(--border-light);
   background-color: var(--bg-card);
   overflow: hidden;
   height: 400px;
