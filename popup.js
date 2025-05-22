@@ -1173,7 +1173,7 @@ function generateLinkedInPreview(hostname, title, description, image, siteName) 
       <img src="${image || ''}" alt="preview image" class="thumbnail" />
       <div class="text-content">
         <h3 class="title">${title || 'No title available'}</h3>
-        <div class="site-name">${domain || ''}</div>
+        <div class="domain">${domain || ''}</div>
       </div>
     </div>
   `;
