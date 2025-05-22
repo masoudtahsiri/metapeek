@@ -1165,8 +1165,8 @@ function generateLinkedInPreview(hostname, title, description, image, siteName) 
   const preview = document.getElementById('linkedin-preview');
   if (!preview) return;
 
-  // Always use the hostname (domain) for LinkedIn preview
-  const domain = hostname;
+  // Always use the hostname (domain) for LinkedIn preview, strip 'www.' if present
+  const domain = hostname.replace(/^www\./, '');
 
   preview.innerHTML = `
     <div class="linkedin-preview">
