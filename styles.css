@@ -1708,9 +1708,9 @@ a:focus-visible {
 /* Google Preview */
 .google-preview {
   font-family: Arial, sans-serif;
-  padding: var(--space-3);
+  padding: var(--space-4);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
+  border: 2px solid var(--border-light);
   max-width: 500px;
   width: 100%;
   margin: 0 auto;
