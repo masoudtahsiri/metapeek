@@ -12,3 +12,17 @@
   text-transform: none; /* Remove uppercase for meta tag names */
   letter-spacing: 0.01em;
 } 
+
+/* Low Impact Color Change - from green to gray */
+.issue-impact.low {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.issue-item.low {
+  border-left-color: var(--color-gray-400);
+}
+
+[data-theme="dark"] .issue-item.low {
+  border-left-color: var(--color-gray-500);
+} 
