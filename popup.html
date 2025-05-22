@@ -98,6 +98,17 @@
               </div>
             </div>
           </div>
+
+          <!-- Add Mobile Optimization summary card to overview tab -->
+          <div class="summary-card">
+            <div class="summary-header">
+              <h4>Mobile Optimization</h4>
+              <span class="status-badge warning">Checking...</span>
+            </div>
+            <div class="summary-footer">
+              <small>Viewport, theme-color, touch icons</small>
+            </div>
+          </div>
         </section>
         
         <!-- Meta Tags Tab -->
@@ -108,6 +119,7 @@
               <button class="meta-section-tab active" data-target="basic-meta-content">Basic Meta Tags</button>
               <button class="meta-section-tab" data-target="og-meta-content">Open Graph Tags</button>
               <button class="meta-section-tab" data-target="twitter-meta-content">Twitter Card Tags</button>
+              <button class="meta-section-tab" data-target="modern-meta-content">Modern Meta Tags</button>
               <button class="meta-section-tab" data-target="schema-content">Schema.org Data</button>
             </div>
             
@@ -166,6 +178,25 @@
                   <div class="loading-indicator">
                     <div class="loading-spinner"></div>
                     <div class="loading-text">Loading Twitter tags...</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Modern Meta Tags -->
+              <div id="modern-meta-content" class="meta-section-pane">
+                <div class="section-actions">
+                  <button id="copy-modern-meta" class="btn-icon-text">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+                <div class="meta-table">
+                  <div class="loading-indicator">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading modern meta tags...</div>
                   </div>
                 </div>
               </div>

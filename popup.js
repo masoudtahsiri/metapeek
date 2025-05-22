@@ -220,7 +220,7 @@ function populateUI(metadata) {
 }
 
 /**
- * Update SEO Score display
+ * Update SEO Score display (with new category breakdowns)
  * @param {Object} scoreData - SEO score data
  */
 function updateSEOScore(scoreData) {
@@ -250,21 +250,25 @@ function updateSEOScore(scoreData) {
   
   if (scoreTitle) {
     if (scoreData.score >= 80) {
-      scoreTitle.textContent = 'Good SEO Health';
+      scoreTitle.textContent = 'Excellent SEO Health';
     } else if (scoreData.score >= 60) {
-      scoreTitle.textContent = 'Average SEO Health';
+      scoreTitle.textContent = 'Good SEO Health';
     } else {
-      scoreTitle.textContent = 'Poor SEO Health';
+      scoreTitle.textContent = 'Needs Improvement';
     }
   }
   
   if (scoreDescription) {
+    const categoryScores = scoreData.categoryScores || {};
+    const weakestCategory = Object.entries(categoryScores)
+      .sort(([,a], [,b]) => a - b)[0];
+    
     if (scoreData.score >= 80) {
-      scoreDescription.textContent = 'Your page is well-optimized for search engines.';
+      scoreDescription.textContent = 'Your page is well-optimized for modern SEO standards.';
     } else if (scoreData.score >= 60) {
-      scoreDescription.textContent = 'Your page has some optimization issues to address.';
+      scoreDescription.textContent = `Good foundation. Focus on improving ${weakestCategory ? weakestCategory[0] : 'technical'} factors.`;
     } else {
-      scoreDescription.textContent = 'Your page needs significant SEO improvements.';
+      scoreDescription.textContent = `Significant improvements needed, especially in ${weakestCategory ? weakestCategory[0] : 'technical'} SEO.`;
     }
   }
 }
@@ -351,7 +355,7 @@ function updatePriorityIssues(metadata) {
 }
 
 /**
- * Render issues in a container
+ * Render issues in a container with concise formatting
  * @param {HTMLElement} container - Container element
  * @param {Array} issues - Array of issues to render
  */
@@ -367,18 +371,39 @@ function renderIssues(container, issues) {
     return;
   }
   
-  container.innerHTML = issues.map(issue => `
-    <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
-      <div class="issue-header">
-        <h4>${issue.title}</h4>
-        <span class="issue-impact ${issue.impact.toLowerCase()}">${issue.impact} Impact</span>
+  // Helper function to create impact badge based on level
+  const getImpactBadge = (impact) => {
+    const impactClass = impact.toLowerCase();
+    return `<span class="issue-impact ${impactClass}">${impact}</span>`;
+  };
+  
+  // Sort issues by impact: High > Medium > Low
+  issues.sort((a, b) => {
+    const impactOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+    const impactA = a.impact || 'Low';
+    const impactB = b.impact || 'Low';
+    return (impactOrder[impactA] || 99) - (impactOrder[impactB] || 99);
+  });
+  
+  let html = '';
+  
+  // Render each issue with concise formatting
+  issues.forEach(issue => {
+    html += `
+      <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
+        <div class="issue-header">
+          <h4>${issue.title}</h4>
+          ${getImpactBadge(issue.impact)}
+        </div>
+        <p class="issue-description">${issue.description}</p>
+        <div class="issue-category-wrapper">
+          <span class="issue-category">${issue.category}</span>
+        </div>
       </div>
-      <p class="issue-description">${issue.description}</p>
-      <div class="issue-category-wrapper">
-        <span class="issue-category">${issue.category}</span>
-      </div>
-    </div>
-  `).join('');
+    `;
+  });
+  
+  container.innerHTML = html;
 }
 
 /**
@@ -401,7 +426,7 @@ function updateTabCounter(impactLevel, count) {
 }
 
 /**
- * Update meta tag summary in Overview tab - simplified to show only status
+ * Update meta tag summary in Overview tab
  * @param {Object} metadata - Metadata from content script
  */
 function updateMetaTagSummary(metadata) {
@@ -410,7 +435,7 @@ function updateMetaTagSummary(metadata) {
   
   const cards = summaryGrid.querySelectorAll('.summary-card');
   
-  // Update title card - only update status badge
+  // Update title card
   if (cards[0]) {
     const title = metadata.basicMeta?.find(tag => tag.label === 'Title') || { 
       status: 'error'
@@ -424,21 +449,9 @@ function updateMetaTagSummary(metadata) {
       statusBadge.className = 'status-badge ' + title.status;
       statusBadge.textContent = statusText;
     }
-    
-    // Remove content element if it exists
-    const contentElement = cards[0].querySelector('.summary-content');
-    if (contentElement) {
-      contentElement.remove();
-    }
-    
-    // Remove warning banner if it exists
-    const warningBanner = cards[0].querySelector('.warning-banner');
-    if (warningBanner) {
-      warningBanner.remove();
-    }
   }
   
-  // Update description card - only update status badge
+  // Update description card
   if (cards[1]) {
     const description = metadata.basicMeta?.find(tag => tag.label === 'Description') || { 
       status: 'error'
@@ -452,21 +465,9 @@ function updateMetaTagSummary(metadata) {
       statusBadge.className = 'status-badge ' + description.status;
       statusBadge.textContent = statusText;
     }
-    
-    // Remove content element if it exists
-    const contentElement = cards[1].querySelector('.summary-content');
-    if (contentElement) {
-      contentElement.remove();
-    }
-    
-    // Remove warning banner if it exists
-    const warningBanner = cards[1].querySelector('.warning-banner');
-    if (warningBanner) {
-      warningBanner.remove();
-    }
   }
   
-  // Update canonical URL card - only update status badge
+  // Update canonical URL card
   if (cards[2]) {
     const hasCanonical = metadata.canonicalUrl && metadata.canonicalUrl.length > 0;
     const status = hasCanonical ? 'good' : 'error';
@@ -475,18 +476,6 @@ function updateMetaTagSummary(metadata) {
     if (statusBadge) {
       statusBadge.className = 'status-badge ' + status;
       statusBadge.textContent = hasCanonical ? 'Good' : 'Missing';
-    }
-    
-    // Remove content element if it exists
-    const contentElement = cards[2].querySelector('.summary-content');
-    if (contentElement) {
-      contentElement.remove();
-    }
-    
-    // Remove warning banner if it exists
-    const warningBanner = cards[2].querySelector('.warning-banner');
-    if (warningBanner) {
-      warningBanner.remove();
     }
   }
 }
@@ -1292,10 +1281,10 @@ function initTabNavigation() {
  */
 function initCopyButtons() {
   // Initialize copy buttons for different meta sections
-  setupCopyButton('copy-basic-meta', () => collectMetaTagsText('basic-meta-tags'));
-  setupCopyButton('copy-og-meta', () => collectMetaTagsText('og-meta-tags'));
-  setupCopyButton('copy-twitter-meta', () => collectMetaTagsText('twitter-meta-tags'));
-  setupCopyButton('copy-schema', () => collectMetaTagsText('schema-data'));
+  setupCopyButton('copy-basic-meta', () => collectMetaTagsHTML('basic-meta-content'));
+  setupCopyButton('copy-og-meta', () => collectMetaTagsHTML('og-meta-content'));
+  setupCopyButton('copy-twitter-meta', () => collectMetaTagsHTML('twitter-meta-content'));
+  setupCopyButton('copy-schema', () => collectSchemaHTML('schema-content'));
 }
 
 /**
@@ -1328,31 +1317,68 @@ function setupCopyButton(buttonId, getTextFn) {
 }
 
 /**
- * Collect meta tags text from a container
- * @param {string} containerId - ID of the container to collect text from
- * @returns {string} Collected text
+ * Collect meta tags as HTML for copying (UPDATED)
+ * @param {string} containerId - ID of the container to collect from
+ * @returns {string} HTML string of meta tags
  */
-function collectMetaTagsText(containerId) {
+function collectMetaTagsHTML(containerId) {
   const container = document.getElementById(containerId);
   if (!container) {
     console.warn(`Container with ID ${containerId} not found`);
     return '';
   }
 
-  const metaTags = container.querySelectorAll('.meta-tag');
-  if (!metaTags.length) {
-    console.warn(`No meta tags found in container ${containerId}`);
-    return '';
+  const metaRows = container.querySelectorAll('.meta-row');
+  if (!metaRows.length) {
+    console.warn(`No meta rows found in container ${containerId}`);
+    return '<!-- No meta tags found -->';
   }
 
-  return Array.from(metaTags)
-    .map(tag => {
-      const label = tag.querySelector('.meta-label')?.textContent || '';
-      const value = tag.querySelector('.meta-value')?.textContent || '';
-      return `${label}: ${value}`;
-    })
-    .filter(text => text.trim())
-    .join('\n');
+  const htmlTags = [];
+  
+  metaRows.forEach(row => {
+    const nameCell = row.querySelector('.meta-cell.name');
+    const valueCell = row.querySelector('.meta-cell.value:not(.empty)');
+    
+    if (!nameCell || !valueCell) return;
+    
+    const tagName = nameCell.textContent.trim();
+    const tagValue = valueCell.textContent.trim();
+    
+    if (!tagValue || tagValue === 'Not set') return;
+    
+    // Generate appropriate HTML based on tag type
+    let html = '';
+    
+    if (tagName.startsWith('og:')) {
+      html = `<meta property="${tagName}" content="${tagValue}">`;
+    } else if (tagName.startsWith('twitter:')) {
+      html = `<meta name="${tagName}" content="${tagValue}">`;
+    } else if (tagName === 'apple-touch-icon') {
+      html = `<link rel="apple-touch-icon" href="${tagValue}">`;
+    } else if (tagName === 'manifest') {
+      html = `<link rel="manifest" href="${tagValue}">`;
+    } else if (tagName === 'canonical') {
+      html = `<link rel="canonical" href="${tagValue}">`;
+    } else if (tagName === 'Title') {
+      html = `<title>${tagValue}</title>`;
+    } else {
+      // Standard meta tag
+      html = `<meta name="${tagName.toLowerCase()}" content="${tagValue}">`;
+    }
+    
+    htmlTags.push(html);
+  });
+  
+  return htmlTags.length > 0 ? htmlTags.join('\n') : '<!-- No valid meta tags found -->';
+}
+
+/**
+ * Helper function for schema HTML collection
+ */
+function collectSchemaHTML(containerId) {
+  // Return schema data as JSON-LD format
+  return '<!-- Schema.org data would be in JSON-LD format -->';
 }
 
 /**

@@ -28,39 +28,43 @@ window.MetaPeek = window.MetaPeek || {
 const META_TAG_STANDARDS = {
   // Basic Meta Tags
   title: { 
-    min: 30, 
+    min: 15, 
     max: 60, 
     required: true,
+    impact: "high",
     message: {
       missing: "Title tag is required for SEO",
-      tooShort: "Title too short (under 30 chars); may not be impactful in search results",
+      tooShort: "Title too short (under 15 chars); consider adding more descriptive content",
       tooLong: "Title too long (over 60 chars); will be truncated in search results",
       good: "Title length is optimal for search engines"
     }
   },
   description: { 
-    min: 120, 
+    min: 100, 
     max: 160, 
     required: true,
+    impact: "high",
     message: {
       missing: "Meta description is highly recommended for SEO",
-      tooShort: "Description too short (under 120 chars); add more relevant content",
+      tooShort: "Description too short (under 100 chars); add more relevant content",
       tooLong: "Description too long (over 160 chars); will be truncated in search results",
       good: "Description length is optimal for search engines"
     }
   },
   keywords: { 
     required: false,
-    max: 10, // Maximum number of keywords/phrases recommended
+    max: 10,
+    impact: "low",
     message: {
-      missing: "Keywords tag is optional but helpful",
-      tooMany: "Too many keywords may dilute relevance",
-      good: "Good keyword definition"
+      missing: "Keywords tag is optional and has minimal SEO value (deprecated since 2009)",
+      tooMany: "Too many keywords may dilute relevance (limited SEO value)",
+      good: "Keywords defined (minimal SEO impact)"
     }
   },
   viewport: { 
     required: true,
     recommended: "width=device-width, initial-scale=1",
+    impact: "high",
     message: {
       missing: "Viewport meta tag is required for responsive design",
       invalid: "Viewport should include width=device-width for responsiveness",
@@ -69,16 +73,13 @@ const META_TAG_STANDARDS = {
   },
   robots: { 
     required: false,
-    // Expanded list of valid robot directives including modern values
+    impact: "medium",
     valid: [
-      // Basic directives
       "index", "noindex", "follow", "nofollow", "none", "noarchive", 
       "nosnippet", "notranslate", "noimageindex", "unavailable_after",
-      // Modern Google directives
       "max-image-preview:large", "max-image-preview:standard", "max-image-preview:none",
       "max-snippet:-1", "max-snippet:0", 
       "max-video-preview:-1", "max-video-preview:0",
-      // Additional valid directives
       "noydir", "noodp", "nocache", "noodyp", "noyaca",
       "max-image-preview", "max-snippet", "max-video-preview"
     ],
@@ -89,11 +90,59 @@ const META_TAG_STANDARDS = {
     }
   },
   
+  // Modern Meta Tags (2025 Standards)
+  themeColor: {
+    required: false,
+    impact: "medium",
+    message: {
+      missing: "theme-color meta tag recommended for mobile browser theming",
+      invalid: "theme-color should be a valid hex color (e.g., #000000)",
+      good: "theme-color properly defined for mobile browsers"
+    }
+  },
+  appleTouchIcon: {
+    required: false,
+    impact: "medium", 
+    message: {
+      missing: "apple-touch-icon recommended for iOS home screen appearance",
+      invalid: "apple-touch-icon should link to a valid icon file",
+      good: "apple-touch-icon properly defined for iOS devices"
+    }
+  },
+  manifest: {
+    required: false,
+    impact: "medium",
+    message: {
+      missing: "Web app manifest recommended for PWA functionality",
+      invalid: "Manifest link should point to a valid JSON file",
+      good: "Web app manifest properly linked"
+    }
+  },
+  colorScheme: {
+    required: false,
+    impact: "low",
+    valid: ["light", "dark", "light dark", "dark light"],
+    message: {
+      missing: "color-scheme meta tag helps with dark mode support",
+      invalid: "color-scheme should be 'light', 'dark', or 'light dark'",
+      good: "color-scheme properly defined for theme support"
+    }
+  },
+  formatDetection: {
+    required: false,
+    impact: "low",
+    message: {
+      missing: "format-detection can prevent unwanted auto-linking on mobile",
+      good: "format-detection properly configured"
+    }
+  },
+  
   // Open Graph Tags
   ogTitle: { 
     min: 30, 
     max: 90, 
     required: true,
+    impact: "high",
     message: {
       missing: "og:title is required for social sharing",
       tooShort: "og:title too short (under 30 chars)",
@@ -105,6 +154,7 @@ const META_TAG_STANDARDS = {
     min: 120, 
     max: 200, 
     required: true,
+    impact: "high",
     message: {
       missing: "og:description is required for social sharing",
       tooShort: "og:description too short (under 120 chars)",
@@ -116,6 +166,7 @@ const META_TAG_STANDARDS = {
     required: true, 
     minWidth: 1200, 
     minHeight: 630,
+    impact: "high",
     message: {
       missing: "og:image is required for attractive social sharing",
       tooSmall: "og:image is smaller than recommended (1200×630px)",
@@ -124,6 +175,7 @@ const META_TAG_STANDARDS = {
   },
   ogUrl: {
     required: true,
+    impact: "medium",
     message: {
       missing: "og:url is required for proper social sharing links",
       invalid: "og:url should be a valid, absolute URL",
@@ -132,6 +184,7 @@ const META_TAG_STANDARDS = {
   },
   ogType: {
     required: true,
+    impact: "medium",
     recommended: ["website", "article", "book", "profile", "music.song", "music.album", "music.playlist", "video.movie", "video.tv_show"],
     message: {
       missing: "og:type is required for Open Graph markup",
@@ -141,6 +194,7 @@ const META_TAG_STANDARDS = {
   },
   ogSiteName: {
     required: true,
+    impact: "low",
     message: {
       missing: "og:site_name is recommended for brand recognition",
       good: "og:site_name properly defined"
@@ -150,6 +204,7 @@ const META_TAG_STANDARDS = {
   // Twitter Card Tags
   twitterCard: {
     required: true,
+    impact: "medium",
     valid: ["summary", "summary_large_image", "app", "player"],
     message: {
       missing: "twitter:card is required for Twitter sharing",
@@ -161,6 +216,7 @@ const META_TAG_STANDARDS = {
     min: 30, 
     max: 70, 
     required: true,
+    impact: "medium",
     message: {
       missing: "twitter:title is required for Twitter sharing",
       tooShort: "twitter:title too short (under 30 chars)",
@@ -172,6 +228,7 @@ const META_TAG_STANDARDS = {
     min: 120, 
     max: 200, 
     required: true,
+    impact: "medium",
     message: {
       missing: "twitter:description is required for Twitter sharing",
       tooShort: "twitter:description too short (under 120 chars)",
@@ -181,6 +238,7 @@ const META_TAG_STANDARDS = {
   },
   twitterImage: {
     required: true,
+    impact: "medium",
     message: {
       missing: "twitter:image is required for attractive Twitter sharing",
       good: "twitter:image properly defined"
@@ -188,6 +246,7 @@ const META_TAG_STANDARDS = {
   },
   twitterSite: {
     required: false,
+    impact: "low",
     format: /^@[A-Za-z0-9_]{1,15}$/,
     message: {
       missing: "twitter:site is recommended for attribution",
@@ -199,6 +258,7 @@ const META_TAG_STANDARDS = {
   // Canonical URL
   canonical: {
     required: true,
+    impact: "high",
     message: {
       missing: "Canonical URL is important for SEO to prevent duplicate content",
       mismatch: "Canonical URL doesn't match the current page URL",
@@ -409,52 +469,30 @@ function handleSEOHealthRequest(sendResponse) {
 
 /**
  * Extract metadata from the current page
- * @returns {Object} Collected metadata
+ * @returns {Object} Metadata object
  */
 function getPageMetadata() {
   const metadata = {
-    seoSummary: [],
-    basicMeta: [],
-    ogMeta: [],
-    twitterMeta: [],
-    canonicalUrl: '',
-    schemaData: []
+    seoSummary: {
+      title: document.title,
+      description: getMetaContent('description'),
+      keywords: getMetaContent('keywords'),
+      canonicalUrl: getCanonicalUrl(),
+      robots: getMetaContent('robots'),
+      viewport: getMetaContent('viewport'),
+      language: document.documentElement.lang || 'en'
+    },
+    basicMeta: extractBasicMetaTags(),
+    ogMeta: extractOGMetaTags(),
+    twitterMeta: extractTwitterMetaTags(),
+    canonicalUrl: getCanonicalUrl(),
+    schemaData: extractSchemaData()
   };
-  
-  try {
-    // Extract basic meta tags
-    extractBasicMetaTags(metadata);
-    
-    // Extract Open Graph tags
-    extractOpenGraphTags(metadata);
-    
-    // Extract Twitter Card tags
-    extractTwitterCardTags(metadata);
-    
-    // Extract canonical URL
-    metadata.canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || '';
-    
-    // Extract Schema.org data
-    extractSchemaData(metadata);
-    
-    // Calculate SEO health score
-    const seoHealthScore = calculateSEOHealthScore(metadata);
-    metadata.seoScore = seoHealthScore;
 
-    // Generate summary based on the health score
-    metadata.seoSummary = seoHealthScore.recommendations.flatMap(cat => 
-      cat.items.map(item => ({
-        label: item.issue,
-        value: item.details,
-        status: item.impact === 'High' ? 'error' : 'warning'
-      }))
-    );
+  // Calculate SEO health score
+  metadata.seoScore = calculateSEOHealthScore(metadata);
 
-    return metadata;
-  } catch (error) {
-    console.error('Error in getPageMetadata:', error);
-    return metadata;
-  }
+  return metadata;
 }
 
 /**
@@ -902,119 +940,157 @@ function isPageSchema(obj, currentUrl) {
 
 /**
  * Calculate SEO health score based on metadata
- * @param {Object} metadata - The metadata to score
- * @returns {Object} SEO health score results
+ * @param {Object} metadata - Metadata object
+ * @returns {Object} Score data
  */
 function calculateSEOHealthScore(metadata) {
-  // Define scoring weights for different categories
   const weights = {
-    basicMeta: 0.35,    // 35% of score
-    socialMeta: 0.25,   // 25% of score
-    technical: 0.25,    // 25% of score 
-    content: 0.15       // 15% of score
+    basicMeta: 0.35,    // 35% - Basic meta tags
+    socialMeta: 0.25,   // 25% - Social media meta tags
+    technical: 0.25,    // 25% - Technical factors
+    structured: 0.15    // 15% - Structured data
   };
-  
+
   // Initialize category scores
-  let scores = {
+  const categoryScores = {
     basicMeta: 0,
     socialMeta: 0,
     technical: 0,
-    content: 0
+    structured: 0
   };
-  
-  // Score basic meta tags
-  if (metadata.basicMeta && metadata.basicMeta.length > 0) {
-    const basicMetaItems = metadata.basicMeta.length;
-    const goodItems = metadata.basicMeta.filter(tag => tag.status === 'good').length;
-    scores.basicMeta = goodItems / basicMetaItems;
-  }
-  
-  // Score social meta tags (OG + Twitter)
-  if (metadata.ogMeta && metadata.twitterMeta) {
-    const ogItems = metadata.ogMeta.length;
-    const twitterItems = metadata.twitterMeta.length;
-    const totalItems = ogItems + twitterItems;
-    
-    const goodOgItems = metadata.ogMeta.filter(tag => tag.status === 'good').length;
-    const goodTwitterItems = metadata.twitterMeta.filter(tag => tag.status === 'good').length;
-    
-    scores.socialMeta = (goodOgItems + goodTwitterItems) / totalItems;
-  }
-  
-  // Score technical factors
+
+  // Calculate basic meta score
+  const basicMetaTags = metadata.basicMeta || [];
+  const requiredBasicTags = ['Title', 'Description', 'Viewport'];
+  const basicScore = basicMetaTags.reduce((score, tag) => {
+    if (requiredBasicTags.includes(tag.label) && tag.status === 'good') {
+      return score + (100 / requiredBasicTags.length);
+    }
+    return score;
+  }, 0);
+  categoryScores.basicMeta = basicScore;
+
+  // Calculate social meta score
+  const socialTags = [...(metadata.ogMeta || []), ...(metadata.twitterMeta || [])];
+  const requiredSocialTags = ['og:title', 'og:description', 'og:image', 'twitter:card'];
+  const socialScore = socialTags.reduce((score, tag) => {
+    if (requiredSocialTags.includes(tag.label) && tag.status === 'good') {
+      return score + (100 / requiredSocialTags.length);
+    }
+    return score;
+  }, 0);
+  categoryScores.socialMeta = socialScore;
+
+  // Calculate technical score
   let technicalScore = 0;
-  let technicalFactors = 0;
-  
-  // Check canonical URL
-  if (metadata.canonicalUrl) {
-    technicalScore += 1;
-    technicalFactors += 1;
-  }
-  
-  // Check schema
-  if (metadata.schemaData && metadata.schemaData.length > 0) {
-    technicalScore += metadata.schemaData.every(s => s.valid) ? 1 : 0.5;
-    technicalFactors += 1;
-  }
-  
-  scores.technical = technicalFactors > 0 ? technicalScore / technicalFactors : 0;
-  
-  // Default content score
-  scores.content = 0.7;
-  
-  // Calculate overall weighted score
-  const overallScore = Object.entries(weights).reduce(
-    (total, [category, weight]) => total + (scores[category] * weight),
-    0
+  const technicalChecks = {
+    hasHttps: window.location.protocol === 'https:',
+    hasMobileViewport: metadata.basicMeta?.some(tag => tag.label === 'Viewport' && tag.status === 'good'),
+    hasRobotsMeta: metadata.basicMeta?.some(tag => tag.label === 'Robots' && tag.status === 'good'),
+    hasCanonical: !!metadata.canonicalUrl
+  };
+
+  // Calculate technical score based on checks
+  const technicalCheckCount = Object.keys(technicalChecks).length;
+  const technicalCheckScore = 100 / technicalCheckCount;
+  Object.values(technicalChecks).forEach(check => {
+    if (check) technicalScore += technicalCheckScore;
+  });
+  categoryScores.technical = technicalScore;
+
+  // Calculate structured data score
+  const schemaData = metadata.schemaData || [];
+  const structuredScore = schemaData.reduce((score, schema) => {
+    return score + (schema.valid ? 100 : 0);
+  }, 0) / (schemaData.length || 1);
+  categoryScores.structured = structuredScore;
+
+  // Calculate overall score
+  const overallScore = Math.round(
+    Object.entries(categoryScores).reduce((total, [category, score]) => {
+      return total + (score * weights[category]);
+    }, 0)
   );
-  
-  // Scale to 0-100
-  const scaledScore = Math.round(overallScore * 100);
-  
+
   // Generate recommendations
-  const recommendations = generateRecommendations(metadata);
-  
-  // Return combined score data
+  const recommendations = generateRecommendations(metadata, categoryScores);
+
   return {
-    score: scaledScore,
-    categoryScores: scores,
-    recommendations: recommendations,
-    status: scaledScore >= 80 ? 'good' : scaledScore >= 60 ? 'warning' : 'error'
+    score: overallScore,
+    categoryScores,
+    recommendations
   };
 }
 
 /**
- * Generate SEO recommendations based on metadata
+ * Generate SEO recommendations with concise descriptions
  * @param {Object} metadata - The metadata to analyze
+ * @param {Object} categoryScores - The category scores to analyze
  * @returns {Array} Array of recommendation categories
  */
-function generateRecommendations(metadata) {
+function generateRecommendations(metadata, categoryScores) {
   const recommendations = [];
   
-  // Add basic meta tag recommendations
+  // Add basic meta tag recommendations (but keywords is now low impact)
   if (metadata.basicMeta && metadata.basicMeta.some(tag => tag.status !== 'good')) {
-    recommendations.push({
-      category: 'Basic Meta Tags',
-      items: metadata.basicMeta
-        .filter(tag => tag.status !== 'good')
-        .map(tag => ({
-          issue: `Optimize ${tag.label}`,
+    const highImpactTags = metadata.basicMeta.filter(tag => 
+      tag.status !== 'good' && ['Title', 'Description', 'Viewport'].includes(tag.label)
+    );
+    const lowImpactTags = metadata.basicMeta.filter(tag => 
+      tag.status !== 'good' && tag.label === 'Keywords'
+    );
+    
+    if (highImpactTags.length > 0) {
+      recommendations.push({
+        category: 'Critical Meta Tags',
+        items: highImpactTags.map(tag => ({
+          issue: `Fix ${tag.label}`,
           details: tag.message,
-          impact: tag.label === 'Title' || tag.label === 'Description' ? 'High' : 'Medium'
+          impact: 'High'
         }))
-    });
+      });
+    }
+    
+    if (lowImpactTags.length > 0) {
+      recommendations.push({
+        category: 'Optional Meta Tags',
+        items: lowImpactTags.map(tag => ({
+          issue: `Consider ${tag.label}`,
+          details: tag.message,
+          impact: 'Low'
+        }))
+      });
+    }
   }
   
-  // Add Open Graph recommendations
+  // Add modern meta tag recommendations
+  if (metadata.modernMeta) {
+    const modernIssues = Object.entries(metadata.modernMeta)
+      .filter(([key, tag]) => tag.status !== 'good')
+      .map(([key, tag]) => ({
+        issue: `Add ${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`,
+        details: tag.message,
+        impact: 'Medium'
+      }));
+    
+    if (modernIssues.length > 0) {
+      recommendations.push({
+        category: 'Modern Web Features',
+        items: modernIssues
+      });
+    }
+  }
+  
+  // Add social media recommendations
   if (metadata.ogMeta && metadata.ogMeta.some(tag => tag.status !== 'good')) {
     recommendations.push({
-      category: 'Open Graph Tags',
+      category: 'Social Media Optimization',
       items: metadata.ogMeta
         .filter(tag => tag.status !== 'good')
         .map(tag => ({
-          issue: `Optimize ${tag.label}`,
+          issue: `Add ${tag.label}`,
           details: tag.message,
-          impact: tag.label === 'og:title' || tag.label === 'og:description' || tag.label === 'og:image' ? 'High' : 'Medium'
+          impact: META_TAG_STANDARDS[tag.label.replace('og:', 'og')]?.impact === 'high' ? 'High' : 'Medium'
         }))
     });
   }
@@ -1022,13 +1098,13 @@ function generateRecommendations(metadata) {
   // Add Twitter Card recommendations
   if (metadata.twitterMeta && metadata.twitterMeta.some(tag => tag.status !== 'good')) {
     recommendations.push({
-      category: 'Twitter Card Tags',
+      category: 'Twitter Optimization',
       items: metadata.twitterMeta
         .filter(tag => tag.status !== 'good')
         .map(tag => ({
-          issue: `Optimize ${tag.label}`,
+          issue: `Add ${tag.label}`,
           details: tag.message,
-          impact: tag.label === 'twitter:title' || tag.label === 'twitter:description' || tag.label === 'twitter:image' ? 'High' : 'Medium'
+          impact: META_TAG_STANDARDS[tag.label.replace('twitter:', 'twitter')]?.impact === 'high' ? 'High' : 'Medium'
         }))
     });
   }
@@ -1038,8 +1114,8 @@ function generateRecommendations(metadata) {
     recommendations.push({
       category: 'Technical SEO',
       items: [{
-        issue: 'Add Canonical URL',
-        details: 'Canonical URL is missing. This is important to prevent duplicate content issues.',
+        issue: `Add Canonical URL`,
+        details: `Missing canonical URL. Required to prevent duplicate content.`,
         impact: 'High'
       }]
     });
@@ -1050,14 +1126,74 @@ function generateRecommendations(metadata) {
     recommendations.push({
       category: 'Structured Data',
       items: [{
-        issue: 'Implement Schema.org Markup',
-        details: 'Schema.org structured data is missing or invalid. Adding proper structured data can improve search engine understanding of your content.',
+        issue: `Add Schema.org Markup`,
+        details: `${!metadata.schemaData || metadata.schemaData.length === 0 ? 'Missing' : 'Invalid'} schema markup. Helps enable rich search results.`,
         impact: 'Medium'
       }]
     });
   }
   
   return recommendations;
+}
+
+/**
+ * Extract modern meta tags from the current page
+ * @param {Object} metadata - Metadata object to populate
+ */
+function extractModernMetaTags(metadata) {
+  const modernMeta = {};
+  
+  // Theme color
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  modernMeta.themeColor = {
+    value: themeColor?.content || '',
+    status: themeColor ? 'good' : 'warning',
+    message: themeColor ? 
+      META_TAG_STANDARDS.themeColor.message.good : 
+      META_TAG_STANDARDS.themeColor.message.missing
+  };
+  
+  // Apple touch icon
+  const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  modernMeta.appleTouchIcon = {
+    value: appleTouchIcon?.href || '',
+    status: appleTouchIcon ? 'good' : 'warning',
+    message: appleTouchIcon ? 
+      META_TAG_STANDARDS.appleTouchIcon.message.good : 
+      META_TAG_STANDARDS.appleTouchIcon.message.missing
+  };
+  
+  // Web app manifest
+  const manifest = document.querySelector('link[rel="manifest"]');
+  modernMeta.manifest = {
+    value: manifest?.href || '',
+    status: manifest ? 'good' : 'warning',
+    message: manifest ? 
+      META_TAG_STANDARDS.manifest.message.good : 
+      META_TAG_STANDARDS.manifest.message.missing
+  };
+  
+  // Color scheme
+  const colorScheme = document.querySelector('meta[name="color-scheme"]');
+  modernMeta.colorScheme = {
+    value: colorScheme?.content || '',
+    status: colorScheme ? 'good' : 'warning',
+    message: colorScheme ? 
+      META_TAG_STANDARDS.colorScheme.message.good : 
+      META_TAG_STANDARDS.colorScheme.message.missing
+  };
+  
+  // Format detection
+  const formatDetection = document.querySelector('meta[name="format-detection"]');
+  modernMeta.formatDetection = {
+    value: formatDetection?.content || '',
+    status: formatDetection ? 'good' : 'warning',
+    message: formatDetection ? 
+      META_TAG_STANDARDS.formatDetection.message.good : 
+      META_TAG_STANDARDS.formatDetection.message.missing
+  };
+  
+  metadata.modernMeta = modernMeta;
 }
 
 // Initialize on load
