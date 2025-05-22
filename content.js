@@ -1019,98 +1019,189 @@ function calculateSEOHealthScore(metadata) {
 }
 
 /**
- * Generate SEO recommendations with concise descriptions
+ * Generate SEO recommendations with concise descriptions organized by meta tag type
  * @param {Object} metadata - The metadata to analyze
  * @returns {Array} Array of recommendation categories
  */
 function generateRecommendations(metadata) {
   const recommendations = [];
   
-  // Add basic meta tag recommendations (but keywords is now low impact)
+  // Basic Meta Tags Issues
   if (metadata.basicMeta && metadata.basicMeta.some(tag => tag.status !== 'good')) {
-    const highImpactTags = metadata.basicMeta.filter(tag => 
-      tag.status !== 'good' && ['Title', 'Description', 'Viewport'].includes(tag.label)
-    );
-    const lowImpactTags = metadata.basicMeta.filter(tag => 
-      tag.status !== 'good' && tag.label === 'Keywords'
-    );
-    
-    if (highImpactTags.length > 0) {
-      recommendations.push({
-        category: 'Critical Meta Tags',
-        items: highImpactTags.map(tag => ({
-          issue: `Fix ${tag.label}`,
-          details: tag.message,
-          impact: 'High'
-        }))
+    const basicIssues = metadata.basicMeta
+      .filter(tag => tag.status !== 'good')
+      .map(tag => {
+        const standardKey = getStandardKey(tag.label);
+        const standard = META_TAG_STANDARDS[standardKey];
+        const impact = getImpactLevel(standard?.impact);
+        
+        return {
+          issue: getIssueTitle(tag.label, tag.status),
+          details: tag.message || getDefaultMessage(tag.label, tag.status),
+          impact: impact,
+          category: 'Basic Meta Tag'
+        };
       });
-    }
     
-    if (lowImpactTags.length > 0) {
+    if (basicIssues.length > 0) {
       recommendations.push({
-        category: 'Optional Meta Tags',
-        items: lowImpactTags.map(tag => ({
-          issue: `Consider ${tag.label}`,
-          details: tag.message,
-          impact: 'Low'
-        }))
+        category: 'Basic Meta Tag',
+        items: basicIssues
       });
     }
   }
   
-  // Add social media recommendations
+  // Open Graph Meta Tags Issues
   if (metadata.ogMeta && metadata.ogMeta.some(tag => tag.status !== 'good')) {
-    recommendations.push({
-      category: 'Social Media Optimization',
-      items: metadata.ogMeta
-        .filter(tag => tag.status !== 'good')
-        .map(tag => ({
-          issue: `Add ${tag.label}`,
-          details: tag.message,
-          impact: META_TAG_STANDARDS[tag.label.replace('og:', 'og')]?.impact === 'high' ? 'High' : 'Medium'
-        }))
-    });
+    const ogIssues = metadata.ogMeta
+      .filter(tag => tag.status !== 'good')
+      .map(tag => {
+        const standardKey = getStandardKey(tag.label);
+        const standard = META_TAG_STANDARDS[standardKey];
+        const impact = getImpactLevel(standard?.impact);
+        
+        return {
+          issue: getIssueTitle(tag.label, tag.status),
+          details: tag.message || getDefaultMessage(tag.label, tag.status),
+          impact: impact,
+          category: 'Open Graph Meta Tag'
+        };
+      });
+    
+    if (ogIssues.length > 0) {
+      recommendations.push({
+        category: 'Open Graph Meta Tag',
+        items: ogIssues
+      });
+    }
   }
   
-  // Add Twitter Card recommendations
+  // Twitter Card Meta Tags Issues
   if (metadata.twitterMeta && metadata.twitterMeta.some(tag => tag.status !== 'good')) {
-    recommendations.push({
-      category: 'Twitter Optimization',
-      items: metadata.twitterMeta
-        .filter(tag => tag.status !== 'good')
-        .map(tag => ({
-          issue: `Add ${tag.label}`,
-          details: tag.message,
-          impact: META_TAG_STANDARDS[tag.label.replace('twitter:', 'twitter')]?.impact === 'high' ? 'High' : 'Medium'
-        }))
-    });
+    const twitterIssues = metadata.twitterMeta
+      .filter(tag => tag.status !== 'good')
+      .map(tag => {
+        const standardKey = getStandardKey(tag.label);
+        const standard = META_TAG_STANDARDS[standardKey];
+        const impact = getImpactLevel(standard?.impact);
+        
+        return {
+          issue: getIssueTitle(tag.label, tag.status),
+          details: tag.message || getDefaultMessage(tag.label, tag.status),
+          impact: impact,
+          category: 'Twitter Card Meta Tag'
+        };
+      });
+    
+    if (twitterIssues.length > 0) {
+      recommendations.push({
+        category: 'Twitter Card Meta Tag',
+        items: twitterIssues
+      });
+    }
   }
   
-  // Add canonical URL recommendation if missing
+  // Canonical URL Issues
   if (!metadata.canonicalUrl) {
     recommendations.push({
-      category: 'Technical SEO',
+      category: 'Canonical URL',
       items: [{
-        issue: `Add Canonical URL`,
-        details: `Missing canonical URL. Required to prevent duplicate content.`,
-        impact: 'High'
+        issue: 'Missing Canonical URL',
+        details: 'Add canonical URL to prevent duplicate content issues and improve SEO.',
+        impact: 'High',
+        category: 'Canonical URL'
       }]
     });
   }
   
-  // Add schema.org recommendation if missing or invalid
+  // Schema.org Issues
   if (!metadata.schemaData || metadata.schemaData.length === 0 || metadata.schemaData.some(s => !s.valid)) {
+    const schemaStatus = (!metadata.schemaData || metadata.schemaData.length === 0) ? 'missing' : 'invalid';
+    
     recommendations.push({
-      category: 'Structured Data',
+      category: 'Schema.org Data',
       items: [{
-        issue: `Add Schema.org Markup`,
-        details: `${!metadata.schemaData || metadata.schemaData.length === 0 ? 'Missing' : 'Invalid'} schema markup. Helps enable rich search results.`,
-        impact: 'Medium'
+        issue: schemaStatus === 'missing' ? 'Missing Schema.org Markup' : 'Invalid Schema.org Markup',
+        details: schemaStatus === 'missing' ? 
+          'Add structured data markup to help search engines understand your content and enable rich results.' :
+          'Fix invalid structured data markup to ensure proper search engine interpretation.',
+        impact: 'Medium',
+        category: 'Schema.org Data'
       }]
     });
   }
   
   return recommendations;
+}
+
+/**
+ * Helper function to get the standard key for a tag label
+ * @param {string} label - The tag label
+ * @returns {string} The standard key
+ */
+function getStandardKey(label) {
+  const mapping = {
+    'Title': 'title',
+    'Description': 'description',
+    'Keywords': 'keywords',
+    'Viewport': 'viewport',
+    'Robots': 'robots',
+    'og:title': 'ogTitle',
+    'og:description': 'ogDescription',
+    'og:image': 'ogImage',
+    'og:url': 'ogUrl',
+    'og:type': 'ogType',
+    'og:site_name': 'ogSiteName',
+    'twitter:card': 'twitterCard',
+    'twitter:title': 'twitterTitle',
+    'twitter:description': 'twitterDescription',
+    'twitter:image': 'twitterImage',
+    'twitter:site': 'twitterSite'
+  };
+  
+  return mapping[label] || label.toLowerCase();
+}
+
+/**
+ * Helper function to get impact level
+ * @param {string} impact - The impact from standards
+ * @returns {string} Formatted impact level
+ */
+function getImpactLevel(impact) {
+  if (impact === 'high') return 'High';
+  if (impact === 'medium') return 'Medium';
+  if (impact === 'low') return 'Low';
+  return 'Medium'; // default
+}
+
+/**
+ * Helper function to get issue title based on tag and status
+ * @param {string} label - The tag label
+ * @param {string} status - The tag status
+ * @returns {string} Issue title
+ */
+function getIssueTitle(label, status) {
+  if (status === 'error') {
+    return `Missing ${label}`;
+  } else if (status === 'warning') {
+    return `Optimize ${label}`;
+  }
+  return `Fix ${label}`;
+}
+
+/**
+ * Helper function to get default message if none provided
+ * @param {string} label - The tag label
+ * @param {string} status - The tag status
+ * @returns {string} Default message
+ */
+function getDefaultMessage(label, status) {
+  if (status === 'error') {
+    return `${label} is missing and should be added for better SEO.`;
+  } else if (status === 'warning') {
+    return `${label} needs optimization to meet SEO best practices.`;
+  }
+  return `${label} has issues that should be addressed.`;
 }
 
 // Initialize on load
