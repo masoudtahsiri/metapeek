@@ -90,53 +90,6 @@ const META_TAG_STANDARDS = {
     }
   },
   
-  // Modern Meta Tags (2025 Standards)
-  themeColor: {
-    required: false,
-    impact: "medium",
-    message: {
-      missing: "theme-color meta tag recommended for mobile browser theming",
-      invalid: "theme-color should be a valid hex color (e.g., #000000)",
-      good: "theme-color properly defined for mobile browsers"
-    }
-  },
-  appleTouchIcon: {
-    required: false,
-    impact: "medium", 
-    message: {
-      missing: "apple-touch-icon recommended for iOS home screen appearance",
-      invalid: "apple-touch-icon should link to a valid icon file",
-      good: "apple-touch-icon properly defined for iOS devices"
-    }
-  },
-  manifest: {
-    required: false,
-    impact: "medium",
-    message: {
-      missing: "Web app manifest recommended for PWA functionality",
-      invalid: "Manifest link should point to a valid JSON file",
-      good: "Web app manifest properly linked"
-    }
-  },
-  colorScheme: {
-    required: false,
-    impact: "low",
-    valid: ["light", "dark", "light dark", "dark light"],
-    message: {
-      missing: "color-scheme meta tag helps with dark mode support",
-      invalid: "color-scheme should be 'light', 'dark', or 'light dark'",
-      good: "color-scheme properly defined for theme support"
-    }
-  },
-  formatDetection: {
-    required: false,
-    impact: "low",
-    message: {
-      missing: "format-detection can prevent unwanted auto-linking on mobile",
-      good: "format-detection properly configured"
-    }
-  },
-  
   // Open Graph Tags
   ogTitle: { 
     min: 30, 
@@ -477,7 +430,6 @@ function getPageMetadata() {
     basicMeta: [],
     ogMeta: [],
     twitterMeta: [],
-    modernMeta: {},
     canonicalUrl: '',
     schemaData: []
   };
@@ -491,9 +443,6 @@ function getPageMetadata() {
     
     // Extract Twitter Card tags
     extractTwitterCardTags(metadata);
-    
-    // Extract modern meta tags
-    extractModernMetaTags(metadata);
     
     // Extract canonical URL
     metadata.canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || '';
@@ -970,13 +919,12 @@ function isPageSchema(obj, currentUrl) {
  * @returns {Object} SEO health score results
  */
 function calculateSEOHealthScore(metadata) {
-  // UPDATED: 2025 SEO scoring weights
+  // UPDATED: SEO scoring weights
   const weights = {
-    basicMeta: 0.20,        // 20% - Reduced from 35%
-    socialMeta: 0.15,       // 15% - Reduced from 25%
-    technical: 0.40,        // 40% - INCREASED from 25% (Core Web Vitals, mobile-first)
-    structured: 0.15,       // 15% - NEW (Schema.org quality)
-    userExperience: 0.10    // 10% - NEW (Modern meta tags, accessibility)
+    basicMeta: 0.35,        // 35% - Basic meta tags
+    socialMeta: 0.25,       // 25% - Social media tags
+    technical: 0.25,        // 25% - Technical factors
+    structured: 0.15        // 15% - Schema.org data
   };
   
   // Initialize category scores
@@ -984,8 +932,7 @@ function calculateSEOHealthScore(metadata) {
     basicMeta: 0,
     socialMeta: 0,
     technical: 0,
-    structured: 0,
-    userExperience: 0
+    structured: 0
   };
   
   // Score basic meta tags (title, description, viewport)
@@ -1011,7 +958,7 @@ function calculateSEOHealthScore(metadata) {
     scores.socialMeta = totalItems > 0 ? (goodOgItems + goodTwitterItems) / totalItems : 0;
   }
   
-  // Score technical factors (EXPANDED)
+  // Score technical factors
   let technicalScore = 0;
   let technicalFactors = 0;
   
@@ -1021,7 +968,7 @@ function calculateSEOHealthScore(metadata) {
     technicalFactors += 1;
   }
   
-  // Check HTTPS (NEW)
+  // Check HTTPS
   if (window.location.protocol === 'https:') {
     technicalScore += 1;
     technicalFactors += 1;
@@ -1043,29 +990,12 @@ function calculateSEOHealthScore(metadata) {
   
   scores.technical = technicalFactors > 0 ? technicalScore / technicalFactors : 0;
   
-  // Score structured data (NEW)
+  // Score structured data
   if (metadata.schemaData && metadata.schemaData.length > 0) {
     scores.structured = metadata.schemaData.every(s => s.valid) ? 1 : 0.5;
   } else {
     scores.structured = 0;
   }
-  
-  // Score user experience (NEW - modern meta tags)
-  let uxScore = 0;
-  let uxFactors = 0;
-  
-  // Check for modern meta tags
-  if (metadata.modernMeta) {
-    const modernTags = ['themeColor', 'appleTouchIcon', 'manifest'];
-    modernTags.forEach(tag => {
-      if (metadata.modernMeta[tag]) {
-        uxScore += 1;
-      }
-      uxFactors += 1;
-    });
-  }
-  
-  scores.userExperience = uxFactors > 0 ? uxScore / uxFactors : 0.5; // Default 50% if not implemented
   
   // Calculate overall weighted score
   const overallScore = Object.entries(weights).reduce(
@@ -1128,24 +1058,6 @@ function generateRecommendations(metadata) {
     }
   }
   
-  // Add modern meta tag recommendations
-  if (metadata.modernMeta) {
-    const modernIssues = Object.entries(metadata.modernMeta)
-      .filter(([key, tag]) => tag.status !== 'good')
-      .map(([key, tag]) => ({
-        issue: `Add ${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`,
-        details: tag.message,
-        impact: 'Medium'
-      }));
-    
-    if (modernIssues.length > 0) {
-      recommendations.push({
-        category: 'Modern Web Features',
-        items: modernIssues
-      });
-    }
-  }
-  
   // Add social media recommendations
   if (metadata.ogMeta && metadata.ogMeta.some(tag => tag.status !== 'good')) {
     recommendations.push({
@@ -1199,66 +1111,6 @@ function generateRecommendations(metadata) {
   }
   
   return recommendations;
-}
-
-/**
- * Extract modern meta tags from the current page
- * @param {Object} metadata - Metadata object to populate
- */
-function extractModernMetaTags(metadata) {
-  const modernMeta = {};
-  
-  // Theme color
-  const themeColor = document.querySelector('meta[name="theme-color"]');
-  modernMeta.themeColor = {
-    value: themeColor?.content || '',
-    status: themeColor ? 'good' : 'warning',
-    message: themeColor ? 
-      META_TAG_STANDARDS.themeColor.message.good : 
-      META_TAG_STANDARDS.themeColor.message.missing
-  };
-  
-  // Apple touch icon
-  const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
-  modernMeta.appleTouchIcon = {
-    value: appleTouchIcon?.href || '',
-    status: appleTouchIcon ? 'good' : 'warning',
-    message: appleTouchIcon ? 
-      META_TAG_STANDARDS.appleTouchIcon.message.good : 
-      META_TAG_STANDARDS.appleTouchIcon.message.missing
-  };
-  
-  // Web app manifest
-  const manifest = document.querySelector('link[rel="manifest"]');
-  modernMeta.manifest = {
-    value: manifest?.href || '',
-    status: manifest ? 'good' : 'warning',
-    message: manifest ? 
-      META_TAG_STANDARDS.manifest.message.good : 
-      META_TAG_STANDARDS.manifest.message.missing
-  };
-  
-  // Color scheme
-  const colorScheme = document.querySelector('meta[name="color-scheme"]');
-  modernMeta.colorScheme = {
-    value: colorScheme?.content || '',
-    status: colorScheme ? 'good' : 'warning',
-    message: colorScheme ? 
-      META_TAG_STANDARDS.colorScheme.message.good : 
-      META_TAG_STANDARDS.colorScheme.message.missing
-  };
-  
-  // Format detection
-  const formatDetection = document.querySelector('meta[name="format-detection"]');
-  modernMeta.formatDetection = {
-    value: formatDetection?.content || '',
-    status: formatDetection ? 'good' : 'warning',
-    message: formatDetection ? 
-      META_TAG_STANDARDS.formatDetection.message.good : 
-      META_TAG_STANDARDS.formatDetection.message.missing
-  };
-  
-  metadata.modernMeta = modernMeta;
 }
 
 // Initialize on load
