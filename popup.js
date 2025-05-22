@@ -993,12 +993,15 @@ function adjustPreviewContainerHeight() {
   const activePreview = container.querySelector('.preview-content.active');
   if (!activePreview) return;
 
-  // No longer add .center-vertically to LinkedIn
-
-  // Adjust height as before
-  container.style.height = 'auto';
-  const targetHeight = activePreview.offsetHeight;
-  container.style.height = targetHeight + 'px';
+  // Special case for LinkedIn: use a fixed height for centering
+  if (activePreview.id === 'linkedin-preview') {
+    container.style.height = '200px'; // or any value that gives enough space for centering
+  } else {
+    // Dynamic height for other previews
+    container.style.height = 'auto';
+    const targetHeight = activePreview.offsetHeight;
+    container.style.height = targetHeight + 'px';
+  }
 }
 
 /**
