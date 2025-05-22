@@ -174,7 +174,23 @@
 }
 
 .preview-container {
-  contain: layout style paint;
+  display: block;
+  min-height: 120px;
+  max-height: 400px;
+  height: auto;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: height 0.3s cubic-bezier(0.4,0,0.2,1);
+  background-color: var(--bg-card);
+  margin-top: 1rem;
+}
+
+.center-vertically {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .meta-table {
@@ -1605,17 +1621,6 @@ a:focus-visible {
 /* Preview Content Container */
 #social-preview-tab .preview-container {
   padding: 0;
-}
-
-.preview-container {
-  position: relative;
-  border-radius: var(--radius-lg);
-  border: 2px solid var(--border-light);
-  background-color: var(--bg-card);
-  overflow: hidden;
-  height: 400px;
-  margin-top: 1rem;
-  transition: var(--transition-base);
 }
 
 .preview-container:hover {

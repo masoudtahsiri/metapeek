@@ -973,11 +973,40 @@ function initSocialTabs() {
         } else {
           console.warn(`Preview element #${previewId}-preview not found`);
         }
+        // Adjust the preview container height after switching
+        adjustPreviewContainerHeight();
       } catch (error) {
         console.error('Error handling tab click:', error);
       }
     });
   });
+  // Adjust height on load
+  setTimeout(adjustPreviewContainerHeight, 0);
+}
+
+/**
+ * Adjust the preview container's height to match the active preview
+ */
+function adjustPreviewContainerHeight() {
+  const container = document.querySelector('.preview-container');
+  if (!container) return;
+  const activePreview = container.querySelector('.preview-content.active');
+  if (!activePreview) return;
+
+  // Remove centering from all previews
+  container.querySelectorAll('.preview-content').forEach(el => {
+    el.classList.remove('center-vertically');
+  });
+
+  // Add centering only for LinkedIn
+  if (activePreview.id === 'linkedin-preview') {
+    activePreview.classList.add('center-vertically');
+  }
+
+  // Adjust height as before
+  container.style.height = 'auto';
+  const targetHeight = activePreview.offsetHeight;
+  container.style.height = targetHeight + 'px';
 }
 
 /**
