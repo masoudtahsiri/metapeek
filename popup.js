@@ -1106,6 +1106,8 @@ function generateGooglePreview(hostname, title, description) {
       <div class="preview-description">${description || 'No description available'}</div>
     </div>
   `;
+  // Adjust height after content is set
+  setTimeout(adjustPreviewContainerHeight, 0);
 }
 
 /**
@@ -1284,6 +1286,10 @@ function initTabNavigation() {
       
       if (targetPane && targetPane.classList) {
         targetPane.classList.add('active');
+        // If this is the social preview tab, adjust the preview container height
+        if (targetPaneId === 'social-preview-tab') {
+          setTimeout(adjustPreviewContainerHeight, 0);
+        }
       } else {
         console.warn(`Target tab pane #${targetPaneId} not found`);
       }
