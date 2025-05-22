@@ -1914,49 +1914,45 @@ a:focus-visible {
   align-items: center;
   max-width: 500px;
   min-width: 320px;
-  border: 2px solid var(--border-light);
-  border-radius: 8px;
+  height: 100px;
   background: #fff;
+  border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  padding: 0;
-  margin: 0 auto;
-  height: 80px;
   overflow: hidden;
+  padding: 0;
+  margin: 0;
 }
 
-.thumbnail {
-  width: 160px;
-  height: 64px;
-  object-fit: contain;
+.linkedin-preview .thumbnail {
+  width: 120px;
+  height: 100px;
+  object-fit: cover;
   background: #f3f6f8;
   display: block;
-  border-radius: 0;
-  margin-left: 12px;
-  margin-right: 16px;
 }
 
-.text-content {
+.linkedin-preview .text-content {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 0;
   flex: 1;
-  height: 64px;
-  padding: 0;
+  height: 100px;
+  padding: 0 16px;
 }
 
-.title {
+.linkedin-preview .title {
   font-weight: 600;
   font-size: 16px;
   color: #222;
   margin: 0 0 4px 0;
   line-height: 1.2;
-  white-space: normal;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.site-name {
+.linkedin-preview .site-name {
   color: #86888a;
   font-size: 13px;
   margin: 0;
