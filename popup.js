@@ -437,10 +437,21 @@ function renderIssues(container, issues) {
     return;
   }
   
+  // Helper function to map impact to status class
+  const getStatusClass = (impact) => {
+    if (impact === 'High') return 'error';
+    if (impact === 'Medium') return 'warning';
+    if (impact === 'Low') return 'low';
+    return 'warning';
+  };
+
   // Helper function to create impact badge based on level
-  const getImpactBadge = (impact) => {
+  const getImpactBadge = (impact, description) => {
     const impactClass = impact.toLowerCase();
-    return `<span class="issue-impact ${impactClass}">${impact}</span>`;
+    const statusClass = getStatusClass(impact);
+    return `<span class="issue-impact ${impactClass} ${statusClass}\" data-tooltip="${description}">${impact}
+      <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
+    </span>`;
   };
   
   // Sort issues by impact: High > Medium > Low
@@ -459,9 +470,8 @@ function renderIssues(container, issues) {
       <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
         <div class="issue-header">
           <h4>${issue.title}</h4>
-          ${getImpactBadge(issue.impact)}
+          ${getImpactBadge(issue.impact, issue.description)}
         </div>
-        <p class="issue-description">${issue.description}</p>
         <div class="issue-category-wrapper">
           <span class="issue-category">${issue.category}</span>
         </div>
@@ -470,6 +480,9 @@ function renderIssues(container, issues) {
   });
   
   container.innerHTML = html;
+  
+  // Initialize tooltips after rendering issues
+  initTooltips();
 }
 
 /**
@@ -1505,7 +1518,7 @@ document.addEventListener('mouseover', function (e) {
     // Set content
     tooltip.textContent = target.getAttribute('data-tooltip');
 
-    // Add left border for status badges
+    // Add left border for status badges and impact badges
     tooltip.style.borderLeft = '';
     if (target.classList.contains('good')) {
       tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-good');
@@ -1513,6 +1526,10 @@ document.addEventListener('mouseover', function (e) {
       tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-warning');
     } else if (target.classList.contains('error')) {
       tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-error');
+    } else if (target.classList.contains('low')) {
+      // For low impact, use gray
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue(isDark ? '--color-gray-500' : '--color-gray-400');
     }
 
     // Style
@@ -1526,19 +1543,36 @@ document.addEventListener('mouseover', function (e) {
     tooltip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
     tooltip.style.whiteSpace = 'normal';
     tooltip.style.maxWidth = '220px';
-    tooltip.style.position = 'fixed';
     tooltip.style.pointerEvents = 'none';
     tooltip.style.display = 'block';
     tooltip.style.transition = 'opacity 0.2s cubic-bezier(0.16,1,0.3,1), transform 0.2s cubic-bezier(0.16,1,0.3,1)';
     tooltip.style.opacity = '1';
 
-    // Position tooltip
-    const rect = target.getBoundingClientRect();
-    const tooltipWidth = 220;
-    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
-    left = Math.max(8, Math.min(left, window.innerWidth - tooltipWidth - 8));
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${rect.bottom + 10}px`;
+    // Find the closest .section-card ancestor
+    const card = target.closest('.section-card');
+    if (card) {
+      card.appendChild(tooltip);
+      tooltip.style.position = 'absolute';
+      const cardRect = card.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+      // Calculate position relative to card
+      let left = targetRect.left - cardRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+      let top = targetRect.bottom - cardRect.top + 10;
+      // Clamp horizontally
+      left = Math.max(8, Math.min(left, cardRect.width - tooltipRect.width - 8));
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    } else {
+      // fallback to fixed if no card found
+      tooltip.style.position = 'fixed';
+      const rect = target.getBoundingClientRect();
+      const tooltipWidth = 220;
+      let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - tooltipWidth - 8));
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${rect.bottom + 10}px`;
+    }
 
     // Add arrow
     arrow = document.createElement('div');
