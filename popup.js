@@ -1,5 +1,5 @@
 /**
- * MetaPeek Popup
+ * MetaPeek Popup - FIXED FOR MEMORY LEAKS AND PERFORMANCE
  * Displays metadata and SEO information for the current page
  */
 
@@ -13,7 +13,9 @@ const CONFIG = {
 
 // Initialize MetaPeek namespace if it doesn't exist
 window.MetaPeek = window.MetaPeek || {
-  initialized: false
+  initialized: false,
+  listeners: new Map(),
+  domCache: new Map()
 };
 
 // State
@@ -35,13 +37,9 @@ const previewState = {
   editMode: false,
   originalMetadata: null,
   editedMetadata: null,
-  pageHostname: null
+  pageHostname: null,
+  previewsGenerated: false // Track if previews have been generated
 };
-
-/**
- * Social Preview Module - Complete Implementation
- * This includes all functions needed for the social preview functionality
- */
 
 // Global preview state
 const socialPreviewState = {
@@ -52,11 +50,74 @@ const socialPreviewState = {
 };
 
 /**
+ * Optimize font loading without violating CSP
+ */
+function optimizeFontLoading() {
+  // Check if fonts are already loaded
+  if (document.fonts && document.fonts.check('1em Inter')) {
+    return;
+  }
+
+  // Create font link dynamically
+  const fontLink = document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+  document.head.appendChild(fontLink);
+  
+  // Add class when fonts load
+  if (document.fonts) {
+    document.fonts.ready.then(() => {
+      document.body.classList.add('fonts-loaded');
+    });
+  }
+}
+
+/**
+ * Cache DOM queries for better performance
+ */
+function cacheDOM() {
+  const cache = window.MetaPeek.domCache;
+  
+  // Clear existing cache
+  cache.clear();
+  
+  // Cache commonly used elements
+  cache.set('themeToggle', document.getElementById('theme-toggle'));
+  cache.set('toast', document.getElementById('toast'));
+  cache.set('globalTooltip', document.getElementById('global-tooltip'));
+  cache.set('scoreCircle', document.querySelector('.score-circle'));
+  cache.set('scoreValue', document.querySelector('.score-value'));
+  cache.set('scoreTitle', document.querySelector('.score-title'));
+  cache.set('scoreDescription', document.querySelector('.score-description'));
+  
+  // Cache containers
+  cache.set('allIssues', document.getElementById('all-issues'));
+  cache.set('highIssues', document.getElementById('high-issues'));
+  cache.set('mediumIssues', document.getElementById('medium-issues'));
+  cache.set('lowIssues', document.getElementById('low-issues'));
+  
+  return cache;
+}
+
+/**
+ * Get cached DOM element
+ */
+function getCached(key) {
+  return window.MetaPeek.domCache.get(key);
+}
+
+/**
  * Document Ready Handler
  * Initialize the app when the DOM is fully loaded
  */
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Popup DOM loaded');
+  
+  // Optimize font loading
+  optimizeFontLoading();
+  
+  // Cache DOM elements
+  cacheDOM();
   
   // Initialize UI components
   initUI();
@@ -64,7 +125,41 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load data from the active tab
   loadPageData();
   initMetaSectionTabs();
+  
+  // Cleanup on window unload
+  window.addEventListener('beforeunload', cleanup);
 });
+
+/**
+ * Cleanup function to prevent memory leaks
+ */
+function cleanup() {
+  console.log('Cleaning up popup resources');
+  
+  // Remove all event listeners
+  window.MetaPeek.listeners.forEach((listener, element) => {
+    if (element && listener) {
+      element.removeEventListener(listener.type, listener.handler);
+    }
+  });
+  window.MetaPeek.listeners.clear();
+  
+  // Clear DOM cache
+  window.MetaPeek.domCache.clear();
+  
+  // Reset state
+  window.MetaPeek.initialized = false;
+}
+
+/**
+ * Add event listener with tracking for cleanup
+ */
+function addTrackedListener(element, type, handler) {
+  if (!element) return;
+  
+  element.addEventListener(type, handler);
+  window.MetaPeek.listeners.set(element, { type, handler });
+}
 
 /**
  * Initialize all UI components
@@ -162,11 +257,13 @@ function showError(message) {
         <line x1="12" y1="16" x2="12.01" y2="16"></line>
       </svg>
       <div class="error-text">${message}</div>
-      </div>
-    `;
+    </div>
+  `;
   
   document.querySelectorAll('.loading-indicator').forEach(el => {
-    el.parentNode.innerHTML = errorHTML;
+    if (el.parentNode) {
+      el.parentNode.innerHTML = errorHTML;
+    }
   });
 }
 
@@ -209,8 +306,11 @@ function populateUI(metadata) {
     updateCanonicalURL(metadata.canonicalUrl || '');
     updateSchemaData(metadata.schemaData || []);
     
-    // Update social previews
-    updateSocialPreviews(metadata);
+    // Update social previews ONLY ONCE
+    if (!previewState.previewsGenerated) {
+      updateSocialPreviews(metadata);
+      previewState.previewsGenerated = true;
+    }
     
     console.log('UI update complete');
   } catch (error) {
@@ -292,10 +392,10 @@ function updateMetaTagSummary(metadata) {
 function updateSEOScore(scoreData) {
   if (!scoreData) return;
   
-  const scoreCircle = document.querySelector('.score-circle');
-  const scoreValue = document.querySelector('.score-value');
-  const scoreTitle = document.querySelector('.score-title');
-  const scoreDescription = document.querySelector('.score-description');
+  const scoreCircle = getCached('scoreCircle');
+  const scoreValue = getCached('scoreValue');
+  const scoreTitle = getCached('scoreTitle');
+  const scoreDescription = getCached('scoreDescription');
   
   if (scoreValue) {
     scoreValue.textContent = scoreData.score || '--';
@@ -347,10 +447,10 @@ function updatePriorityIssues(metadata) {
   // Initialize impact tabs
   initImpactTabs();
   
-  const allIssuesContainer = document.getElementById('all-issues');
-  const highIssuesContainer = document.getElementById('high-issues');
-  const mediumIssuesContainer = document.getElementById('medium-issues');
-  const lowIssuesContainer = document.getElementById('low-issues');
+  const allIssuesContainer = getCached('allIssues');
+  const highIssuesContainer = getCached('highIssues');
+  const mediumIssuesContainer = getCached('mediumIssues');
+  const lowIssuesContainer = getCached('lowIssues');
   const issueBadge = document.querySelector('.section-title .badge');
   
   if (!allIssuesContainer || !metadata.seoScore) return;
@@ -503,6 +603,9 @@ function updateTabCounter(impactLevel, count) {
   
   counter.textContent = count;
 }
+
+// [KEEP ALL META TAG UPDATE FUNCTIONS AS-IS]
+// Including updateBasicMetaTags, updateOGMetaTags, updateTwitterMetaTags, etc.
 
 /**
  * Update basic meta tags in Meta Tags tab with tooltips
@@ -686,14 +789,812 @@ function updateCanonicalURL(canonicalUrl) {
   row.className = 'meta-row';
   
   row.innerHTML = `
-          <div class="meta-cell name">canonical</div>
+    <div class="meta-cell name">canonical</div>
     <div class="meta-cell value">${canonicalUrl}</div>
-          <div class="meta-cell status">
-            <span class="status-badge good">Good</span>
-          </div>
+    <div class="meta-cell status">
+      <span class="status-badge good">Good</span>
+    </div>
   `;
   
   container.appendChild(row);
+}
+
+/**
+ * Initialize social preview functionality with improved error handling
+ */
+function initSocialPreviews() {
+  try {
+    console.log('Initializing social previews');
+    // Make sure we have the basic structure first
+    if (!ensureBasicPreviewStructure()) {
+      console.error('Failed to create basic preview structure');
+      return;
+    }
+    
+    // Initialize platform tabs
+    initSocialTabs();
+    
+    console.log('Social previews initialized successfully');
+  } catch (error) {
+    console.error('Error initializing social previews:', error);
+    showErrorInSocialTab('Failed to initialize social previews');
+  }
+}
+
+/**
+ * Ensure the basic preview structure exists and create it if it doesn't
+ * @returns {boolean} True if the structure exists or was created successfully
+ */
+function ensureBasicPreviewStructure() {
+  try {
+    // Make sure we have a container for the previews
+    const previewTab = document.getElementById('social-preview-tab');
+    if (!previewTab) {
+      console.error('Social preview tab not found in the DOM');
+      return false;
+    }
+
+    // Make sure we have social tabs
+    if (!previewTab.querySelector('.social-tabs')) {
+      console.log('Creating social tabs container');
+      const socialTabs = document.createElement('div');
+      socialTabs.className = 'social-tabs';
+      socialTabs.innerHTML = `
+        <button class="social-tab active" data-preview="google">Google</button>
+        <button class="social-tab" data-preview="facebook">Facebook</button>
+        <button class="social-tab" data-preview="twitter">Twitter</button>
+        <button class="social-tab" data-preview="linkedin">LinkedIn</button>
+      `;
+      previewTab.prepend(socialTabs);
+    }
+
+    // Make sure we have a preview container
+    if (!previewTab.querySelector('.preview-container')) {
+      console.log('Creating preview container');
+      const previewContainer = document.createElement('div');
+      previewContainer.className = 'preview-container desktop-view';
+      
+      // Create basic preview panes
+      previewContainer.innerHTML = `
+        <!-- Google Preview -->
+        <div id="google-preview" class="preview-content active">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Google preview...</div>
+          </div>
+        </div>
+        
+        <!-- Facebook Preview -->
+        <div id="facebook-preview" class="preview-content">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Facebook preview...</div>
+          </div>
+        </div>
+        
+        <!-- Twitter Preview -->
+        <div id="twitter-preview" class="preview-content">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Twitter preview...</div>
+          </div>
+        </div>
+
+        <!-- LinkedIn Preview -->
+        <div id="linkedin-preview" class="preview-content">
+          <div class="loading-indicator">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading LinkedIn preview...</div>
+          </div>
+        </div>
+      `;
+      
+      // Insert at appropriate position
+      const socialTabs = previewTab.querySelector('.social-tabs');
+      if (socialTabs) {
+        socialTabs.after(previewContainer);
+      } else {
+        previewTab.appendChild(previewContainer);
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating preview structure:', error);
+    return false;
+  }
+}
+
+/**
+ * Show error message in social preview tab
+ * @param {string} message - Error message to display
+ */
+function showErrorInSocialTab(message) {
+  const previewTab = document.getElementById('social-preview-tab');
+  if (!previewTab) return;
+  
+  const existingError = previewTab.querySelector('.social-preview-error');
+  if (existingError) {
+    existingError.textContent = message;
+    return;
+  }
+  
+  const errorElement = document.createElement('div');
+  errorElement.className = 'social-preview-error error-indicator';
+  errorElement.innerHTML = `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <div class="error-text">${message}</div>
+  `;
+  
+  // Insert at beginning of tab
+  previewTab.prepend(errorElement);
+}
+
+/**
+ * Initialize social tabs functionality - FIXED TO NOT REGENERATE CONTENT
+ * Only toggles visibility without regenerating content
+ */
+function initSocialTabs() {
+  const tabs = document.querySelectorAll('.social-tab');
+  if (!tabs.length) return;
+
+  tabs.forEach(tab => {
+    addTrackedListener(tab, 'click', () => {
+      try {
+        // Get the target preview ID
+        const previewId = tab.getAttribute('data-preview');
+        if (!previewId) return;
+        
+        // Skip if already active
+        if (tab.classList.contains('active')) return;
+        
+        // Remove active class from all tabs and previews
+        document.querySelectorAll('.social-tab').forEach(t => {
+          t.classList.remove('active');
+        });
+        
+        document.querySelectorAll('.preview-content').forEach(content => {
+          content.classList.remove('active');
+        });
+        
+        // Add active class to clicked tab
+        tab.classList.add('active');
+        
+        // Find and activate corresponding preview
+        const previewElement = document.getElementById(`${previewId}-preview`);
+        if (previewElement) {
+          previewElement.classList.add('active');
+          // Just update the current platform in state, DON'T regenerate content
+          socialPreviewState.currentPlatform = previewId;
+        } else {
+          console.warn(`Preview element #${previewId}-preview not found`);
+        }
+      } catch (error) {
+        console.error('Error handling tab click:', error);
+      }
+    });
+  });
+}
+
+/**
+ * Update all social previews with metadata - ONLY RUNS ONCE
+ * Generate all previews only ONCE when metadata is loaded
+ */
+function updateSocialPreviews(metadata) {
+  if (!metadata) {
+    console.warn('No metadata provided to update social previews');
+    return;
+  }
+  
+  console.log('Updating social previews with metadata');
+  
+  // Extract metadata from the response
+  const title = metadata.basicMeta?.find(tag => tag.label === 'Title')?.value || '';
+  const description = metadata.basicMeta?.find(tag => tag.label === 'Description')?.value || '';
+  const ogTitle = metadata.ogMeta?.find(tag => tag.label === 'og:title')?.value || '';
+  const ogDescription = metadata.ogMeta?.find(tag => tag.label === 'og:description')?.value || '';
+  const ogImage = metadata.ogMeta?.find(tag => tag.label === 'og:image')?.value || '';
+  const twitterTitle = metadata.twitterMeta?.find(tag => tag.label === 'twitter:title')?.value || '';
+  const twitterDescription = metadata.twitterMeta?.find(tag => tag.label === 'twitter:description')?.value || '';
+  const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || '';
+  const siteName = metadata.ogMeta?.find(tag => tag.label === 'og:site_name')?.value || '';
+
+  // Store metadata in state
+  socialPreviewState.originalMetadata = {
+    title,
+    description,
+    ogTitle,
+    ogDescription,
+    ogImage,
+    twitterTitle,
+    twitterDescription,
+    twitterImage,
+    siteName
+  };
+  
+  // Generate social preview content for all platforms
+  generateAllPreviews();
+  
+  // Activate the first tab if none is active
+  const activeTab = document.querySelector('.social-tab.active');
+  if (!activeTab) {
+    const firstTab = document.querySelector('.social-tab');
+    if (firstTab) {
+      firstTab.click();
+    }
+  }
+}
+
+/**
+ * Generate preview content for all platforms
+ * This runs only once when metadata is loaded
+ */
+function generateAllPreviews() {
+  console.log('Generating all social preview content');
+  
+  if (!socialPreviewState.originalMetadata) {
+    console.warn('No metadata available for previews');
+    return;
+  }
+  
+  const metadata = socialPreviewState.originalMetadata;
+  const hostname = socialPreviewState.pageHostname || 'example.com';
+  
+  // Get values with fallbacks
+  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle || '';
+  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription || '';
+  const image = metadata.ogImage || metadata.twitterImage || '';
+  const siteName = metadata.siteName || '';
+
+  // Generate previews for each platform
+  generateGooglePreview(hostname, title, description);
+  generateFacebookPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
+  generateTwitterPreview(metadata, hostname, metadata.twitterTitle || metadata.ogTitle || title, metadata.twitterDescription || metadata.ogDescription || description, metadata.twitterImage || image);
+  generateLinkedInPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
+  generateSlackPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
+}
+
+// [KEEP ALL PREVIEW GENERATION FUNCTIONS AS-IS]
+// Including generateGooglePreview, generateFacebookPreview, etc.
+
+/**
+ * Generate Google preview with metadata
+ */
+function generateGooglePreview(hostname, title, description) {
+  const preview = document.getElementById('google-preview');
+  if (!preview) return;
+  
+  preview.innerHTML = `
+    <div class="google-preview">
+      <div class="preview-url">${hostname}</div>
+      <div class="preview-title">${title || 'No title available'}</div>
+      <div class="preview-description">${description || 'No description available'}</div>
+    </div>
+  `;
+}
+
+/**
+ * Generate Facebook preview with metadata
+ */
+function generateFacebookPreview(hostname, title, description, image, siteName) {
+  const preview = document.getElementById('facebook-preview');
+  if (!preview) return;
+  
+  let facebookImage = image;
+  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
+    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
+  }
+  
+  preview.innerHTML = `
+    <div class="card-seo-facebook">
+      ${facebookImage ? 
+        `<img class="card-seo-facebook__image" src="${facebookImage}" alt="Facebook preview image">` :
+        `<div class="preview-image-placeholder">No image available</div>`
+      }
+      <div class="card-seo-facebook__footer">
+        <div class="card-seo-facebook__domain">${hostname.toUpperCase()}</div>
+        <div class="card-seo-facebook__title">${title || 'No title available'}</div>
+        <div class="card-seo-facebook__description">${description || 'No description available'}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate Twitter preview with metadata
+ */
+function generateTwitterPreview(metadata, hostname, title, description, image) {
+  const preview = document.getElementById('twitter-preview');
+  if (!preview) return;
+
+  // Fallback logic for Twitter card
+  const cardImage = metadata.twitterImage || metadata.ogImage || image || '';
+  const cardTitle = metadata.twitterTitle || metadata.ogTitle || title || '';
+  const cardDescription = metadata.twitterDescription || metadata.ogDescription || description || '';
+  const cardDomain = hostname || '';
+
+  preview.innerHTML = `
+    <div class="card-seo-twitter">
+      ${cardImage ?
+        `<img class="card-seo-twitter__image" src="${cardImage}" alt="Twitter preview image">` :
+        `<div class="preview-image-placeholder">No image available</div>`
+      }
+      <div class="card-seo-twitter__footer">
+        <div class="card-seo-twitter__title">${cardTitle || 'No title available'}</div>
+        <div class="card-seo-twitter__description">${cardDescription || 'No description available'}</div>
+        <div class="card-seo-twitter__domain">${cardDomain}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate LinkedIn preview with metadata
+ */
+function generateLinkedInPreview(hostname, title, description, image, siteName) {
+  const preview = document.getElementById('linkedin-preview');
+  if (!preview) return;
+
+  // Prefer og:site_name if available, otherwise use hostname
+  const domain = siteName || hostname;
+
+  preview.innerHTML = `
+    <div class="linkedin-preview">
+      <img src="${image || ''}" alt="preview image" class="thumbnail" />
+      <div class="text-content">
+        <h3 class="title">${title || 'No title available'}</h3>
+        <div class="site-name">${domain || ''}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate Slack preview with metadata
+ */
+function generateSlackPreview(hostname, title, description, image, siteName) {
+  const preview = document.getElementById('slack-preview');
+  if (!preview) return;
+
+  const domain = siteName || hostname;
+  // Always use the actual favicon, not og:image
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}`;
+
+  preview.innerHTML = `
+    <div class="card-seo-slack">
+      <div class="card-seo-slack__bar"></div>
+      <div class="card-seo-slack__content">
+        <div class="flex">
+          <img src="${faviconUrl}" class="card-seo-slack__favicon" alt="favicon">
+          <span class="card-seo-slack__link js-preview-site-name">${domain || ''}</span>
+        </div>
+        <div class="card-seo-slack__title js-preview-title">${title || 'No title available'}</div>
+        <span class="card-seo-slack__description js-preview-description">${description || ''}</span>
+        ${image ? `<div class="card-seo-slack__image js-preview-image js-slack-image" style="background-image:url('${image}')"></div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Initialize theme toggle functionality
+ */
+function initThemeToggle() {
+  const themeToggle = getCached('themeToggle');
+  if (!themeToggle) return;
+  
+  const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+  
+  // Set initial theme based on user preference or localStorage
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    document.body.setAttribute('data-theme', savedTheme);
+    state.darkMode = savedTheme === 'dark';
+  } else if (prefersDarkScheme.matches) {
+    document.body.setAttribute('data-theme', 'dark');
+    state.darkMode = true;
+  } else {
+    document.body.setAttribute('data-theme', 'light');
+    state.darkMode = false;
+  }
+  
+  addTrackedListener(themeToggle, 'click', () => {
+    state.darkMode = !state.darkMode;
+    const newTheme = state.darkMode ? 'dark' : 'light';
+    
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+  });
+}
+
+/**
+ * Initialize tab navigation functionality
+ */
+function initTabNavigation() {
+  const tabButtons = document.querySelectorAll('.tab-button');
+  
+  tabButtons.forEach(button => {
+    if (!button) return;
+    
+    addTrackedListener(button, 'click', () => {
+      // Get the target tab ID
+      const tabId = button.getAttribute('data-tab');
+      if (!tabId) {
+        console.warn('Tab button missing data-tab attribute');
+        return;
+      }
+      
+      // Skip if already active
+      if (button.classList.contains('active')) return;
+      
+      // Remove active class from all tab buttons and panes
+      document.querySelectorAll('.tab-button').forEach(tab => {
+        if (tab && tab.classList) {
+          tab.classList.remove('active');
+        }
+      });
+      
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        if (pane && pane.classList) {
+          pane.classList.remove('active');
+        }
+      });
+      
+      // Add active class to clicked tab button and corresponding pane
+      button.classList.add('active');
+      
+      // Special handling for social preview tab
+      const targetPaneId = tabId === 'social' ? 'social-preview-tab' : `${tabId}-tab`;
+      const targetPane = document.getElementById(targetPaneId);
+      
+      if (targetPane && targetPane.classList) {
+        targetPane.classList.add('active');
+      } else {
+        console.warn(`Target tab pane #${targetPaneId} not found`);
+      }
+      
+      // Initialize tooltips after tab change
+      initTooltips();
+    });
+  });
+}
+
+/**
+ * Initialize copy buttons functionality
+ */
+function initCopyButtons() {
+  // Initialize copy buttons for different meta sections
+  setupCopyButton('copy-basic-meta', () => collectMetaTagsHTML('basic-meta-content'));
+  setupCopyButton('copy-og-meta', () => collectMetaTagsHTML('og-meta-content'));
+  setupCopyButton('copy-twitter-meta', () => collectMetaTagsHTML('twitter-meta-content'));
+  setupCopyButton('copy-schema', () => collectSchemaHTML('schema-content'));
+}
+
+/**
+ * Set up a copy button with click handler
+ * @param {string} buttonId - ID of the copy button
+ * @param {Function} getTextFn - Function to get text to copy
+ */
+function setupCopyButton(buttonId, getTextFn) {
+  const button = document.getElementById(buttonId);
+  if (!button) {
+    console.warn(`Copy button with ID ${buttonId} not found`);
+    return;
+  }
+
+  addTrackedListener(button, 'click', async () => {
+    try {
+      const textToCopy = getTextFn();
+      if (!textToCopy) {
+        console.warn('No text to copy');
+        return;
+      }
+
+      await navigator.clipboard.writeText(textToCopy);
+      showToast('Copied to clipboard!');
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      showToast('Failed to copy to clipboard');
+    }
+  });
+}
+
+/**
+ * Show a toast notification
+ * @param {string} message - Message to display
+ */
+function showToast(message) {
+  const toast = getCached('toast');
+  if (!toast) return;
+  
+  const toastMessage = toast.querySelector('span');
+  if (toastMessage) {
+    toastMessage.textContent = message;
+  }
+  
+  toast.classList.add('show');
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, CONFIG.toastDuration);
+}
+
+/**
+ * Initialize meta section tabs functionality
+ */
+function initMetaSectionTabs() {
+  const metaSectionTabs = document.querySelectorAll('.meta-section-tab');
+  
+  metaSectionTabs.forEach(tab => {
+    addTrackedListener(tab, 'click', () => {
+      // Get the target pane ID
+      const targetId = tab.getAttribute('data-target');
+      if (!targetId) return;
+      
+      // Remove active class from all tabs and panes
+      document.querySelectorAll('.meta-section-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.meta-section-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab
+      tab.classList.add('active');
+      
+      // Add active class to corresponding pane
+      const targetPane = document.getElementById(targetId);
+      if (targetPane) {
+        targetPane.classList.add('active');
+      }
+      
+      // Initialize tooltips after meta section tab change
+      initTooltips();
+    });
+  });
+}
+
+/**
+ * Initialize impact tabs functionality
+ */
+function initImpactTabs() {
+  const impactTabs = document.querySelectorAll('.impact-tab');
+  
+  impactTabs.forEach(tab => {
+    addTrackedListener(tab, 'click', () => {
+      // Get the target impact level
+      const impactLevel = tab.getAttribute('data-impact');
+      if (!impactLevel) return;
+      
+      // Remove active class from all tabs and panes
+      document.querySelectorAll('.impact-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.impact-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab
+      tab.classList.add('active');
+      
+      // Add active class to corresponding pane
+      const targetPane = document.getElementById(`${impactLevel}-issues`);
+      if (targetPane) {
+        targetPane.classList.add('active');
+      }
+    });
+  });
+}
+
+/**
+ * Initialize tooltips - PERFORMANCE OPTIMIZED
+ */
+function initTooltips() {
+  const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
+  const globalTooltip = getCached('globalTooltip');
+
+  statusBadges.forEach(badge => {
+    // Skip if already has listener
+    if (badge.hasAttribute('data-tooltip-initialized')) return;
+    
+    addTrackedListener(badge, 'mouseenter', function(e) {
+      const tooltipText = this.getAttribute('data-tooltip');
+      if (!tooltipText) return;
+
+      // Always define isDark at the top
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      // Find the closest .meta-section-content ancestor
+      let container = this.closest('.meta-section-content');
+      if (!container) {
+        // Fallback: use body as container (viewport)
+        container = document.body;
+      }
+
+      globalTooltip.textContent = tooltipText;
+      globalTooltip.style.display = 'block';
+
+      const rect = this.getBoundingClientRect();
+      const tooltipRect = globalTooltip.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      // Always open below the badge (arrow on top)
+      let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
+      let top = rect.bottom - containerRect.top + 10;
+      let arrowPosition = 'bottom';
+
+      // Adjust if tooltip would go off screen horizontally
+      if (left < 10) {
+        left = 10;
+      } else if (left + tooltipRect.width > containerRect.width - 10) {
+        left = containerRect.width - tooltipRect.width - 10;
+      }
+
+      globalTooltip.style.left = `${left + containerRect.left}px`;
+      globalTooltip.style.top = `${top + containerRect.top}px`;
+
+      // Add arrow, always on top (pointing up)
+      let arrow = document.createElement('div');
+      arrow.className = 'tooltip-arrow';
+      arrow.style.position = 'absolute';
+      const badgeCenter = rect.left + rect.width / 2;
+      const tooltipLeft = left + containerRect.left;
+      let arrowLeft = badgeCenter - tooltipLeft;
+      arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
+      arrow.style.left = `${arrowLeft}px`;
+      arrow.style.transform = 'translateX(-50%)';
+      arrow.style.width = '0';
+      arrow.style.height = '0';
+      arrow.style.zIndex = '100000';
+      // Arrow on top (tooltip below badge, arrow points up)
+      arrow.style.top = '-6px';
+      arrow.style.borderLeft = '6px solid transparent';
+      arrow.style.borderRight = '6px solid transparent';
+      arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
+      arrow.style.borderTop = 'none';
+      globalTooltip.appendChild(arrow);
+
+      // Get all the computed colors we need
+      const computedStyle = getComputedStyle(document.body);
+      const borderLight = computedStyle.getPropertyValue('--border-light').trim();
+      const statusGood = computedStyle.getPropertyValue('--status-good').trim();
+      const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
+      const statusError = computedStyle.getPropertyValue('--status-error').trim();
+      const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
+      const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
+
+      // Set left border based on status
+      globalTooltip.style.borderLeft = '';
+      if (this.classList.contains('good')) {
+        globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
+      } else if (this.classList.contains('warning')) {
+        globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
+      } else if (this.classList.contains('error')) {
+        globalTooltip.style.borderLeft = `7px solid ${statusError}`;
+      } else if (this.classList.contains('low')) {
+        globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
+      }
+
+      // Set top, right, and bottom borders using --border-light
+      globalTooltip.style.borderTop = `3px solid ${borderLight}`;
+      globalTooltip.style.borderRight = `3px solid ${borderLight}`;
+      globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
+    });
+
+    addTrackedListener(badge, 'mouseleave', function() {
+      globalTooltip.style.display = 'none';
+      globalTooltip.textContent = '';
+      let arrow = globalTooltip.querySelector('.tooltip-arrow');
+      if (arrow) arrow.remove();
+    });
+    
+    // Mark as initialized
+    badge.setAttribute('data-tooltip-initialized', 'true');
+  });
+}
+
+// Use event delegation for performance
+document.addEventListener('mouseover', function (e) {
+  const target = e.target.closest('[data-tooltip]');
+  const tooltip = getCached('globalTooltip');
+  if (target && tooltip) {
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    let arrow = tooltip.querySelector('.tooltip-arrow');
+    if (arrow) arrow.remove();
+
+    tooltip.textContent = target.getAttribute('data-tooltip');
+
+    // Get all the computed colors we need
+    const computedStyle = getComputedStyle(document.body);
+    const borderLight = computedStyle.getPropertyValue('--border-light').trim();
+    const statusGood = computedStyle.getPropertyValue('--status-good').trim();
+    const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
+    const statusError = computedStyle.getPropertyValue('--status-error').trim();
+    const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
+    const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
+
+    // Set left border based on status
+    tooltip.style.borderLeft = '';
+    if (target.classList.contains('good')) {
+      tooltip.style.borderLeft = `7px solid ${statusGood}`;
+    } else if (target.classList.contains('warning')) {
+      tooltip.style.borderLeft = `7px solid ${statusWarning}`;
+    } else if (target.classList.contains('error')) {
+      tooltip.style.borderLeft = `7px solid ${statusError}`;
+    } else if (target.classList.contains('low')) {
+      tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
+    }
+
+    // Set top, right, and bottom borders using --border-light
+    tooltip.style.borderTop = `3px solid ${borderLight}`;
+    tooltip.style.borderRight = `3px solid ${borderLight}`;
+    tooltip.style.borderBottom = `3px solid ${borderLight}`;
+  }
+});
+
+// [KEEP ALL OTHER HELPER FUNCTIONS AS-IS]
+// Including collectMetaTagsHTML, collectSchemaHTML, updateSchemaData, etc.
+
+/**
+ * Collect meta tags as HTML for copying (UPDATED)
+ * @param {string} containerId - ID of the container to collect from
+ * @returns {string} HTML string of meta tags
+ */
+function collectMetaTagsHTML(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) {
+    console.warn(`Container with ID ${containerId} not found`);
+    return '';
+  }
+
+  const metaRows = container.querySelectorAll('.meta-row');
+  if (!metaRows.length) {
+    console.warn(`No meta rows found in container ${containerId}`);
+    return '<!-- No meta tags found -->';
+  }
+
+  const htmlTags = [];
+  
+  metaRows.forEach(row => {
+    const nameCell = row.querySelector('.meta-cell.name');
+    const valueCell = row.querySelector('.meta-cell.value:not(.empty)');
+    
+    if (!nameCell || !valueCell) return;
+    
+    const tagName = nameCell.textContent.trim();
+    const tagValue = valueCell.textContent.trim();
+    
+    if (!tagValue || tagValue === 'Not set') return;
+    
+    // Generate appropriate HTML based on tag type
+    let html = '';
+    
+    if (tagName.startsWith('og:')) {
+      html = `<meta property="${tagName}" content="${tagValue}">`;
+    } else if (tagName.startsWith('twitter:')) {
+      html = `<meta name="${tagName}" content="${tagValue}">`;
+    } else if (tagName === 'apple-touch-icon') {
+      html = `<link rel="apple-touch-icon" href="${tagValue}">`;
+    } else if (tagName === 'manifest') {
+      html = `<link rel="manifest" href="${tagValue}">`;
+    } else if (tagName === 'canonical') {
+      html = `<link rel="canonical" href="${tagValue}">`;
+    } else if (tagName === 'Title') {
+      html = `<title>${tagValue}</title>`;
+    } else {
+      // Standard meta tag
+      html = `<meta name="${tagName.toLowerCase()}" content="${tagValue}">`;
+    }
+    
+    htmlTags.push(html);
+  });
+  
+  return htmlTags.length > 0 ? htmlTags.join('\n') : '<!-- No valid meta tags found -->';
 }
 
 /**
@@ -800,7 +1701,7 @@ function updateSchemaData(schemaData) {
     });
     
     // Add click handler for accordion functionality
-    header.addEventListener('click', function() {
+    addTrackedListener(header, 'click', function() {
       toggleSchemaCard(schemaCard);
     });
     
@@ -1013,802 +1914,3 @@ function getSchemaKey(displayName) {
   
   return mapping[displayName] || displayName;
 }
-
-/**
- * Initialize social preview functionality with improved error handling
- */
-function initSocialPreviews() {
-  try {
-    console.log('Initializing social previews');
-    // Make sure we have the basic structure first
-    if (!ensureBasicPreviewStructure()) {
-      console.error('Failed to create basic preview structure');
-      return;
-    }
-    
-    // Initialize platform tabs
-    initSocialTabs();
-    
-    console.log('Social previews initialized successfully');
-  } catch (error) {
-    console.error('Error initializing social previews:', error);
-    showErrorInSocialTab('Failed to initialize social previews');
-  }
-}
-
-/**
- * Ensure the basic preview structure exists and create it if it doesn't
- * @returns {boolean} True if the structure exists or was created successfully
- */
-function ensureBasicPreviewStructure() {
-  try {
-    // Make sure we have a container for the previews
-    const previewTab = document.getElementById('social-preview-tab');
-    if (!previewTab) {
-      console.error('Social preview tab not found in the DOM');
-      return false;
-    }
-
-    // Make sure we have social tabs
-    if (!previewTab.querySelector('.social-tabs')) {
-      console.log('Creating social tabs container');
-      const socialTabs = document.createElement('div');
-      socialTabs.className = 'social-tabs';
-      socialTabs.innerHTML = `
-        <button class="social-tab active" data-preview="google">Google</button>
-        <button class="social-tab" data-preview="facebook">Facebook</button>
-        <button class="social-tab" data-preview="twitter">Twitter</button>
-        <button class="social-tab" data-preview="linkedin">LinkedIn</button>
-      `;
-      previewTab.prepend(socialTabs);
-    }
-
-    // Make sure we have a preview container
-    if (!previewTab.querySelector('.preview-container')) {
-      console.log('Creating preview container');
-      const previewContainer = document.createElement('div');
-      previewContainer.className = 'preview-container desktop-view';
-      
-      // Create basic preview panes
-      previewContainer.innerHTML = `
-        <!-- Google Preview -->
-        <div id="google-preview" class="preview-content active">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Google preview...</div>
-          </div>
-        </div>
-        
-        <!-- Facebook Preview -->
-        <div id="facebook-preview" class="preview-content">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Facebook preview...</div>
-          </div>
-        </div>
-        
-        <!-- Twitter Preview -->
-        <div id="twitter-preview" class="preview-content">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading Twitter preview...</div>
-          </div>
-        </div>
-
-        <!-- LinkedIn Preview -->
-        <div id="linkedin-preview" class="preview-content">
-          <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading LinkedIn preview...</div>
-          </div>
-        </div>
-      `;
-      
-      // Insert at appropriate position
-      const socialTabs = previewTab.querySelector('.social-tabs');
-      if (socialTabs) {
-        socialTabs.after(previewContainer);
-      } else {
-        previewTab.appendChild(previewContainer);
-      }
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error creating preview structure:', error);
-    return false;
-  }
-}
-
-/**
- * Show error message in social preview tab
- * @param {string} message - Error message to display
- */
-function showErrorInSocialTab(message) {
-  const previewTab = document.getElementById('social-preview-tab');
-  if (!previewTab) return;
-  
-  const existingError = previewTab.querySelector('.social-preview-error');
-  if (existingError) {
-    existingError.textContent = message;
-    return;
-  }
-  
-  const errorElement = document.createElement('div');
-  errorElement.className = 'social-preview-error error-indicator';
-  errorElement.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="10"></circle>
-      <line x1="12" y1="8" x2="12" y2="12"></line>
-      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-    <div class="error-text">${message}</div>
-  `;
-  
-  // Insert at beginning of tab
-  previewTab.prepend(errorElement);
-}
-
-/**
- * Initialize social tabs functionality
- * Only toggles visibility without regenerating content
- */
-function initSocialTabs() {
-  const tabs = document.querySelectorAll('.social-tab');
-  if (!tabs.length) return;
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      try {
-        // Get the target preview ID
-        const previewId = tab.getAttribute('data-preview');
-        if (!previewId) return;
-        
-        // Skip if already active
-        if (tab.classList.contains('active')) return;
-        
-        // Remove active class from all tabs and previews
-        document.querySelectorAll('.social-tab').forEach(t => {
-          t.classList.remove('active');
-        });
-        
-        document.querySelectorAll('.preview-content').forEach(content => {
-          content.classList.remove('active');
-        });
-        
-        // Add active class to clicked tab
-        tab.classList.add('active');
-        
-        // Find and activate corresponding preview
-        const previewElement = document.getElementById(`${previewId}-preview`);
-        if (previewElement) {
-          previewElement.classList.add('active');
-          // Just update the current platform in state, DON'T regenerate content
-          socialPreviewState.currentPlatform = previewId;
-        } else {
-          console.warn(`Preview element #${previewId}-preview not found`);
-        }
-      } catch (error) {
-        console.error('Error handling tab click:', error);
-      }
-    });
-  });
-}
-
-/**
- * Update all social previews with metadata
- * Generate all previews only ONCE when metadata is loaded
- */
-function updateSocialPreviews(metadata) {
-  if (!metadata) {
-    console.warn('No metadata provided to update social previews');
-    return;
-  }
-  
-  console.log('Updating social previews with metadata', metadata);
-  
-  // Extract metadata from the response
-  const title = metadata.basicMeta?.find(tag => tag.label === 'Title')?.value || '';
-  const description = metadata.basicMeta?.find(tag => tag.label === 'Description')?.value || '';
-  const ogTitle = metadata.ogMeta?.find(tag => tag.label === 'og:title')?.value || '';
-  const ogDescription = metadata.ogMeta?.find(tag => tag.label === 'og:description')?.value || '';
-  const ogImage = metadata.ogMeta?.find(tag => tag.label === 'og:image')?.value || '';
-  const twitterTitle = metadata.twitterMeta?.find(tag => tag.label === 'twitter:title')?.value || '';
-  const twitterDescription = metadata.twitterMeta?.find(tag => tag.label === 'twitter:description')?.value || '';
-  const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || '';
-  const siteName = metadata.ogMeta?.find(tag => tag.label === 'og:site_name')?.value || '';
-
-  // Store metadata in state
-  socialPreviewState.originalMetadata = {
-    title,
-    description,
-    ogTitle,
-    ogDescription,
-    ogImage,
-    twitterTitle,
-    twitterDescription,
-    twitterImage,
-    siteName
-  };
-  
-  // Generate social preview content for all platforms
-  generateAllPreviews();
-  
-  // Activate the first tab if none is active
-  const activeTab = document.querySelector('.social-tab.active');
-  if (!activeTab) {
-    const firstTab = document.querySelector('.social-tab');
-    if (firstTab) {
-      firstTab.click();
-    }
-  }
-}
-
-/**
- * Generate preview content for all platforms
- * This runs only once when metadata is loaded
- */
-function generateAllPreviews() {
-  console.log('Generating all social preview content');
-  
-  if (!socialPreviewState.originalMetadata) {
-    console.warn('No metadata available for previews');
-    return;
-  }
-  
-  const metadata = socialPreviewState.originalMetadata;
-  const hostname = socialPreviewState.pageHostname || 'example.com';
-  
-  // Get values with fallbacks
-  const title = metadata.title || metadata.ogTitle || metadata.twitterTitle || '';
-  const description = metadata.description || metadata.ogDescription || metadata.twitterDescription || '';
-  const image = metadata.ogImage || metadata.twitterImage || '';
-  const siteName = metadata.siteName || '';
-
-  // Generate previews for each platform
-  generateGooglePreview(hostname, title, description);
-  generateFacebookPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
-  generateTwitterPreview(metadata, hostname, metadata.twitterTitle || metadata.ogTitle || title, metadata.twitterDescription || metadata.ogDescription || description, metadata.twitterImage || image);
-  generateLinkedInPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
-  generateSlackPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
-}
-
-/**
- * Generate Google preview with metadata
- */
-function generateGooglePreview(hostname, title, description) {
-  const preview = document.getElementById('google-preview');
-  if (!preview) return;
-  
-  preview.innerHTML = `
-    <div class="google-preview">
-      <div class="preview-url">${hostname}</div>
-      <div class="preview-title">${title || 'No title available'}</div>
-      <div class="preview-description">${description || 'No description available'}</div>
-    </div>
-  `;
-}
-
-/**
- * Generate Facebook preview with metadata
- */
-function generateFacebookPreview(hostname, title, description, image, siteName) {
-  const preview = document.getElementById('facebook-preview');
-  if (!preview) return;
-  
-  let facebookImage = image;
-  if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
-    facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
-  }
-  
-  preview.innerHTML = `
-    <div class="card-seo-facebook">
-      ${facebookImage ? 
-        `<img class="card-seo-facebook__image" src="${facebookImage}" alt="Facebook preview image">` :
-        `<div class="preview-image-placeholder">No image available</div>`
-      }
-      <div class="card-seo-facebook__footer">
-        <div class="card-seo-facebook__domain">${hostname.toUpperCase()}</div>
-        <div class="card-seo-facebook__title">${title || 'No title available'}</div>
-        <div class="card-seo-facebook__description">${description || 'No description available'}</div>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Generate Twitter preview with metadata
- */
-function generateTwitterPreview(metadata, hostname, title, description, image) {
-  const preview = document.getElementById('twitter-preview');
-  if (!preview) return;
-
-  // Fallback logic for Twitter card
-  const cardImage = metadata.twitterImage || metadata.ogImage || image || '';
-  const cardTitle = metadata.twitterTitle || metadata.ogTitle || title || '';
-  const cardDescription = metadata.twitterDescription || metadata.ogDescription || description || '';
-  const cardDomain = hostname || '';
-
-  preview.innerHTML = `
-    <div class="card-seo-twitter">
-      ${cardImage ?
-        `<img class="card-seo-twitter__image" src="${cardImage}" alt="Twitter preview image">` :
-        `<div class="preview-image-placeholder">No image available</div>`
-      }
-      <div class="card-seo-twitter__footer">
-        <div class="card-seo-twitter__title">${cardTitle || 'No title available'}</div>
-        <div class="card-seo-twitter__description">${cardDescription || 'No description available'}</div>
-        <div class="card-seo-twitter__domain">${cardDomain}</div>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Generate LinkedIn preview with metadata
- */
-function generateLinkedInPreview(hostname, title, description, image, siteName) {
-  const preview = document.getElementById('linkedin-preview');
-  if (!preview) return;
-
-  // Prefer og:site_name if available, otherwise use hostname
-  const domain = siteName || hostname;
-
-  preview.innerHTML = `
-    <div class="linkedin-preview">
-      <img src="${image || ''}" alt="preview image" class="thumbnail" />
-      <div class="text-content">
-        <h3 class="title">${title || 'No title available'}</h3>
-        <div class="site-name">${domain || ''}</div>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Generate Slack preview with metadata
- */
-function generateSlackPreview(hostname, title, description, image, siteName) {
-  const preview = document.getElementById('slack-preview');
-  if (!preview) return;
-
-  const domain = siteName || hostname;
-  // Always use the actual favicon, not og:image
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}`;
-
-  preview.innerHTML = `
-    <div class="card-seo-slack">
-      <div class="card-seo-slack__bar"></div>
-      <div class="card-seo-slack__content">
-        <div class="flex">
-          <img src="${faviconUrl}" class="card-seo-slack__favicon" alt="favicon">
-          <span class="card-seo-slack__link js-preview-site-name">${domain || ''}</span>
-        </div>
-        <div class="card-seo-slack__title js-preview-title">${title || 'No title available'}</div>
-        <span class="card-seo-slack__description js-preview-description">${description || ''}</span>
-        ${image ? `<div class="card-seo-slack__image js-preview-image js-slack-image" style="background-image:url('${image}')"></div>` : ''}
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Initialize theme toggle functionality
- */
-function initThemeToggle() {
-  const themeToggle = document.getElementById('theme-toggle');
-  if (!themeToggle) return;
-  
-  const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-  
-  // Set initial theme based on user preference or localStorage
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) {
-    document.body.setAttribute('data-theme', savedTheme);
-    state.darkMode = savedTheme === 'dark';
-  } else if (prefersDarkScheme.matches) {
-    document.body.setAttribute('data-theme', 'dark');
-    state.darkMode = true;
-  } else {
-    document.body.setAttribute('data-theme', 'light');
-    state.darkMode = false;
-  }
-  
-  themeToggle.addEventListener('click', () => {
-    state.darkMode = !state.darkMode;
-    const newTheme = state.darkMode ? 'dark' : 'light';
-    
-    document.body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-});
-}
-
-/**
- * Initialize tab navigation functionality
- */
-function initTabNavigation() {
-  const tabButtons = document.querySelectorAll('.tab-button');
-  
-  tabButtons.forEach(button => {
-    if (!button) return;
-    
-    button.addEventListener('click', () => {
-      // Get the target tab ID
-      const tabId = button.getAttribute('data-tab');
-      if (!tabId) {
-        console.warn('Tab button missing data-tab attribute');
-        return;
-      }
-      
-      // Skip if already active
-      if (button.classList.contains('active')) return;
-      
-      // Remove active class from all tab buttons and panes
-      document.querySelectorAll('.tab-button').forEach(tab => {
-        if (tab && tab.classList) {
-          tab.classList.remove('active');
-        }
-      });
-      
-      document.querySelectorAll('.tab-pane').forEach(pane => {
-        if (pane && pane.classList) {
-          pane.classList.remove('active');
-        }
-      });
-      
-      // Add active class to clicked tab button and corresponding pane
-      button.classList.add('active');
-      
-      // Special handling for social preview tab
-      const targetPaneId = tabId === 'social' ? 'social-preview-tab' : `${tabId}-tab`;
-      const targetPane = document.getElementById(targetPaneId);
-      
-      if (targetPane && targetPane.classList) {
-        targetPane.classList.add('active');
-      } else {
-        console.warn(`Target tab pane #${targetPaneId} not found`);
-      }
-      
-      // Initialize tooltips after tab change
-      initTooltips();
-    });
-  });
-}
-
-/**
- * Initialize copy buttons functionality
- */
-function initCopyButtons() {
-  // Initialize copy buttons for different meta sections
-  setupCopyButton('copy-basic-meta', () => collectMetaTagsHTML('basic-meta-content'));
-  setupCopyButton('copy-og-meta', () => collectMetaTagsHTML('og-meta-content'));
-  setupCopyButton('copy-twitter-meta', () => collectMetaTagsHTML('twitter-meta-content'));
-  setupCopyButton('copy-schema', () => collectSchemaHTML('schema-content'));
-}
-
-/**
- * Set up a copy button with click handler
- * @param {string} buttonId - ID of the copy button
- * @param {Function} getTextFn - Function to get text to copy
- */
-function setupCopyButton(buttonId, getTextFn) {
-  const button = document.getElementById(buttonId);
-  if (!button) {
-    console.warn(`Copy button with ID ${buttonId} not found`);
-    return;
-  }
-
-  button.addEventListener('click', async () => {
-    try {
-      const textToCopy = getTextFn();
-      if (!textToCopy) {
-        console.warn('No text to copy');
-        return;
-      }
-
-      await navigator.clipboard.writeText(textToCopy);
-      showToast('Copied to clipboard!');
-    } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      showToast('Failed to copy to clipboard');
-    }
-  });
-}
-
-/**
- * Collect meta tags as HTML for copying (UPDATED)
- * @param {string} containerId - ID of the container to collect from
- * @returns {string} HTML string of meta tags
- */
-function collectMetaTagsHTML(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) {
-    console.warn(`Container with ID ${containerId} not found`);
-    return '';
-  }
-
-  const metaRows = container.querySelectorAll('.meta-row');
-  if (!metaRows.length) {
-    console.warn(`No meta rows found in container ${containerId}`);
-    return '<!-- No meta tags found -->';
-  }
-
-  const htmlTags = [];
-  
-  metaRows.forEach(row => {
-    const nameCell = row.querySelector('.meta-cell.name');
-    const valueCell = row.querySelector('.meta-cell.value:not(.empty)');
-    
-    if (!nameCell || !valueCell) return;
-    
-    const tagName = nameCell.textContent.trim();
-    const tagValue = valueCell.textContent.trim();
-    
-    if (!tagValue || tagValue === 'Not set') return;
-    
-    // Generate appropriate HTML based on tag type
-    let html = '';
-    
-    if (tagName.startsWith('og:')) {
-      html = `<meta property="${tagName}" content="${tagValue}">`;
-    } else if (tagName.startsWith('twitter:')) {
-      html = `<meta name="${tagName}" content="${tagValue}">`;
-    } else if (tagName === 'apple-touch-icon') {
-      html = `<link rel="apple-touch-icon" href="${tagValue}">`;
-    } else if (tagName === 'manifest') {
-      html = `<link rel="manifest" href="${tagValue}">`;
-    } else if (tagName === 'canonical') {
-      html = `<link rel="canonical" href="${tagValue}">`;
-    } else if (tagName === 'Title') {
-      html = `<title>${tagValue}</title>`;
-    } else {
-      // Standard meta tag
-      html = `<meta name="${tagName.toLowerCase()}" content="${tagValue}">`;
-    }
-    
-    htmlTags.push(html);
-  });
-  
-  return htmlTags.length > 0 ? htmlTags.join('\n') : '<!-- No valid meta tags found -->';
-}
-
-/**
- * Show a toast notification
- * @param {string} message - Message to display
- */
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  
-  const toastMessage = toast.querySelector('span');
-  if (toastMessage) {
-    toastMessage.textContent = message;
-  }
-  
-  toast.classList.add('show');
-  
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, CONFIG.toastDuration);
-}
-
-/**
- * Helper to extract hostname from URL
- * @param {string} url - URL to extract hostname from
- * @returns {string} Hostname
- */
-function extractHostname(url) {
-  try {
-    return new URL(url).hostname;
-  } catch (e) {
-    return url || 'example.com';
-  }
-}
-
-/**
- * Initialize meta section tabs functionality
- */
-function initMetaSectionTabs() {
-  const metaSectionTabs = document.querySelectorAll('.meta-section-tab');
-  
-  metaSectionTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      // Get the target pane ID
-      const targetId = tab.getAttribute('data-target');
-      if (!targetId) return;
-      
-      // Remove active class from all tabs and panes
-      document.querySelectorAll('.meta-section-tab').forEach(t => {
-        t.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.meta-section-pane').forEach(pane => {
-        pane.classList.remove('active');
-      });
-      
-      // Add active class to clicked tab
-      tab.classList.add('active');
-      
-      // Add active class to corresponding pane
-      const targetPane = document.getElementById(targetId);
-      if (targetPane) {
-        targetPane.classList.add('active');
-      }
-      
-      // Initialize tooltips after meta section tab change
-      initTooltips();
-    });
-  });
-}
-
-/**
- * Initialize impact tabs functionality
- */
-function initImpactTabs() {
-  const impactTabs = document.querySelectorAll('.impact-tab');
-  
-  impactTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      // Get the target impact level
-      const impactLevel = tab.getAttribute('data-impact');
-      if (!impactLevel) return;
-      
-      // Remove active class from all tabs and panes
-      document.querySelectorAll('.impact-tab').forEach(t => {
-        t.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.impact-pane').forEach(pane => {
-        pane.classList.remove('active');
-      });
-      
-      // Add active class to clicked tab
-      tab.classList.add('active');
-      
-      // Add active class to corresponding pane
-      const targetPane = document.getElementById(`${impactLevel}-issues`);
-      if (targetPane) {
-        targetPane.classList.add('active');
-      }
-    });
-  });
-}
-
-/**
- * Initialize tooltips and adjust their positions to stay within viewport
- * This should be called after loading meta tags or whenever new tooltips are added
- */
-function initTooltips() {
-  const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
-  const globalTooltip = document.getElementById('global-tooltip');
-
-  statusBadges.forEach(badge => {
-    badge.addEventListener('mouseenter', function(e) {
-      const tooltipText = this.getAttribute('data-tooltip');
-      if (!tooltipText) return;
-
-      // Always define isDark at the top
-      const isDark = document.body.getAttribute('data-theme') === 'dark';
-      // Find the closest .meta-section-content ancestor
-      let container = this.closest('.meta-section-content');
-      if (!container) {
-        // Fallback: use body as container (viewport)
-        container = document.body;
-      }
-
-      globalTooltip.textContent = tooltipText;
-      globalTooltip.style.display = 'block';
-
-      const rect = this.getBoundingClientRect();
-      const tooltipRect = globalTooltip.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-
-      // Always open below the badge (arrow on top)
-      let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
-      let top = rect.bottom - containerRect.top + 10;
-      let arrowPosition = 'bottom';
-
-      // Adjust if tooltip would go off screen horizontally
-      if (left < 10) {
-        left = 10;
-      } else if (left + tooltipRect.width > containerRect.width - 10) {
-        left = containerRect.width - tooltipRect.width - 10;
-      }
-
-      globalTooltip.style.left = `${left + containerRect.left}px`;
-      globalTooltip.style.top = `${top + containerRect.top}px`;
-
-      // Add arrow, always on top (pointing up)
-      let arrow = document.createElement('div');
-      arrow.className = 'tooltip-arrow';
-      arrow.style.position = 'absolute';
-      const badgeCenter = rect.left + rect.width / 2;
-      const tooltipLeft = left + containerRect.left;
-      let arrowLeft = badgeCenter - tooltipLeft;
-      arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
-      arrow.style.left = `${arrowLeft}px`;
-      arrow.style.transform = 'translateX(-50%)';
-      arrow.style.width = '0';
-      arrow.style.height = '0';
-      arrow.style.zIndex = '100000';
-      // Arrow on top (tooltip below badge, arrow points up)
-      arrow.style.top = '-6px';
-      arrow.style.borderLeft = '6px solid transparent';
-      arrow.style.borderRight = '6px solid transparent';
-      arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
-      arrow.style.borderTop = 'none';
-      globalTooltip.appendChild(arrow);
-
-      // Get all the computed colors we need
-      const computedStyle = getComputedStyle(document.body);
-      const borderLight = computedStyle.getPropertyValue('--border-light').trim();
-      const statusGood = computedStyle.getPropertyValue('--status-good').trim();
-      const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
-      const statusError = computedStyle.getPropertyValue('--status-error').trim();
-      const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
-      const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
-
-      // Set left border based on status
-      globalTooltip.style.borderLeft = '';
-      if (this.classList.contains('good')) {
-        globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
-      } else if (this.classList.contains('warning')) {
-        globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
-      } else if (this.classList.contains('error')) {
-        globalTooltip.style.borderLeft = `7px solid ${statusError}`;
-      } else if (this.classList.contains('low')) {
-        globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
-      }
-
-      // Set top, right, and bottom borders using --border-light
-      globalTooltip.style.borderTop = `3px solid ${borderLight}`;
-      globalTooltip.style.borderRight = `3px solid ${borderLight}`;
-      globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
-    });
-
-    badge.addEventListener('mouseleave', function() {
-      globalTooltip.style.display = 'none';
-      globalTooltip.textContent = '';
-      let arrow = globalTooltip.querySelector('.tooltip-arrow');
-      if (arrow) arrow.remove();
-    });
-  });
-}
-
-document.addEventListener('mouseover', function (e) {
-  const target = e.target.closest('[data-tooltip]');
-  const tooltip = document.getElementById('global-tooltip');
-  if (target && tooltip) {
-    const isDark = document.body.getAttribute('data-theme') === 'dark';
-    let arrow = tooltip.querySelector('.tooltip-arrow');
-    if (arrow) arrow.remove();
-
-    tooltip.textContent = target.getAttribute('data-tooltip');
-
-    // Get all the computed colors we need
-    const computedStyle = getComputedStyle(document.body);
-    const borderLight = computedStyle.getPropertyValue('--border-light').trim();
-    const statusGood = computedStyle.getPropertyValue('--status-good').trim();
-    const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
-    const statusError = computedStyle.getPropertyValue('--status-error').trim();
-    const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
-    const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
-
-    // Set left border based on status
-    tooltip.style.borderLeft = '';
-    if (target.classList.contains('good')) {
-      tooltip.style.borderLeft = `7px solid ${statusGood}`;
-    } else if (target.classList.contains('warning')) {
-      tooltip.style.borderLeft = `7px solid ${statusWarning}`;
-    } else if (target.classList.contains('error')) {
-      tooltip.style.borderLeft = `7px solid ${statusError}`;
-    } else if (target.classList.contains('low')) {
-      tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
-    }
-
-    // Set top, right, and bottom borders using --border-light
-    tooltip.style.borderTop = `3px solid ${borderLight}`;
-    tooltip.style.borderRight = `3px solid ${borderLight}`;
-    tooltip.style.borderBottom = `3px solid ${borderLight}`;
-  }
-});

@@ -1,5 +1,5 @@
 /**
- * MetaPeek Content Script
+ * MetaPeek Content Script - FIXED FOR MEMORY LEAKS AND PERFORMANCE
  * Extracts and analyzes metadata from web pages
  */
 
@@ -9,22 +9,17 @@ console.log('MetaPeek content script initialized');
 window.MetaPeek = window.MetaPeek || {
   initialized: false,
   observer: null,
-  metadata: null
+  metadata: null,
+  messageListener: null,
+  tooltipListeners: new WeakMap(),
+  lastExtractTime: 0,
+  extractionTimeout: null
 };
 
 /**
  * Enhanced Meta Tag Validation for MetaPeek
- * 
- * This code implements comprehensive validation for all meta tags according to
- * industry standards. It includes validation for:
- * - Basic meta tags (title, description, keywords, etc.)
- * - Open Graph tags (og:title, og:description, og:image, etc.)
- * - Twitter Card tags (twitter:card, twitter:title, etc.)
- * - Canonical URL
- * - Schema.org structured data
+ * [KEEP ALL THE META_TAG_STANDARDS DEFINITION AS-IS]
  */
-
-// First, let's define comprehensive standards for ALL meta tags
 const META_TAG_STANDARDS = {
   // Basic Meta Tags
   title: { 
@@ -221,6 +216,39 @@ const META_TAG_STANDARDS = {
 };
 
 const CACHE_DURATION = 120000; // 2 minutes in ms
+const EXTRACTION_DEBOUNCE = 500; // Debounce metadata extraction
+
+/**
+ * Cleanup function to prevent memory leaks
+ */
+function cleanup() {
+  console.log('Cleaning up MetaPeek resources');
+  
+  // Disconnect observer
+  if (window.MetaPeek.observer) {
+    window.MetaPeek.observer.disconnect();
+    window.MetaPeek.observer = null;
+  }
+  
+  // Remove message listener
+  if (window.MetaPeek.messageListener) {
+    chrome.runtime.onMessage.removeListener(window.MetaPeek.messageListener);
+    window.MetaPeek.messageListener = null;
+  }
+  
+  // Clear extraction timeout
+  if (window.MetaPeek.extractionTimeout) {
+    clearTimeout(window.MetaPeek.extractionTimeout);
+    window.MetaPeek.extractionTimeout = null;
+  }
+  
+  // Clear tooltip listeners
+  window.MetaPeek.tooltipListeners = new WeakMap();
+  
+  // Reset state
+  window.MetaPeek.initialized = false;
+  window.MetaPeek.metadata = null;
+}
 
 /**
  * Initialize the MetaPeek observer and start collecting metadata
@@ -232,63 +260,62 @@ function initializeMetaPeek() {
   }
   
   console.log('Initializing MetaPeek');
+  
+  // Cleanup any existing resources first
+  cleanup();
+  
   window.MetaPeek.initialized = true;
   
   try {
-    // Create and configure mutation observer to watch for DOM changes
+    // Create and configure mutation observer with optimized settings
     window.MetaPeek.observer = new MutationObserver((mutations) => {
-      // Only process if we have relevant mutations (childList changes)
-      if (mutations.some(mutation => mutation.type === 'childList')) {
-        try {
-          const metadata = getPageMetadata();
-          window.MetaPeek.metadata = metadata;
+      // Debounce metadata extraction
+      if (window.MetaPeek.extractionTimeout) {
+        clearTimeout(window.MetaPeek.extractionTimeout);
+      }
+      
+      window.MetaPeek.extractionTimeout = setTimeout(() => {
+        // Only process if we have relevant mutations
+        const hasRelevantMutations = mutations.some(mutation => {
+          if (mutation.type !== 'childList') return false;
           
-          // Wrap the message sending in a try-catch to handle context invalidation
-          try {
-            chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
-              .catch(error => {
-                // Handle specific error cases
-                if (error.message && error.message.includes('Extension context invalidated')) {
-                  console.debug('Extension context invalidated, attempting to reconnect...');
-                  // Attempt to reconnect by reinitializing
-                  window.MetaPeek.initialized = false;
-                  setTimeout(() => {
-                    try {
-                      initializeMetaPeek();
-                    } catch (reinitError) {
-                      console.debug('Failed to reconnect:', reinitError);
-                    }
-                  }, 1000); // Wait 1 second before attempting to reconnect
-                } else {
-                  console.error('Error sending metadata update:', error);
-                }
-              });
-          } catch (error) {
-            // Handle runtime errors (like context invalidation)
-            if (error.message && error.message.includes('Extension context invalidated')) {
-              console.debug('Extension context invalidated, attempting to reconnect...');
-              window.MetaPeek.initialized = false;
-              setTimeout(() => {
-                try {
-                  initializeMetaPeek();
-                } catch (reinitError) {
-                  console.debug('Failed to reconnect:', reinitError);
-                }
-              }, 1000);
-            } else {
-              console.error('Runtime error sending metadata update:', error);
+          // Check if mutations affect meta tags or title
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              if (node.tagName === 'META' || node.tagName === 'TITLE' || 
+                  node.tagName === 'LINK' || node.tagName === 'SCRIPT') {
+                return true;
+              }
+              // Check for meta tags in subtree
+              if (node.querySelector && node.querySelector('meta, title, link[rel="canonical"], script[type="application/ld+json"]')) {
+                return true;
+              }
             }
           }
-        } catch (error) {
-          console.error('Error processing metadata:', error);
+          return false;
+        });
+        
+        if (hasRelevantMutations) {
+          try {
+            const metadata = getPageMetadata();
+            window.MetaPeek.metadata = metadata;
+            
+            // Send metadata update with error handling
+            sendMetadataUpdate(metadata);
+          } catch (error) {
+            console.error('Error processing metadata:', error);
+          }
         }
-      }
+      }, EXTRACTION_DEBOUNCE);
     });
     
-    // Start observing
-    window.MetaPeek.observer.observe(document.documentElement, { 
+    // Observe only the head element for better performance
+    const head = document.head || document.documentElement;
+    window.MetaPeek.observer.observe(head, { 
       childList: true, 
-      subtree: true 
+      subtree: true,
+      attributes: false,
+      characterData: false
     });
     
     console.log('MetaPeek observer started');
@@ -300,40 +327,7 @@ function initializeMetaPeek() {
       console.log('Initial metadata collected');
       
       // Send initial metadata
-      try {
-        chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
-          .catch(error => {
-            if (error.message && error.message.includes('Extension context invalidated')) {
-              console.debug('Extension context invalidated during initial metadata send');
-              // Attempt to reconnect
-              window.MetaPeek.initialized = false;
-              setTimeout(() => {
-                try {
-                  initializeMetaPeek();
-                } catch (reinitError) {
-                  console.debug('Failed to reconnect:', reinitError);
-                }
-              }, 1000);
-            } else {
-              console.error('Error sending initial metadata:', error);
-            }
-          });
-      } catch (error) {
-        if (error.message && error.message.includes('Extension context invalidated')) {
-          console.debug('Extension context invalidated during initial metadata send');
-          // Attempt to reconnect
-          window.MetaPeek.initialized = false;
-          setTimeout(() => {
-            try {
-              initializeMetaPeek();
-            } catch (reinitError) {
-              console.debug('Failed to reconnect:', reinitError);
-            }
-          }, 1000);
-        } else {
-          console.error('Runtime error sending initial metadata:', error);
-        }
-      }
+      sendMetadataUpdate(metadata);
     } catch (error) {
       console.error('Error collecting initial metadata:', error);
     }
@@ -345,10 +339,40 @@ function initializeMetaPeek() {
 }
 
 /**
+ * Send metadata update with proper error handling
+ */
+function sendMetadataUpdate(metadata) {
+  try {
+    chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
+      .catch(error => {
+        if (error.message && error.message.includes('Extension context invalidated')) {
+          console.debug('Extension context invalidated, cleaning up...');
+          cleanup();
+        } else {
+          console.error('Error sending metadata update:', error);
+        }
+      });
+  } catch (error) {
+    if (error.message && error.message.includes('Extension context invalidated')) {
+      console.debug('Extension context invalidated, cleaning up...');
+      cleanup();
+    } else {
+      console.error('Runtime error sending metadata update:', error);
+    }
+  }
+}
+
+/**
  * Message handler for communication with popup and background scripts
  */
 function setupMessageListener() {
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Remove any existing listener first
+  if (window.MetaPeek.messageListener) {
+    chrome.runtime.onMessage.removeListener(window.MetaPeek.messageListener);
+  }
+  
+  // Create new listener
+  window.MetaPeek.messageListener = (request, sender, sendResponse) => {
     console.log('Message received in content script:', request.type);
     
     try {
@@ -369,16 +393,8 @@ function setupMessageListener() {
       console.error('Error handling message:', error);
       if (error.message && error.message.includes('Extension context invalidated')) {
         console.debug('Extension context invalidated during message handling');
-        // Attempt to reconnect
-        window.MetaPeek.initialized = false;
-        setTimeout(() => {
-          try {
-            initializeMetaPeek();
-          } catch (reinitError) {
-            console.debug('Failed to reconnect:', reinitError);
-          }
-        }, 1000);
-        sendResponse({ error: 'Extension context invalidated, attempting to reconnect' });
+        cleanup();
+        sendResponse({ error: 'Extension context invalidated' });
       } else {
         sendResponse({ error: error.message });
       }
@@ -386,7 +402,10 @@ function setupMessageListener() {
     
     // Keep the message channel open for async responses
     return true;
-  });
+  };
+  
+  // Add the listener
+  chrome.runtime.onMessage.addListener(window.MetaPeek.messageListener);
 }
 
 /**
@@ -396,11 +415,23 @@ function setupMessageListener() {
 function handleGetMetadataRequest(sendResponse) {
   console.log('Processing getMetadata request');
   
-  // Always collect fresh metadata when requested
+  // Check if we have recent cached metadata
+  const now = Date.now();
+  if (window.MetaPeek.metadata && 
+      window.MetaPeek.lastExtractTime && 
+      (now - window.MetaPeek.lastExtractTime) < 1000) {
+    // Use cached metadata if it's less than 1 second old
+    console.log('Using cached metadata');
+    sendResponse(window.MetaPeek.metadata);
+    return;
+  }
+  
+  // Collect fresh metadata
   const metadata = getPageMetadata();
   
   // Cache it for later use
   window.MetaPeek.metadata = metadata;
+  window.MetaPeek.lastExtractTime = now;
   
   console.log('Sending metadata response');
   sendResponse(metadata);
@@ -419,6 +450,9 @@ function handleSEOHealthRequest(sendResponse) {
   console.log('Sending SEO health response');
   sendResponse(seoHealth);
 }
+
+// [KEEP ALL OTHER FUNCTIONS AS-IS: getPageMetadata, extractBasicMetaTags, etc.]
+// Including all the extraction and validation functions unchanged
 
 /**
  * Extract metadata from the current page
@@ -476,7 +510,7 @@ function getPageMetadata() {
  */
 function extractBasicMetaTags(metadata) {
   // Title validation
-    const title = document.querySelector('title')?.textContent || '';
+  const title = document.querySelector('title')?.textContent || '';
   let titleStatus = 'error';
   let titleMessage = META_TAG_STANDARDS.title.message.missing;
   
@@ -494,7 +528,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Description validation
-    const description = document.querySelector('meta[name="description"]')?.content || '';
+  const description = document.querySelector('meta[name="description"]')?.content || '';
   let descStatus = 'error';
   let descMessage = META_TAG_STANDARDS.description.message.missing;
   
@@ -512,7 +546,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Keywords validation
-    const keywords = document.querySelector('meta[name="keywords"]')?.content || '';
+  const keywords = document.querySelector('meta[name="keywords"]')?.content || '';
   let keywordsStatus = 'warning';
   let keywordsMessage = META_TAG_STANDARDS.keywords.message.missing;
   
@@ -528,7 +562,7 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Viewport validation
-    const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
+  const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
   let viewportStatus = 'error';
   let viewportMessage = META_TAG_STANDARDS.viewport.message.missing;
   
@@ -575,34 +609,34 @@ function extractBasicMetaTags(metadata) {
   }
   
   // Build the basic meta tags array
-    metadata.basicMeta = [
-      { 
-        label: 'Title', 
-        value: title,
+  metadata.basicMeta = [
+    { 
+      label: 'Title', 
+      value: title,
       status: titleStatus,
       message: titleMessage
-      },
-      { 
-        label: 'Description', 
-        value: description,
+    },
+    { 
+      label: 'Description', 
+      value: description,
       status: descStatus,
       message: descMessage
-      },
-      { 
-        label: 'Keywords', 
-        value: keywords,
+    },
+    { 
+      label: 'Keywords', 
+      value: keywords,
       status: keywordsStatus,
       message: keywordsMessage
-      },
-      { 
-        label: 'Viewport', 
-        value: viewport,
+    },
+    { 
+      label: 'Viewport', 
+      value: viewport,
       status: viewportStatus,
       message: viewportMessage
-      },
-      { 
-        label: 'Robots', 
-        value: robots,
+    },
+    { 
+      label: 'Robots', 
+      value: robots,
       status: robotsStatus,
       message: robotsMessage
     }
@@ -684,14 +718,14 @@ function extractOpenGraphTags(metadata) {
     const element = document.querySelector(`meta[property="${tag.name}"]`);
     const value = element?.content || '';
     const validation = tag.validate(value);
-      
-      return {
+    
+    return {
       label: tag.name,
-        value: value,
+      value: value,
       status: validation.status,
       message: validation.message
-      };
-    });
+    };
+  });
 }
 
 /**
@@ -766,14 +800,14 @@ function extractTwitterCardTags(metadata) {
     const element = document.querySelector(`meta[name="${tag.name}"]`);
     const value = element?.content || '';
     const validation = tag.validate(value);
-      
-      return {
+    
+    return {
       label: tag.name,
-        value: value,
+      value: value,
       status: validation.status,
       message: validation.message
-      };
-    });
+    };
+  });
 }
 
 /**
@@ -813,8 +847,8 @@ function validateCanonicalUrl(metadata) {
  * @param {Object} metadata - Metadata object to update
  */
 function extractSchemaData(metadata) {
-    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
-    let schemas = [];
+  const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+  let schemas = [];
 
   // List of important types (can be expanded)
   const importantTypes = [
@@ -826,26 +860,26 @@ function extractSchemaData(metadata) {
     if (Array.isArray(type)) return type.some(t => importantTypes.includes(t));
     return importantTypes.includes(type);
   }
+  
+  schemaScripts.forEach(script => {
+    let json;
+    let valid = true;
+    try {
+      json = JSON.parse(script.textContent);
+    } catch (e) {
+      valid = false;
+      json = null;
+    }
     
-    schemaScripts.forEach(script => {
-      let json;
-      let valid = true;
-      try {
-        json = JSON.parse(script.textContent);
-      } catch (e) {
-        valid = false;
-        json = null;
-      }
+    if (valid && json) {
+      // Handle both single objects and arrays of objects
+      const jsonArray = Array.isArray(json) ? json : [json];
       
-      if (valid && json) {
-        // Handle both single objects and arrays of objects
-        const jsonArray = Array.isArray(json) ? json : [json];
-        
-        jsonArray.forEach(item => {
+      jsonArray.forEach(item => {
         // Root-level object with @type
         if (item && typeof item === 'object' && item['@type']) {
-            schemas.push({ valid: true, data: item, hasType: true });
-          }
+          schemas.push({ valid: true, data: item, hasType: true });
+        }
         // One level deep: check direct children for @type
         if (item && typeof item === 'object') {
           Object.values(item).forEach(val => {
@@ -862,12 +896,12 @@ function extractSchemaData(metadata) {
             }
           });
         }
-        });
-      } else {
-        schemas.push({ valid: false, data: null, hasType: false });
-      }
-    });
-    
+      });
+    } else {
+      schemas.push({ valid: false, data: null, hasType: false });
+    }
+  });
+  
   // Remove duplicates (by stringified data)
   const seen = new Set();
   schemas = schemas.filter(schema => {
@@ -1021,13 +1055,13 @@ function generateRecommendations(metadata) {
   // Basic Meta Tags Issues
   if (metadata.basicMeta && metadata.basicMeta.some(tag => tag.status !== 'good')) {
     const basicIssues = metadata.basicMeta
-        .filter(tag => tag.status !== 'good')
-        .map(tag => {
+      .filter(tag => tag.status !== 'good')
+      .map(tag => {
         const standardKey = getStandardKey(tag.label);
         const standard = META_TAG_STANDARDS[standardKey];
         const impact = getImpactLevel(standard?.impact);
-            
-            return {
+        
+        return {
           issue: getIssueTitle(tag.label, tag.status),
           details: tag.message || getDefaultMessage(tag.label, tag.status),
           impact: impact,
@@ -1051,8 +1085,8 @@ function generateRecommendations(metadata) {
         const standardKey = getStandardKey(tag.label);
         const standard = META_TAG_STANDARDS[standardKey];
         const impact = getImpactLevel(standard?.impact);
-            
-            return {
+        
+        return {
           issue: getIssueTitle(tag.label, tag.status),
           details: tag.message || getDefaultMessage(tag.label, tag.status),
           impact: impact,
@@ -1077,7 +1111,7 @@ function generateRecommendations(metadata) {
         const standard = META_TAG_STANDARDS[standardKey];
         const impact = getImpactLevel(standard?.impact);
         
-            return {
+        return {
           issue: getIssueTitle(tag.label, tag.status),
           details: tag.message || getDefaultMessage(tag.label, tag.status),
           impact: impact,
@@ -1195,10 +1229,6 @@ function getDefaultMessage(label, status) {
   }
   return `${label} has issues that should be addressed.`;
 }
-
-// Initialize on load
-initializeMetaPeek();
-setupMessageListener(); 
 
 /**
  * REPLACE the updateSchemaData function in content.js with this:
@@ -1361,8 +1391,7 @@ function extractAuthorName(authorData) {
 }
 
 /**
- * Initialize tooltips and adjust their positions to stay within viewport
- * This should be called after loading meta tags or whenever new tooltips are added
+ * Initialize tooltips with performance improvements - FIXED
  */
 function initTooltips() {
   // Create global tooltip element if it doesn't exist
@@ -1377,7 +1406,12 @@ function initTooltips() {
   const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
   
   statusBadges.forEach(badge => {
-    badge.addEventListener('mouseenter', function() {
+    // Check if we already have listeners using WeakMap
+    if (window.MetaPeek.tooltipListeners.has(badge)) {
+      return; // Skip if already has listeners
+    }
+    
+    const handleMouseEnter = function() {
       const tooltipText = this.getAttribute('data-tooltip');
       if (!tooltipText) return;
       
@@ -1400,11 +1434,24 @@ function initTooltips() {
       
       globalTooltip.style.left = `${left + containerRect.left}px`;
       globalTooltip.style.top = `${top + containerRect.top}px`;
-    });
+    };
     
-    badge.addEventListener('mouseleave', function() {
+    const handleMouseLeave = function() {
       globalTooltip.style.display = 'none';
       globalTooltip.textContent = '';
-    });
+    };
+    
+    badge.addEventListener('mouseenter', handleMouseEnter);
+    badge.addEventListener('mouseleave', handleMouseLeave);
+    
+    // Store listeners in WeakMap
+    window.MetaPeek.tooltipListeners.set(badge, { handleMouseEnter, handleMouseLeave });
   });
-} 
+}
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', cleanup);
+
+// Initialize on load
+initializeMetaPeek();
+setupMessageListener();
