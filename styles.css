@@ -1918,9 +1918,9 @@ a:focus-visible {
   max-width: 500px;
   min-width: 320px;
   border: 2px solid var(--border-light);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   padding: 0;
   margin: 0 auto;
   height: 80px;
