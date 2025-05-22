@@ -1914,7 +1914,7 @@ a:focus-visible {
   align-items: center;
   max-width: 500px;
   min-width: 320px;
-  height: 100px;
+  height: 72px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
@@ -1924,8 +1924,8 @@ a:focus-visible {
 }
 
 .linkedin-preview .thumbnail {
-  width: 120px;
-  height: 100px;
+  width: 128px;
+  height: 72px;
   object-fit: contain;
   background: #f3f6f8;
   display: block;
@@ -1939,7 +1939,7 @@ a:focus-visible {
   justify-content: center;
   min-width: 0;
   flex: 1;
-  height: 100px;
+  height: 72px;
   padding: 0 16px;
 }
 
