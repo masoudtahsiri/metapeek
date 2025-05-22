@@ -995,7 +995,7 @@ function adjustPreviewContainerHeight() {
 
   // Special case for LinkedIn: use a fixed height for centering
   if (activePreview.id === 'linkedin-preview') {
-    container.style.height = '200px'; // or any value that gives enough space for centering
+    container.style.height = '97px';
   } else {
     // Dynamic height for other previews
     container.style.height = 'auto';
