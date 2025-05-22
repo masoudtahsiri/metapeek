@@ -186,13 +186,6 @@
   margin-top: 1rem;
 }
 
-.center-vertically {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
 .meta-table {
   contain: layout;
 }
@@ -648,6 +641,22 @@ body {
 
 #meta-tags-tab .meta-cell {
   padding: 0.75rem;
+}
+
+#meta-tags-tab .meta-cell.value {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+#meta-tags-tab .meta-cell.value.empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+#meta-tags-tab .meta-cell.status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 #overview-tab .section-header {

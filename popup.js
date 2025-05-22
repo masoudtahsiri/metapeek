@@ -993,17 +993,7 @@ function adjustPreviewContainerHeight() {
   const activePreview = container.querySelector('.preview-content.active');
   if (!activePreview) return;
 
-  // Remove centering from all preview children
-  container.querySelectorAll('.preview-content').forEach(el => {
-    const child = el.firstElementChild;
-    if (child) child.classList.remove('center-vertically');
-  });
-
-  // Add centering only for LinkedIn's child
-  if (activePreview.id === 'linkedin-preview') {
-    const child = activePreview.firstElementChild;
-    if (child) child.classList.add('center-vertically');
-  }
+  // No longer add .center-vertically to LinkedIn
 
   // Adjust height as before
   container.style.height = 'auto';
