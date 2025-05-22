@@ -1469,6 +1469,8 @@ function initTooltips() {
       const tooltipText = this.getAttribute('data-tooltip');
       if (!tooltipText) return;
 
+      // Always define isDark at the top
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
       // Find the closest .meta-section-content ancestor
       const container = this.closest('.meta-section-content');
       if (!container) return;
@@ -1480,9 +1482,10 @@ function initTooltips() {
       const tooltipRect = globalTooltip.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
 
-      // Calculate position relative to container
+      // Always open below the badge (arrow on top)
       let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
-      let top = rect.top - containerRect.top - tooltipRect.height - 10;
+      let top = rect.bottom - containerRect.top + 10;
+      let arrowPosition = 'bottom';
 
       // Adjust if tooltip would go off screen horizontally
       if (left < 10) {
@@ -1491,18 +1494,62 @@ function initTooltips() {
         left = containerRect.width - tooltipRect.width - 10;
       }
 
-      // Adjust if tooltip would go off screen vertically
-      if (top < 10) {
-        // If tooltip would go above container, position it below the badge
-        top = rect.bottom - containerRect.top + 10;
-      }
-
       globalTooltip.style.left = `${left + containerRect.left}px`;
       globalTooltip.style.top = `${top + containerRect.top}px`;
+
+      // Add arrow, always on top (pointing up)
+      let arrow = document.createElement('div');
+      arrow.className = 'tooltip-arrow';
+      arrow.style.position = 'absolute';
+      const badgeCenter = rect.left + rect.width / 2;
+      const tooltipLeft = left + containerRect.left;
+      let arrowLeft = badgeCenter - tooltipLeft;
+      arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
+      arrow.style.left = `${arrowLeft}px`;
+      arrow.style.transform = 'translateX(-50%)';
+      arrow.style.width = '0';
+      arrow.style.height = '0';
+      arrow.style.zIndex = '100000';
+      // Arrow on top (tooltip below badge, arrow points up)
+      arrow.style.top = '-6px';
+      arrow.style.borderLeft = '6px solid transparent';
+      arrow.style.borderRight = '6px solid transparent';
+      arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
+      arrow.style.borderTop = 'none';
+      globalTooltip.appendChild(arrow);
+
+      // Get all the computed colors we need
+      const computedStyle = getComputedStyle(document.body);
+      const borderLight = computedStyle.getPropertyValue('--border-light').trim();
+      const statusGood = computedStyle.getPropertyValue('--status-good').trim();
+      const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
+      const statusError = computedStyle.getPropertyValue('--status-error').trim();
+      const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
+      const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
+
+      // Set left border based on status
+      tooltip.style.borderLeft = '';
+      if (target.classList.contains('good')) {
+        tooltip.style.borderLeft = `7px solid ${statusGood}`;
+      } else if (target.classList.contains('warning')) {
+        tooltip.style.borderLeft = `7px solid ${statusWarning}`;
+      } else if (target.classList.contains('error')) {
+        tooltip.style.borderLeft = `7px solid ${statusError}`;
+      } else if (target.classList.contains('low')) {
+        tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
+      }
+
+      // Set top, right, and bottom borders using --border-light
+      tooltip.style.borderTop = `3px solid ${borderLight}`;
+      tooltip.style.borderRight = `3px solid ${borderLight}`;
+      tooltip.style.borderBottom = `3px solid ${borderLight}`;
     });
 
     badge.addEventListener('mouseleave', function() {
       globalTooltip.style.display = 'none';
+      globalTooltip.textContent = '';
+      let arrow = globalTooltip.querySelector('.tooltip-arrow');
+      if (arrow) arrow.remove();
     });
   });
 }
@@ -1511,29 +1558,33 @@ document.addEventListener('mouseover', function (e) {
   const target = e.target.closest('[data-tooltip]');
   const tooltip = document.getElementById('global-tooltip');
   if (target && tooltip) {
-    // Remove any previous arrow
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
     let arrow = tooltip.querySelector('.tooltip-arrow');
     if (arrow) arrow.remove();
 
-    // Set content
     tooltip.textContent = target.getAttribute('data-tooltip');
 
-    // Add left border for status badges and impact badges
+    // Get all the computed colors we need
+    const computedStyle = getComputedStyle(document.body);
+    const borderLight = computedStyle.getPropertyValue('--border-light').trim();
+    const statusGood = computedStyle.getPropertyValue('--status-good').trim();
+    const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
+    const statusError = computedStyle.getPropertyValue('--status-error').trim();
+    const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
+    const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
+
+    // Set left border based on status
     tooltip.style.borderLeft = '';
     if (target.classList.contains('good')) {
-      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-good');
+      tooltip.style.borderLeft = `7px solid ${statusGood}`;
     } else if (target.classList.contains('warning')) {
-      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-warning');
+      tooltip.style.borderLeft = `7px solid ${statusWarning}`;
     } else if (target.classList.contains('error')) {
-      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue('--status-error');
+      tooltip.style.borderLeft = `7px solid ${statusError}`;
     } else if (target.classList.contains('low')) {
-      // For low impact, use gray
-      const isDark = document.body.getAttribute('data-theme') === 'dark';
-      tooltip.style.borderLeft = '4px solid ' + getComputedStyle(document.body).getPropertyValue(isDark ? '--color-gray-500' : '--color-gray-400');
+      tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
     }
 
-    // Style
-    const isDark = document.body.getAttribute('data-theme') === 'dark';
     tooltip.style.background = isDark ? '#fff' : '#1f2937';
     tooltip.style.color = isDark ? '#111827' : '#fff';
     tooltip.style.padding = '10px 14px';
@@ -1543,51 +1594,64 @@ document.addEventListener('mouseover', function (e) {
     tooltip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
     tooltip.style.whiteSpace = 'normal';
     tooltip.style.maxWidth = '220px';
+    tooltip.style.position = 'fixed';
     tooltip.style.pointerEvents = 'none';
     tooltip.style.display = 'block';
     tooltip.style.transition = 'opacity 0.2s cubic-bezier(0.16,1,0.3,1), transform 0.2s cubic-bezier(0.16,1,0.3,1)';
     tooltip.style.opacity = '1';
+    
+    // Add borders on top, right, and bottom using a visible gray color for debugging
+    const borderColor = '#888'; // medium gray for visibility
+    tooltip.style.borderTop = `3px solid ${borderColor}`;
+    tooltip.style.borderRight = `3px solid ${borderColor}`;
+    tooltip.style.borderBottom = `3px solid ${borderColor}`;
 
-    // Find the closest .section-card ancestor
-    const card = target.closest('.section-card');
-    if (card) {
-      card.appendChild(tooltip);
-      tooltip.style.position = 'absolute';
-      const cardRect = card.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const tooltipRect = tooltip.getBoundingClientRect();
-      // Calculate position relative to card
-      let left = targetRect.left - cardRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
-      let top = targetRect.bottom - cardRect.top + 10;
-      // Clamp horizontally
-      left = Math.max(8, Math.min(left, cardRect.width - tooltipRect.width - 8));
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${top}px`;
-    } else {
-      // fallback to fixed if no card found
-      tooltip.style.position = 'fixed';
-      const rect = target.getBoundingClientRect();
-      const tooltipWidth = 220;
-      let left = rect.left + rect.width / 2 - tooltipWidth / 2;
-      left = Math.max(8, Math.min(left, window.innerWidth - tooltipWidth - 8));
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${rect.bottom + 10}px`;
+    let container = target.closest('.meta-section-content');
+    if (!container) {
+      container = target.closest('.section-card');
+    }
+    if (!container) {
+      container = document.body;
     }
 
-    // Add arrow
+    const rect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // Always open below the badge (arrow on top)
+    let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.bottom - containerRect.top + 10;
+
+    // Adjust if tooltip would go off screen horizontally
+    if (left < 10) {
+      left = 10;
+    } else if (left + tooltipRect.width > containerRect.width - 10) {
+      left = containerRect.width - tooltipRect.width - 10;
+    }
+
+    tooltip.style.left = `${left + containerRect.left}px`;
+    tooltip.style.top = `${top + containerRect.top}px`;
+
+    // Add arrow, always on top (pointing up)
     arrow = document.createElement('div');
     arrow.className = 'tooltip-arrow';
     arrow.style.position = 'absolute';
-    arrow.style.top = '-6px';
-    arrow.style.left = '50%';
+    const badgeCenter = rect.left + rect.width / 2;
+    const tooltipLeft = left + containerRect.left;
+    let arrowLeft = badgeCenter - tooltipLeft;
+    arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
+    arrow.style.left = `${arrowLeft}px`;
     arrow.style.transform = 'translateX(-50%)';
     arrow.style.width = '0';
     arrow.style.height = '0';
+    arrow.style.zIndex = '100000';
+    // Arrow on top (tooltip below badge, arrow points up)
+    arrow.style.top = '-6px';
     arrow.style.borderLeft = '6px solid transparent';
     arrow.style.borderRight = '6px solid transparent';
     arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
-    arrow.style.zIndex = '100000';
-    tooltip.prepend(arrow);
+    arrow.style.borderTop = 'none';
+    tooltip.appendChild(arrow);
   }
 });
 

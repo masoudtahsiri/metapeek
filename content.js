@@ -56,7 +56,7 @@ const META_TAG_STANDARDS = {
     max: 10,
     impact: "low",
     message: {
-      missing: "Keywords tag is optional and has minimal SEO value (deprecated since 2009)",
+      missing: "Keywords tag is optional and has minimal SEO value",
       tooMany: "Too many keywords may dilute relevance (limited SEO value)",
       good: "Keywords defined (minimal SEO impact)"
     }

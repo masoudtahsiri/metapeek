@@ -126,6 +126,9 @@
   --header-height: 56px;
   --footer-height: 56px;
   --max-width: 520px;
+  
+  --low-bg-light: #60a5fa;
+  --low-text-light: #1e3a8a;
 }
 
 /* Dark Mode Theme Variables */
@@ -165,6 +168,9 @@
   --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+  
+  --low-bg-dark: #1e40af;
+  --low-text-dark: #93c5fd;
 }
 
 /* Enhanced section card for dark mode */
@@ -653,7 +659,7 @@ body {
   border-top: 1px solid var(--border-light);
   border-right: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
-  margin-bottom: 10px;
+  margin-bottom: 22px !important;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -671,7 +677,7 @@ body {
 }
 
 .issue-item.low {
-  border-left-color: var(--color-gray-400);
+  border-left-color: var(--low-bg-light);
 }
 
 /* Make issue header more compact */
@@ -691,10 +697,7 @@ body {
 
 /* Improve impact badges for better visibility */
 .issue-impact {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-weight: 600;
+  font-size: var(--font-size-xs) !important;
 }
 
 .issue-impact.high {
@@ -708,8 +711,8 @@ body {
 }
 
 .issue-impact.low {
-  background-color: var(--color-gray-400);
-  color: white;
+  background-color: var(--low-bg-light);
+  color: var(--low-text-light);
 }
 
 /* Issue category label */
@@ -746,9 +749,8 @@ body {
 
 /* Status Indicators */
 .status-badge, .issue-impact {
+  font-family: var(--font-family);
   font-size: var(--font-size-xs);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   display: inline-flex;
@@ -757,7 +759,26 @@ body {
   min-width: 60px;
   position: relative;
   z-index: auto;
-  margin-top: var(--space-1);
+  cursor: help;
+  pointer-events: auto;
+}
+
+.status-badge .info-icon,
+.issue-impact .info-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 4px;
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.status-badge:hover .info-icon,
+.issue-impact:hover .info-icon {
+  opacity: 1;
+  color: var(--primary);
 }
 
 .status-badge.good, .issue-impact.good {
@@ -772,25 +793,9 @@ body {
   background-color: var(--status-error-bg);
   color: var(--status-error);
 }
-
 .status-badge.low, .issue-impact.low {
-  background-color: var(--color-gray-400);
-  color: white;
-}
-
-.status-badge .info-icon, .issue-impact .info-icon {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 4px;
-  width: 14px;
-  height: 14px;
-  color: var(--text-secondary);
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-.status-badge:hover .info-icon, .issue-impact:hover .info-icon {
-  opacity: 1;
-  color: var(--primary);
+  background-color: var(--low-bg-light);
+  color: var(--low-text-light);
 }
 
 /* Summary Grid */
@@ -2754,7 +2759,7 @@ a:focus-visible {
 }
 
 .issue-item.low {
-  border-left-color: var(--status-good);
+  border-left-color: var(--low-bg-light);
 }
 
 /* Issue category label */
@@ -2839,6 +2844,8 @@ a:focus-visible {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   max-width: 220px;
   text-align: center;
+  border: 2px solid var(--border-medium);
+  border-radius: var(--radius-md);
 }
 
 [data-theme="dark"] #global-tooltip {
@@ -2972,24 +2979,24 @@ a:focus-visible {
 
 /* Low Impact Color Change - from green to gray */
 .issue-impact.low {
-  background-color: var(--color-gray-400);
-  color: white;
+  background-color: var(--low-bg-light);
+  color: var(--low-text-light);
 }
 
 .issue-item.low {
-  border-left-color: var(--color-gray-400);
+  border-left-color: var(--low-bg-light);
   border-top: 3px solid var(--border-light);
   border-right: 3px solid var(--border-light);
   border-bottom: 3px solid var(--border-light);
 }
 
 [data-theme="dark"] .issue-item.low {
-  border-left-color: var(--color-gray-500);
+  border-left-color: var(--low-bg-dark);
 }
 
 [data-theme="dark"] .issue-impact.low {
-  background-color: var(--color-gray-500);
-  color: white;
+  background-color: var(--low-bg-dark);
+  color: var(--low-text-dark);
 }
 
 /* Tooltip border for low impact issues */
