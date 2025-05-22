@@ -1941,6 +1941,7 @@ a:focus-visible {
   display: block;
   border-radius: 0;
   margin: 0;
+  align-self: center;
 }
 
 .linkedin-preview .text-content {
