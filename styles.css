@@ -2885,3 +2885,32 @@ a:focus-visible {
   right: 12px;
   bottom: 10px;
 }
+
+/* Issue category label - updated for meta tag categories */
+.issue-category {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 10px; /* Reduced from 11px */
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background-color: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  text-transform: none; /* Remove uppercase for meta tag names */
+  letter-spacing: 0.01em;
+} 
+
+/* Low Impact Color Change - from green to gray */
+.issue-impact.low {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.issue-item.low {
+  border-left-color: var(--color-gray-400);
+}
+
+[data-theme="dark"] .issue-item.low {
+  border-left-color: var(--color-gray-500);
+}
