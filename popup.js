@@ -187,7 +187,7 @@ function updateUrlDisplay(url) {
 }
 
 /**
- * Populate the UI with metadata
+ * Populate the UI with metadata (FIXED - handles missing modern meta gracefully)
  * @param {Object} metadata - Metadata from content script
  */
 function populateUI(metadata) {
@@ -206,6 +206,16 @@ function populateUI(metadata) {
     updateBasicMetaTags(metadata.basicMeta || []);
     updateOGMetaTags(metadata.ogMeta || []);
     updateTwitterMetaTags(metadata.twitterMeta || []);
+    
+    // FIXED: Only call updateModernMetaTags if modernMeta exists
+    if (metadata.modernMeta) {
+      updateModernMetaTags(metadata.modernMeta);
+    } else {
+      // Handle case where modernMeta doesn't exist yet
+      console.log('Modern meta tags not implemented yet');
+      hideModernMetaTab();
+    }
+    
     updateCanonicalURL(metadata.canonicalUrl || '');
     updateSchemaData(metadata.schemaData || []);
     
@@ -217,6 +227,123 @@ function populateUI(metadata) {
     console.error('Error populating UI:', error);
     showError('Error displaying data: ' + error.message);
   }
+}
+
+/**
+ * Hide modern meta tab if not implemented
+ */
+function hideModernMetaTab() {
+  const modernMetaTab = document.querySelector('.meta-section-tab[data-target="modern-meta-content"]');
+  if (modernMetaTab) {
+    modernMetaTab.style.display = 'none';
+  }
+  
+  const modernMetaContent = document.getElementById('modern-meta-content');
+  if (modernMetaContent) {
+    modernMetaContent.style.display = 'none';
+  }
+}
+
+/**
+ * Update modern meta tags in Meta Tags tab
+ * @param {Object} modernMeta - Modern meta tags object
+ */
+function updateModernMetaTags(modernMeta) {
+  const container = document.getElementById('modern-meta-content');
+  if (!container) {
+    console.warn('Modern meta content container not found - tab may not exist in HTML');
+    return;
+  }
+  
+  // Show the tab if it was hidden
+  const modernMetaTab = document.querySelector('.meta-section-tab[data-target="modern-meta-content"]');
+  if (modernMetaTab) {
+    modernMetaTab.style.display = 'block';
+  }
+  container.style.display = 'block';
+  
+  if (!modernMeta || Object.keys(modernMeta).length === 0) {
+    container.innerHTML = `
+      <div class="section-actions">
+        <button id="copy-modern-meta" class="btn-icon-text">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copy
+        </button>
+      </div>
+      <div class="empty-state">
+        <p>No modern meta tags found on this page.</p>
+        <p class="hint">Consider adding theme-color, manifest, and apple-touch-icon for better mobile experience.</p>
+      </div>
+    `;
+    
+    // Re-initialize copy button
+    setupCopyButton('copy-modern-meta', () => '<!-- No modern meta tags to copy -->');
+    return;
+  }
+  
+  // Create the section actions first
+  const sectionActions = `
+    <div class="section-actions">
+      <button id="copy-modern-meta" class="btn-icon-text">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        Copy
+      </button>
+    </div>
+  `;
+  
+  container.innerHTML = sectionActions;
+  
+  // Create meta table container
+  const metaTableDiv = document.createElement('div');
+  metaTableDiv.className = 'meta-table';
+  
+  // Define display names for modern meta tags
+  const tagDisplayNames = {
+    themeColor: 'theme-color',
+    appleTouchIcon: 'apple-touch-icon',
+    manifest: 'manifest',
+    colorScheme: 'color-scheme', 
+    formatDetection: 'format-detection'
+  };
+  
+  Object.entries(modernMeta).forEach(([key, tag]) => {
+    const row = document.createElement('div');
+    row.className = 'meta-row';
+    
+    const isEmpty = !tag.value || tag.value.trim() === '';
+    const valueClass = isEmpty ? 'meta-cell value empty' : 'meta-cell value';
+    const displayName = tagDisplayNames[key] || key;
+    
+    // Add tooltip attribute for the status badge
+    const statusTooltip = tag.message || getStatusMessage(tag.status, displayName);
+    
+    row.innerHTML = `
+      <div class="meta-cell name">${displayName}</div>
+      <div class="${valueClass}">${isEmpty ? 'Not set' : tag.value}</div>
+      <div class="meta-cell status">
+        <span class="status-badge ${tag.status || 'warning'}" data-tooltip="${statusTooltip}">
+          ${tag.status === 'good' ? 'Good' : 'Missing'}
+          <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
+        </span>
+      </div>
+    `;
+    
+    metaTableDiv.appendChild(row);
+  });
+  
+  container.appendChild(metaTableDiv);
+  
+  // Re-initialize copy button for modern meta
+  setupCopyButton('copy-modern-meta', () => collectMetaTagsHTML('modern-meta-content'));
+  
+  // Initialize tooltips after updating the badges
+  initTooltips();
 }
 
 /**
@@ -426,7 +553,7 @@ function updateTabCounter(impactLevel, count) {
 }
 
 /**
- * Update meta tag summary in Overview tab
+ * Update meta tag summary in Overview tab (include modern meta consideration)
  * @param {Object} metadata - Metadata from content script
  */
 function updateMetaTagSummary(metadata) {
@@ -476,6 +603,32 @@ function updateMetaTagSummary(metadata) {
     if (statusBadge) {
       statusBadge.className = 'status-badge ' + status;
       statusBadge.textContent = hasCanonical ? 'Good' : 'Missing';
+    }
+  }
+  
+  // NEW: Add mobile optimization card if it exists
+  if (cards[3]) {
+    const viewport = metadata.basicMeta?.find(tag => tag.label === 'Viewport') || { status: 'error' };
+    const themeColor = metadata.modernMeta?.themeColor || { status: 'warning' };
+    const appleTouchIcon = metadata.modernMeta?.appleTouchIcon || { status: 'warning' };
+    
+    // Calculate mobile optimization score
+    let mobileScore = 0;
+    let totalChecks = 3;
+    
+    if (viewport.status === 'good') mobileScore++;
+    if (themeColor.status === 'good') mobileScore++;
+    if (appleTouchIcon.status === 'good') mobileScore++;
+    
+    const overallStatus = mobileScore === 3 ? 'good' : mobileScore >= 2 ? 'warning' : 'error';
+    const statusText = mobileScore === 3 ? 'Excellent' : 
+                      mobileScore >= 2 ? 'Good' : 
+                      mobileScore >= 1 ? 'Needs Work' : 'Poor';
+    
+    const statusBadge = cards[3].querySelector('.status-badge');
+    if (statusBadge) {
+      statusBadge.className = 'status-badge ' + overallStatus;
+      statusBadge.textContent = statusText;
     }
   }
 }

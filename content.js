@@ -469,30 +469,56 @@ function handleSEOHealthRequest(sendResponse) {
 
 /**
  * Extract metadata from the current page
- * @returns {Object} Metadata object
+ * @returns {Object} Collected metadata
  */
 function getPageMetadata() {
   const metadata = {
-    seoSummary: {
-      title: document.title,
-      description: getMetaContent('description'),
-      keywords: getMetaContent('keywords'),
-      canonicalUrl: getCanonicalUrl(),
-      robots: getMetaContent('robots'),
-      viewport: getMetaContent('viewport'),
-      language: document.documentElement.lang || 'en'
-    },
-    basicMeta: extractBasicMetaTags(),
-    ogMeta: extractOGMetaTags(),
-    twitterMeta: extractTwitterMetaTags(),
-    canonicalUrl: getCanonicalUrl(),
-    schemaData: extractSchemaData()
+    seoSummary: [],
+    basicMeta: [],
+    ogMeta: [],
+    twitterMeta: [],
+    modernMeta: {},
+    canonicalUrl: '',
+    schemaData: []
   };
+  
+  try {
+    // Extract basic meta tags
+    extractBasicMetaTags(metadata);
+    
+    // Extract Open Graph tags
+    extractOpenGraphTags(metadata);
+    
+    // Extract Twitter Card tags
+    extractTwitterCardTags(metadata);
+    
+    // Extract modern meta tags
+    extractModernMetaTags(metadata);
+    
+    // Extract canonical URL
+    metadata.canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || '';
+    
+    // Extract Schema.org data
+    extractSchemaData(metadata);
+    
+    // Calculate SEO health score
+    const seoHealthScore = calculateSEOHealthScore(metadata);
+    metadata.seoScore = seoHealthScore;
 
-  // Calculate SEO health score
-  metadata.seoScore = calculateSEOHealthScore(metadata);
+    // Generate summary based on the health score
+    metadata.seoSummary = seoHealthScore.recommendations.flatMap(cat => 
+      cat.items.map(item => ({
+        label: item.issue,
+        value: item.details,
+        status: item.impact === 'High' ? 'error' : 'warning'
+      }))
+    );
 
-  return metadata;
+    return metadata;
+  } catch (error) {
+    console.error('Error in getPageMetadata:', error);
+    return metadata;
+  }
 }
 
 /**
@@ -940,95 +966,134 @@ function isPageSchema(obj, currentUrl) {
 
 /**
  * Calculate SEO health score based on metadata
- * @param {Object} metadata - Metadata object
- * @returns {Object} Score data
+ * @param {Object} metadata - The metadata to score
+ * @returns {Object} SEO health score results
  */
 function calculateSEOHealthScore(metadata) {
+  // UPDATED: 2025 SEO scoring weights
   const weights = {
-    basicMeta: 0.35,    // 35% - Basic meta tags
-    socialMeta: 0.25,   // 25% - Social media meta tags
-    technical: 0.25,    // 25% - Technical factors
-    structured: 0.15    // 15% - Structured data
+    basicMeta: 0.20,        // 20% - Reduced from 35%
+    socialMeta: 0.15,       // 15% - Reduced from 25%
+    technical: 0.40,        // 40% - INCREASED from 25% (Core Web Vitals, mobile-first)
+    structured: 0.15,       // 15% - NEW (Schema.org quality)
+    userExperience: 0.10    // 10% - NEW (Modern meta tags, accessibility)
   };
-
+  
   // Initialize category scores
-  const categoryScores = {
+  let scores = {
     basicMeta: 0,
     socialMeta: 0,
     technical: 0,
-    structured: 0
+    structured: 0,
+    userExperience: 0
   };
-
-  // Calculate basic meta score
-  const basicMetaTags = metadata.basicMeta || [];
-  const requiredBasicTags = ['Title', 'Description', 'Viewport'];
-  const basicScore = basicMetaTags.reduce((score, tag) => {
-    if (requiredBasicTags.includes(tag.label) && tag.status === 'good') {
-      return score + (100 / requiredBasicTags.length);
-    }
-    return score;
-  }, 0);
-  categoryScores.basicMeta = basicScore;
-
-  // Calculate social meta score
-  const socialTags = [...(metadata.ogMeta || []), ...(metadata.twitterMeta || [])];
-  const requiredSocialTags = ['og:title', 'og:description', 'og:image', 'twitter:card'];
-  const socialScore = socialTags.reduce((score, tag) => {
-    if (requiredSocialTags.includes(tag.label) && tag.status === 'good') {
-      return score + (100 / requiredSocialTags.length);
-    }
-    return score;
-  }, 0);
-  categoryScores.socialMeta = socialScore;
-
-  // Calculate technical score
+  
+  // Score basic meta tags (title, description, viewport)
+  if (metadata.basicMeta && metadata.basicMeta.length > 0) {
+    const basicMetaItems = metadata.basicMeta.filter(tag => 
+      ['Title', 'Description', 'Viewport'].includes(tag.label)
+    ).length;
+    const goodBasicItems = metadata.basicMeta.filter(tag => 
+      ['Title', 'Description', 'Viewport'].includes(tag.label) && tag.status === 'good'
+    ).length;
+    scores.basicMeta = basicMetaItems > 0 ? goodBasicItems / basicMetaItems : 0;
+  }
+  
+  // Score social meta tags (OG + Twitter)
+  if (metadata.ogMeta && metadata.twitterMeta) {
+    const ogItems = metadata.ogMeta.length;
+    const twitterItems = metadata.twitterMeta.length;
+    const totalItems = ogItems + twitterItems;
+    
+    const goodOgItems = metadata.ogMeta.filter(tag => tag.status === 'good').length;
+    const goodTwitterItems = metadata.twitterMeta.filter(tag => tag.status === 'good').length;
+    
+    scores.socialMeta = totalItems > 0 ? (goodOgItems + goodTwitterItems) / totalItems : 0;
+  }
+  
+  // Score technical factors (EXPANDED)
   let technicalScore = 0;
-  const technicalChecks = {
-    hasHttps: window.location.protocol === 'https:',
-    hasMobileViewport: metadata.basicMeta?.some(tag => tag.label === 'Viewport' && tag.status === 'good'),
-    hasRobotsMeta: metadata.basicMeta?.some(tag => tag.label === 'Robots' && tag.status === 'good'),
-    hasCanonical: !!metadata.canonicalUrl
-  };
-
-  // Calculate technical score based on checks
-  const technicalCheckCount = Object.keys(technicalChecks).length;
-  const technicalCheckScore = 100 / technicalCheckCount;
-  Object.values(technicalChecks).forEach(check => {
-    if (check) technicalScore += technicalCheckScore;
-  });
-  categoryScores.technical = technicalScore;
-
-  // Calculate structured data score
-  const schemaData = metadata.schemaData || [];
-  const structuredScore = schemaData.reduce((score, schema) => {
-    return score + (schema.valid ? 100 : 0);
-  }, 0) / (schemaData.length || 1);
-  categoryScores.structured = structuredScore;
-
-  // Calculate overall score
-  const overallScore = Math.round(
-    Object.entries(categoryScores).reduce((total, [category, score]) => {
-      return total + (score * weights[category]);
-    }, 0)
+  let technicalFactors = 0;
+  
+  // Check canonical URL
+  if (metadata.canonicalUrl) {
+    technicalScore += 1;
+    technicalFactors += 1;
+  }
+  
+  // Check HTTPS (NEW)
+  if (window.location.protocol === 'https:') {
+    technicalScore += 1;
+    technicalFactors += 1;
+  }
+  
+  // Check mobile viewport
+  const viewport = metadata.basicMeta?.find(tag => tag.label === 'Viewport');
+  if (viewport && viewport.status === 'good') {
+    technicalScore += 1;
+    technicalFactors += 1;
+  }
+  
+  // Check robots meta
+  const robots = metadata.basicMeta?.find(tag => tag.label === 'Robots');
+  if (robots && robots.status === 'good') {
+    technicalScore += 0.5;
+    technicalFactors += 1;
+  }
+  
+  scores.technical = technicalFactors > 0 ? technicalScore / technicalFactors : 0;
+  
+  // Score structured data (NEW)
+  if (metadata.schemaData && metadata.schemaData.length > 0) {
+    scores.structured = metadata.schemaData.every(s => s.valid) ? 1 : 0.5;
+  } else {
+    scores.structured = 0;
+  }
+  
+  // Score user experience (NEW - modern meta tags)
+  let uxScore = 0;
+  let uxFactors = 0;
+  
+  // Check for modern meta tags
+  if (metadata.modernMeta) {
+    const modernTags = ['themeColor', 'appleTouchIcon', 'manifest'];
+    modernTags.forEach(tag => {
+      if (metadata.modernMeta[tag]) {
+        uxScore += 1;
+      }
+      uxFactors += 1;
+    });
+  }
+  
+  scores.userExperience = uxFactors > 0 ? uxScore / uxFactors : 0.5; // Default 50% if not implemented
+  
+  // Calculate overall weighted score
+  const overallScore = Object.entries(weights).reduce(
+    (total, [category, weight]) => total + (scores[category] * weight),
+    0
   );
-
+  
+  // Scale to 0-100
+  const scaledScore = Math.round(overallScore * 100);
+  
   // Generate recommendations
-  const recommendations = generateRecommendations(metadata, categoryScores);
-
+  const recommendations = generateRecommendations(metadata);
+  
+  // Return combined score data
   return {
-    score: overallScore,
-    categoryScores,
-    recommendations
+    score: scaledScore,
+    categoryScores: scores,
+    recommendations: recommendations,
+    status: scaledScore >= 80 ? 'good' : scaledScore >= 60 ? 'warning' : 'error'
   };
 }
 
 /**
  * Generate SEO recommendations with concise descriptions
  * @param {Object} metadata - The metadata to analyze
- * @param {Object} categoryScores - The category scores to analyze
  * @returns {Array} Array of recommendation categories
  */
-function generateRecommendations(metadata, categoryScores) {
+function generateRecommendations(metadata) {
   const recommendations = [];
   
   // Add basic meta tag recommendations (but keywords is now low impact)
