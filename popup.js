@@ -993,14 +993,16 @@ function adjustPreviewContainerHeight() {
   const activePreview = container.querySelector('.preview-content.active');
   if (!activePreview) return;
 
-  // Remove centering from all previews
+  // Remove centering from all preview children
   container.querySelectorAll('.preview-content').forEach(el => {
-    el.classList.remove('center-vertically');
+    const child = el.firstElementChild;
+    if (child) child.classList.remove('center-vertically');
   });
 
-  // Add centering only for LinkedIn
+  // Add centering only for LinkedIn's child
   if (activePreview.id === 'linkedin-preview') {
-    activePreview.classList.add('center-vertically');
+    const child = activePreview.firstElementChild;
+    if (child) child.classList.add('center-vertically');
   }
 
   // Adjust height as before
