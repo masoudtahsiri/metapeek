@@ -1082,9 +1082,6 @@ function generateAllPreviews() {
   generateSlackPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
 }
 
-// [KEEP ALL PREVIEW GENERATION FUNCTIONS AS-IS]
-// Including generateGooglePreview, generateFacebookPreview, etc.
-
 /**
  * Generate Google preview with metadata
  */
@@ -1109,12 +1106,15 @@ function generateGooglePreview(hostname, title, description) {
 function generateFacebookPreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('facebook-preview');
   if (!preview) return;
-  
+
   let facebookImage = image;
   if (!facebookImage || typeof facebookImage !== 'string' || facebookImage.trim() === '') {
     facebookImage = 'https://via.placeholder.com/1200x630?text=No+Image';
   }
-  
+
+  // Strip 'www.' from hostname for display
+  const domain = hostname.replace(/^www\./, '');
+
   preview.innerHTML = `
     <div class="card-seo-facebook">
       ${facebookImage ? 
@@ -1122,7 +1122,7 @@ function generateFacebookPreview(hostname, title, description, image, siteName) 
         `<div class="preview-image-placeholder">No image available</div>`
       }
       <div class="card-seo-facebook__footer">
-        <div class="card-seo-facebook__domain">${hostname.toUpperCase()}</div>
+        <div class="card-seo-facebook__domain">${domain.toUpperCase()}</div>
         <div class="card-seo-facebook__title">${title || 'No title available'}</div>
         <div class="card-seo-facebook__description">${description || 'No description available'}</div>
       </div>
@@ -1141,7 +1141,8 @@ function generateTwitterPreview(metadata, hostname, title, description, image) {
   const cardImage = metadata.twitterImage || metadata.ogImage || image || '';
   const cardTitle = metadata.twitterTitle || metadata.ogTitle || title || '';
   const cardDescription = metadata.twitterDescription || metadata.ogDescription || description || '';
-  const cardDomain = hostname || '';
+  // Strip 'www.' from hostname for display
+  const cardDomain = (hostname || '').replace(/^www\./, '');
 
   preview.innerHTML = `
     <div class="card-seo-twitter">
