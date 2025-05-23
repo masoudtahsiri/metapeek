@@ -1966,6 +1966,7 @@ a:focus-visible {
   border-radius: 0;
   margin: 0;
   align-self: center;
+  margin-left: 12px;
 }
 
 .linkedin-preview .text-content {
