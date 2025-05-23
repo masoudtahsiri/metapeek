@@ -1067,7 +1067,8 @@ function generateAllPreviews() {
   
   const metadata = socialPreviewState.originalMetadata;
   const hostname = socialPreviewState.pageHostname || 'example.com';
-  const pageUrl = metadata.canonicalUrl || metadata.url || '';
+  // Prefer canonical, then og:url, then url
+  const pageUrl = metadata.canonicalUrl || metadata.ogUrl || metadata.url || '';
   
   // Get values with fallbacks
   const title = metadata.title || metadata.ogTitle || metadata.twitterTitle || '';
@@ -1097,18 +1098,18 @@ function generateGooglePreview(hostname, title, description, url, siteName) {
   const domain = hostname.replace(/^www\./, '');
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}`;
 
-  // Format the preview path as canonical URL › Capitalized first path segment
+  // Format the preview path as full canonical/og:url (with protocol and www) › Capitalized first path segment
   let formattedPath = '';
   if (url) {
     try {
       const parsed = new URL(url);
-      const canonical = parsed.origin; // protocol + domain
+      const canonical = parsed.origin.replace(/\/$/, ''); // protocol + domain (with www if present)
       let firstSegment = parsed.pathname.split('/').filter(Boolean)[0] || '';
       if (firstSegment) {
         firstSegment = firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
-        formattedPath = `${canonical} › ${firstSegment}`;
+        formattedPath = `${parsed.origin} › ${firstSegment}`;
       } else {
-        formattedPath = canonical;
+        formattedPath = parsed.origin;
       }
     } catch (e) {
       formattedPath = url;
