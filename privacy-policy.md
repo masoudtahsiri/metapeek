@@ -50,4 +50,8 @@ Support: [https://refact.co/contact/](https://refact.co/contact/)
 
 ## Changes to This Policy
 
-We may update this privacy policy from time to time. We will notify you of any changes by posting the new privacy policy on this page and updating the "Last Updated" date. 
+We may update this privacy policy from time to time. We will notify you of any changes by posting the new privacy policy on this page and updating the "Last Updated" date.
+
+---
+
+Copyright © 2025 Refact, LLC. All rights reserved. 
