@@ -514,7 +514,7 @@ function updateProgressBar(category, completed, total) {
 function updateSchemaStatus(hasSchema, isValid) {
   const progressBar = document.querySelector('.schema-progress');
   const statusElement = progressBar?.closest('.status-category')?.querySelector('.category-status');
-  
+    
   if (progressBar) {
     progressBar.classList.remove('complete', 'partial', 'incomplete');
     

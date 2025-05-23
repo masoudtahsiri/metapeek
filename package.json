@@ -7,7 +7,8 @@
     "lib": "lib"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate-icons": "node generate_icons.js"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
   },
   "homepage": "https://github.com/masoudtahsiri/metapeek#readme",
   "dependencies": {
-    "webextension-polyfill": "^0.10.0"
+    "webextension-polyfill": "^0.10.0",
+    "sharp": "^0.33.2"
   }
 }
