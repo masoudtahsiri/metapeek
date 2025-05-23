@@ -71,6 +71,10 @@ MetaPeek operates entirely locally in your browser:
 - No personal information is collected
 - Data is cleared when the popup is closed
 
+## Copyright
+
+Copyright © 2025 Refact, LLC. All rights reserved.
+
 ## License
 
 MIT License 
