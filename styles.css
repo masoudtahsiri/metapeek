@@ -2004,6 +2004,9 @@ a:focus-visible {
   word-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  padding: 24px 0 24px 0;
+  min-height: 180px;
+  margin-left: 6px;
 }
 
 .card-seo-slack__bar {

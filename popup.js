@@ -96,6 +96,22 @@ function cacheDOM() {
   cache.set('mediumIssues', document.getElementById('medium-issues'));
   cache.set('lowIssues', document.getElementById('low-issues'));
   
+  // Cache impact containers
+  cache.set('impactContainers', {
+    all: document.getElementById('all-issues'),
+    high: document.getElementById('high-issues'),
+    medium: document.getElementById('medium-issues'),
+    low: document.getElementById('low-issues')
+  });
+  
+  // Cache tab elements
+  cache.set('impactTabs', {
+    all: document.querySelector('[data-impact="all"]'),
+    high: document.querySelector('[data-impact="high"]'),
+    medium: document.querySelector('[data-impact="medium"]'),
+    low: document.querySelector('[data-impact="low"]')
+  });
+  
   return cache;
 }
 
@@ -131,24 +147,69 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Cleanup function to prevent memory leaks
+ * Cleanup function to prevent memory leaks and reset state
+ * Clears all intervals, timeouts, event listeners, and cached data
  */
 function cleanup() {
   console.log('Cleaning up popup resources');
   
-  // Remove all event listeners
-  window.MetaPeek.listeners.forEach((listener, element) => {
-    if (element && listener) {
-      element.removeEventListener(listener.type, listener.handler);
+  try {
+    // Clear all intervals/timeouts more efficiently
+    const highestId = setTimeout(() => {}, 0);
+    for (let i = 0; i < highestId; i++) {
+      clearTimeout(i);
+      clearInterval(i);
     }
-  });
-  window.MetaPeek.listeners.clear();
-  
-  // Clear DOM cache
-  window.MetaPeek.domCache.clear();
-  
-  // Reset state
-  window.MetaPeek.initialized = false;
+    
+    // Remove all tracked event listeners
+    if (window.MetaPeek?.listeners) {
+      window.MetaPeek.listeners.forEach((listener, element) => {
+        try {
+          if (element?.removeEventListener && listener?.type && listener?.handler) {
+            element.removeEventListener(listener.type, listener.handler);
+          }
+        } catch (error) {
+          console.warn('Error removing event listener:', error);
+        }
+      });
+      window.MetaPeek.listeners.clear();
+    }
+    
+    // Clear DOM cache
+    if (window.MetaPeek?.domCache) {
+      window.MetaPeek.domCache.clear();
+    }
+    
+    // Clear impact containers cache
+    if (typeof impactContainers !== 'undefined' && impactContainers?.clear) {
+      impactContainers.clear();
+    }
+    
+    // Clear all stored references
+    const statesToClear = [
+      previewState,
+      socialPreviewState,
+      state
+    ];
+    
+    statesToClear.forEach(stateObj => {
+      if (stateObj) {
+        Object.keys(stateObj).forEach(key => {
+          if (key === 'metadata' || key === 'originalMetadata' || key === 'editedMetadata') {
+            stateObj[key] = null;
+          }
+        });
+      }
+    });
+    
+    // Reset initialization state
+    if (window.MetaPeek) {
+      window.MetaPeek.initialized = false;
+    }
+    
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+  }
 }
 
 /**
@@ -536,7 +597,7 @@ function renderIssues(container, issues) {
     `;
     return;
   }
-  
+
   // Helper function to map impact to status class
   const getStatusClass = (impact) => {
     if (impact === 'High') return 'error';
@@ -545,7 +606,7 @@ function renderIssues(container, issues) {
     return 'warning';
   };
 
-  // Helper function to create impact badge based on level
+  // Helper function to create impact badge
   const getImpactBadge = (impact, description) => {
     const impactClass = impact.toLowerCase();
     const statusClass = getStatusClass(impact);
@@ -553,36 +614,37 @@ function renderIssues(container, issues) {
       <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
     </span>`;
   };
+
+  // Create document fragment for better performance
+  const fragment = document.createDocumentFragment();
+  const wrapper = document.createElement('div');
   
-  // Sort issues by impact: High > Medium > Low
-  issues.sort((a, b) => {
-    const impactOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
-    const impactA = a.impact || 'Low';
-    const impactB = b.impact || 'Low';
-    return (impactOrder[impactA] || 99) - (impactOrder[impactB] || 99);
-  });
-  
-  let html = '';
-  
-  // Render each issue with concise formatting
-  issues.forEach(issue => {
-    html += `
-      <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
-        <div class="issue-header">
-          <h4>${issue.title}</h4>
-          ${getImpactBadge(issue.impact, issue.description)}
-        </div>
-        <div class="issue-category-wrapper">
-          <span class="issue-category">${issue.category}</span>
-        </div>
+  // Build all HTML at once
+  const html = issues.map(issue => `
+    <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
+      <div class="issue-header">
+        <h4>${issue.title}</h4>
+        ${getImpactBadge(issue.impact, issue.description)}
       </div>
-    `;
-  });
+      <div class="issue-category-wrapper">
+        <span class="issue-category">${issue.category}</span>
+      </div>
+    </div>
+  `).join('');
   
-  container.innerHTML = html;
+  wrapper.innerHTML = html;
   
-  // Initialize tooltips after rendering issues
-  initTooltips();
+  // Move all children to fragment
+  while (wrapper.firstChild) {
+    fragment.appendChild(wrapper.firstChild);
+  }
+  
+  // Single DOM update
+  container.innerHTML = '';
+  container.appendChild(fragment);
+  
+  // Initialize tooltips after rendering
+  requestAnimationFrame(() => initTooltips());
 }
 
 /**
@@ -1464,123 +1526,77 @@ function initImpactTabs() {
 }
 
 /**
- * Initialize tooltips - PERFORMANCE OPTIMIZED
+ * Initialize tooltips with event delegation
  */
 function initTooltips() {
-  const statusBadges = document.querySelectorAll('.status-badge[data-tooltip]');
+  // Remove any existing global handler first
+  if (window.MetaPeek.tooltipHandler) {
+    document.removeEventListener('mouseover', window.MetaPeek.tooltipHandler);
+    document.removeEventListener('mouseout', window.MetaPeek.tooltipOutHandler);
+  }
+
   const globalTooltip = getCached('globalTooltip');
+  if (!globalTooltip) return;
 
-  statusBadges.forEach(badge => {
-    // Skip if already has listener
-    if (badge.hasAttribute('data-tooltip-initialized')) return;
-    
-    addTrackedListener(badge, 'mouseenter', function(e) {
-      const tooltipText = this.getAttribute('data-tooltip');
-      if (!tooltipText) return;
+  // Create handlers for event delegation
+  window.MetaPeek.tooltipHandler = function(e) {
+    const target = e.target.closest('[data-tooltip]');
+    if (!target) return;
 
-      // Always define isDark at the top
-      const isDark = document.body.getAttribute('data-theme') === 'dark';
-      // Find the closest .meta-section-content ancestor
-      let container = this.closest('.meta-section-content');
-      if (!container) {
-        // Fallback: use body as container (viewport)
-        container = document.body;
-      }
+    const tooltipText = target.getAttribute('data-tooltip');
+    if (!tooltipText) return;
 
-      globalTooltip.textContent = tooltipText;
-      globalTooltip.style.display = 'block';
-
-      const rect = this.getBoundingClientRect();
-      const tooltipRect = globalTooltip.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-
-      // Always open below the badge (arrow on top)
-      let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
-      let top = rect.bottom - containerRect.top + 10;
-      let arrowPosition = 'bottom';
-
-      // Adjust if tooltip would go off screen horizontally
-      if (left < 10) {
-        left = 10;
-      } else if (left + tooltipRect.width > containerRect.width - 10) {
-        left = containerRect.width - tooltipRect.width - 10;
-      }
-
-      globalTooltip.style.left = `${left + containerRect.left}px`;
-      globalTooltip.style.top = `${top + containerRect.top}px`;
-
-      // Add arrow, always on top (pointing up)
-      let arrow = document.createElement('div');
-      arrow.className = 'tooltip-arrow';
-      arrow.style.position = 'absolute';
-      const badgeCenter = rect.left + rect.width / 2;
-      const tooltipLeft = left + containerRect.left;
-      let arrowLeft = badgeCenter - tooltipLeft;
-      arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
-      arrow.style.left = `${arrowLeft}px`;
-      arrow.style.transform = 'translateX(-50%)';
-      arrow.style.width = '0';
-      arrow.style.height = '0';
-      arrow.style.zIndex = '100000';
-      // Arrow on top (tooltip below badge, arrow points up)
-      arrow.style.top = '-6px';
-      arrow.style.borderLeft = '6px solid transparent';
-      arrow.style.borderRight = '6px solid transparent';
-      arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
-      arrow.style.borderTop = 'none';
-      globalTooltip.appendChild(arrow);
-
-      // Get all the computed colors we need
-      const computedStyle = getComputedStyle(document.body);
-      const borderLight = computedStyle.getPropertyValue('--border-light').trim();
-      const statusGood = computedStyle.getPropertyValue('--status-good').trim();
-      const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
-      const statusError = computedStyle.getPropertyValue('--status-error').trim();
-      const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
-      const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
-
-      // Set left border based on status
-      globalTooltip.style.borderLeft = '';
-      if (this.classList.contains('good')) {
-        globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
-      } else if (this.classList.contains('warning')) {
-        globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
-      } else if (this.classList.contains('error')) {
-        globalTooltip.style.borderLeft = `7px solid ${statusError}`;
-      } else if (this.classList.contains('low')) {
-        globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
-      }
-
-      // Set top, right, and bottom borders using --border-light
-      globalTooltip.style.borderTop = `3px solid ${borderLight}`;
-      globalTooltip.style.borderRight = `3px solid ${borderLight}`;
-      globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
-    });
-
-    addTrackedListener(badge, 'mouseleave', function() {
-      globalTooltip.style.display = 'none';
-      globalTooltip.textContent = '';
-      let arrow = globalTooltip.querySelector('.tooltip-arrow');
-      if (arrow) arrow.remove();
-    });
-    
-    // Mark as initialized
-    badge.setAttribute('data-tooltip-initialized', 'true');
-  });
-}
-
-// Use event delegation for performance
-document.addEventListener('mouseover', function (e) {
-  const target = e.target.closest('[data-tooltip]');
-  const tooltip = getCached('globalTooltip');
-  if (target && tooltip) {
+    // Always define isDark at the top
     const isDark = document.body.getAttribute('data-theme') === 'dark';
-    let arrow = tooltip.querySelector('.tooltip-arrow');
-    if (arrow) arrow.remove();
+    
+    // Find the closest .meta-section-content ancestor
+    let container = target.closest('.meta-section-content');
+    if (!container) {
+      container = document.body;
+    }
 
-    tooltip.textContent = target.getAttribute('data-tooltip');
+    globalTooltip.textContent = tooltipText;
+    globalTooltip.style.display = 'block';
 
-    // Get all the computed colors we need
+    const rect = target.getBoundingClientRect();
+    const tooltipRect = globalTooltip.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // Always open below the badge (arrow on top)
+    let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.bottom - containerRect.top + 10;
+
+    // Adjust if tooltip would go off screen horizontally
+    if (left < 10) {
+      left = 10;
+    } else if (left + tooltipRect.width > containerRect.width - 10) {
+      left = containerRect.width - tooltipRect.width - 10;
+    }
+
+    globalTooltip.style.left = `${left + containerRect.left}px`;
+    globalTooltip.style.top = `${top + containerRect.top}px`;
+
+    // Add arrow
+    let arrow = document.createElement('div');
+    arrow.className = 'tooltip-arrow';
+    arrow.style.position = 'absolute';
+    const badgeCenter = rect.left + rect.width / 2;
+    const tooltipLeft = left + containerRect.left;
+    let arrowLeft = badgeCenter - tooltipLeft;
+    arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
+    arrow.style.left = `${arrowLeft}px`;
+    arrow.style.transform = 'translateX(-50%)';
+    arrow.style.width = '0';
+    arrow.style.height = '0';
+    arrow.style.zIndex = '100000';
+    arrow.style.top = '-6px';
+    arrow.style.borderLeft = '6px solid transparent';
+    arrow.style.borderRight = '6px solid transparent';
+    arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
+    arrow.style.borderTop = 'none';
+    globalTooltip.appendChild(arrow);
+
+    // Get computed colors
     const computedStyle = getComputedStyle(document.body);
     const borderLight = computedStyle.getPropertyValue('--border-light').trim();
     const statusGood = computedStyle.getPropertyValue('--status-good').trim();
@@ -1590,26 +1606,37 @@ document.addEventListener('mouseover', function (e) {
     const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
 
     // Set left border based on status
-    tooltip.style.borderLeft = '';
+    globalTooltip.style.borderLeft = '';
     if (target.classList.contains('good')) {
-      tooltip.style.borderLeft = `7px solid ${statusGood}`;
+      globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
     } else if (target.classList.contains('warning')) {
-      tooltip.style.borderLeft = `7px solid ${statusWarning}`;
+      globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
     } else if (target.classList.contains('error')) {
-      tooltip.style.borderLeft = `7px solid ${statusError}`;
+      globalTooltip.style.borderLeft = `7px solid ${statusError}`;
     } else if (target.classList.contains('low')) {
-      tooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
+      globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
     }
 
-    // Set top, right, and bottom borders using --border-light
-    tooltip.style.borderTop = `3px solid ${borderLight}`;
-    tooltip.style.borderRight = `3px solid ${borderLight}`;
-    tooltip.style.borderBottom = `3px solid ${borderLight}`;
-  }
-});
+    // Set other borders
+    globalTooltip.style.borderTop = `3px solid ${borderLight}`;
+    globalTooltip.style.borderRight = `3px solid ${borderLight}`;
+    globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
+  };
 
-// [KEEP ALL OTHER HELPER FUNCTIONS AS-IS]
-// Including collectMetaTagsHTML, collectSchemaHTML, updateSchemaData, etc.
+  window.MetaPeek.tooltipOutHandler = function(e) {
+    const target = e.target.closest('[data-tooltip]');
+    if (!target) return;
+    
+    globalTooltip.style.display = 'none';
+    globalTooltip.textContent = '';
+    const arrow = globalTooltip.querySelector('.tooltip-arrow');
+    if (arrow) arrow.remove();
+  };
+
+  // Use event delegation on document
+  addTrackedListener(document, 'mouseover', window.MetaPeek.tooltipHandler);
+  addTrackedListener(document, 'mouseout', window.MetaPeek.tooltipOutHandler);
+}
 
 /**
  * Collect meta tags as HTML for copying (UPDATED)
@@ -1843,22 +1870,33 @@ ${JSON.stringify(jsonLD, null, 2)}
 </script>`;
 }
 
-// Helper functions for schema grouping, toggling, and value extraction
+/**
+ * Groups schema data by their @type property
+ * @param {Array<Object>} schemaData - Array of schema objects to group
+ * @returns {Object} Object with schema types as keys and arrays of schemas as values
+ */
 function groupSchemasByType(schemaData) {
-  const grouped = {};
+  // Early return for invalid input
+  if (!Array.isArray(schemaData) || schemaData.length === 0) {
+    return Object.create(null);
+  }
+
+  // Use Object.create(null) for better performance and no prototype pollution
+  const grouped = Object.create(null);
   
-  schemaData.forEach(schema => {
-    if (schema.valid && schema.data && schema.data['@type']) {
-      const schemaType = Array.isArray(schema.data['@type']) 
-        ? schema.data['@type'][0] 
-        : schema.data['@type'];
-      
-      if (!grouped[schemaType]) {
-        grouped[schemaType] = [];
-      }
-      grouped[schemaType].push(schema);
-    }
-  });
+  // Single loop with optimized type checking
+  for (const schema of schemaData) {
+    // Skip invalid schemas early
+    if (!schema?.valid || !schema?.data?.['@type']) continue;
+    
+    // Get schema type, handling both array and single value cases
+    const schemaType = Array.isArray(schema.data['@type']) 
+      ? schema.data['@type'][0] 
+      : schema.data['@type'];
+    
+    // Initialize array if needed and push schema
+    (grouped[schemaType] ||= []).push(schema);
+  }
   
   return grouped;
 }
