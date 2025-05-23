@@ -1075,7 +1075,7 @@ function generateAllPreviews() {
   const siteName = metadata.siteName || '';
 
   // Generate previews for each platform
-  generateGooglePreview(hostname, title, description);
+  generateGooglePreview(hostname, title, description, image, siteName);
   generateFacebookPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
   generateTwitterPreview(metadata, hostname, metadata.twitterTitle || metadata.ogTitle || title, metadata.twitterDescription || metadata.ogDescription || description, metadata.twitterImage || image);
   generateLinkedInPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
@@ -1085,19 +1085,40 @@ function generateAllPreviews() {
 /**
  * Generate Google preview with metadata
  */
-function generateGooglePreview(hostname, title, description) {
+function generateGooglePreview(hostname, title, description, image, siteName) {
   const preview = document.getElementById('google-preview');
   if (!preview) return;
-  
+
+  // Use og:site_name if available, otherwise fallback to hostname
+  const displaySiteName = siteName || hostname.replace(/^www\./, '');
+
+  // Get the domain for favicon
+  const domain = hostname.replace(/^www\./, '');
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}`;
+
+  // Format the path as domain.com › path
+  let formattedPath = domain;
+  if (image) {
+    try {
+      const parsed = new URL(image);
+      const path = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
+      if (path) {
+        formattedPath += ' › ' + path.split('/').join(' › ');
+      }
+    } catch (e) {}
+  }
+
   preview.innerHTML = `
     <div class="google-preview">
-      <div class="preview-url">${hostname}</div>
+      <div class="preview-url">
+        <img src="${faviconUrl}" alt="favicon" class="google-favicon" />
+        <span class="site-name">${displaySiteName}</span>
+      </div>
+      <div class="preview-path">${formattedPath}</div>
       <div class="preview-title">${title || 'No title available'}</div>
       <div class="preview-description">${description || 'No description available'}</div>
     </div>
   `;
-  // Adjust height after content is set
-  setTimeout(adjustPreviewContainerHeight, 0);
 }
 
 /**
