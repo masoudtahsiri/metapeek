@@ -1180,6 +1180,10 @@ body {
   border-bottom: none;
 }
 
+.schema-card .status-badge {
+  cursor: default;
+}
+
 /* ==========================================
    8. BUTTONS & CONTROLS
    ========================================== */
