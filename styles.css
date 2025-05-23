@@ -2516,3 +2516,27 @@ a:focus-visible {
   min-height: 100%;
   width: 100%;
 }
+
+[data-theme="dark"] .google-preview .preview-path {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: normal;
+  text-transform: none;
+  font-style: normal;
+  text-align: start;
+  color: #bdc1c6;
+}
+
+[data-theme="dark"] .google-preview .site-name {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  font-style: normal;
+  text-align: start;
+  color: #dadce0;
+}
