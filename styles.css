@@ -194,6 +194,14 @@
 .issue-item {
   contain: layout style;
   transform: translateY(0);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  border-left: 4px solid;
+  border-top: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .score-circle {
@@ -897,18 +905,6 @@ body {
   gap: var(--space-3);
 }
 
-.issue-item {
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  background-color: var(--bg-surface);
-  border-left: 4px solid;
-  border-top: 1px solid var(--border-light);
-  border-right: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
-  margin-bottom: 22px !important;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
 .issue-item:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
@@ -934,7 +930,7 @@ body {
 }
 
 .issue-header h4 {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
   cursor: help;
@@ -957,13 +953,13 @@ body {
 
 .issue-category {
   display: inline-block;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-tertiary);
   background-color: var(--bg-surface);
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid var(--border-light);
+  border: 2px solid var(--border-light);
   text-transform: none;
   letter-spacing: 0.01em;
 }
@@ -1789,15 +1785,22 @@ a:focus-visible {
 }
 
 .google-favicon {
-  width: 16px;
-  height: 16px;
+  width: 26px;
+  height: 26px;
   vertical-align: middle;
   margin-right: 6px;
 }
 
 .google-preview .site-name {
-  font-weight: 600;
-  color: #202124;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  font-style: normal;
+  text-align: start;
+  color: rgb(32, 33, 36);
   margin-right: 8px;
 }
 
@@ -2530,13 +2533,5 @@ a:focus-visible {
 }
 
 [data-theme="dark"] .google-preview .site-name {
-  font-family: Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
-  letter-spacing: normal;
-  text-transform: none;
-  font-style: normal;
-  text-align: start;
-  color: #dadce0;
+  color: rgb(218, 220, 224);
 }
