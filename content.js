@@ -465,7 +465,8 @@ function getPageMetadata() {
     ogMeta: [],
     twitterMeta: [],
     canonicalUrl: '',
-    schemaData: []
+    schemaData: [],
+    url: window.location.href
   };
   
   try {

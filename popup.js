@@ -1027,7 +1027,7 @@ function updateSocialPreviews(metadata) {
   const twitterImage = metadata.twitterMeta?.find(tag => tag.label === 'twitter:image')?.value || '';
   const siteName = metadata.ogMeta?.find(tag => tag.label === 'og:site_name')?.value || '';
 
-  // Store metadata in state
+  // Store metadata in state, including canonicalUrl, ogUrl, and url
   socialPreviewState.originalMetadata = {
     title,
     description,
@@ -1037,7 +1037,10 @@ function updateSocialPreviews(metadata) {
     twitterTitle,
     twitterDescription,
     twitterImage,
-    siteName
+    siteName,
+    canonicalUrl: metadata.canonicalUrl || '',
+    ogUrl: metadata.ogMeta?.find(tag => tag.label === 'og:url')?.value || '',
+    url: metadata.url || ''
   };
   
   // Generate social preview content for all platforms
@@ -1067,6 +1070,12 @@ function generateAllPreviews() {
   
   const metadata = socialPreviewState.originalMetadata;
   const hostname = socialPreviewState.pageHostname || 'example.com';
+  // Debug log for canonicalUrl, ogUrl, url
+  console.log('Google preview path debug:', {
+    canonicalUrl: metadata.canonicalUrl,
+    ogUrl: metadata.ogUrl,
+    url: metadata.url
+  });
   // Prefer canonical, then og:url, then url
   const pageUrl = metadata.canonicalUrl || metadata.ogUrl || metadata.url || '';
   
