@@ -201,7 +201,7 @@ function cleanup() {
         });
       }
     });
-    
+  
     // Reset initialization state
     if (window.MetaPeek) {
   window.MetaPeek.initialized = false;
@@ -1407,7 +1407,7 @@ function initTabNavigation() {
 function initExcelExport() {
   const exportButton = document.getElementById('export-excel');
   if (!exportButton) return;
-  
+
   addTrackedListener(exportButton, 'click', async () => {
     try {
       // Add loading state
@@ -1699,7 +1699,7 @@ function groupSchemasByType(schemaData) {
   // Early return for invalid input
   if (!Array.isArray(schemaData) || schemaData.length === 0) {
     return Object.create(null);
-  }
+    }
 
   // Use Object.create(null) for better performance and no prototype pollution
   const grouped = Object.create(null);
