@@ -6,7 +6,7 @@
   "author": "Refact.co",
   "homepage_url": "https://refact.co/toolkit/",
   "support_url": "https://refact.co/contact/",
-  "privacy_policy_url": "https://raw.githubusercontent.com/masoudtahsiri/metapeek/main/privacy-policy.html",
+  "privacy_policy_url": "https://raw.githubusercontent.com/masoudtahsiri/metapeek/main/privacy-policy.md",
   "minimum_chrome_version": "88",
   "icons": {
     "16": "icons/icon16.png",
