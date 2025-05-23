@@ -1085,7 +1085,7 @@ function generateAllPreviews() {
 /**
  * Generate Google preview with metadata
  */
-function generateGooglePreview(hostname, title, description, image, siteName) {
+function generateGooglePreview(hostname, title, description, url, siteName) {
   const preview = document.getElementById('google-preview');
   if (!preview) return;
 
@@ -1096,16 +1096,24 @@ function generateGooglePreview(hostname, title, description, image, siteName) {
   const domain = hostname.replace(/^www\./, '');
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}`;
 
-  // Format the path as domain.com › path
-  let formattedPath = domain;
-  if (image) {
+  // Format the preview path as canonical URL › Capitalized first path segment
+  let formattedPath = '';
+  if (url) {
     try {
-      const parsed = new URL(image);
-      const path = parsed.pathname.replace(/^\//, '').replace(/\/$/, '');
-      if (path) {
-        formattedPath += ' › ' + path.split('/').join(' › ');
+      const parsed = new URL(url);
+      const canonical = parsed.origin; // protocol + domain
+      let firstSegment = parsed.pathname.split('/').filter(Boolean)[0] || '';
+      if (firstSegment) {
+        firstSegment = firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
+        formattedPath = `${canonical} › ${firstSegment}`;
+      } else {
+        formattedPath = canonical;
       }
-    } catch (e) {}
+    } catch (e) {
+      formattedPath = url;
+    }
+  } else {
+    formattedPath = domain;
   }
 
   preview.innerHTML = `
