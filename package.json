@@ -26,7 +26,6 @@
   },
   "homepage": "https://github.com/masoudtahsiri/metapeek#readme",
   "dependencies": {
-    "webextension-polyfill": "^0.10.0",
     "sharp": "^0.33.2"
   }
 }
