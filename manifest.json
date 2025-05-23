@@ -3,6 +3,10 @@
   "name": "MetaPeek",
   "version": "1.0.0",
   "description": "Analyze and optimize your page's meta tags and SEO.",
+  "author": "Refact.co",
+  "homepage_url": "https://refact.co/toolkit/",
+  "support_url": "https://refact.co/contact/",
+  "minimum_chrome_version": "88",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -19,13 +23,10 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "tabs",
-    "storage",
-    "notifications"
+    "storage"
   ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
@@ -33,8 +34,7 @@
   "content_scripts": [
     {
       "matches": [
-        "http://*/*",
-        "https://*/*"
+        "<all_urls>"
       ],
       "js": ["content.js"]
     }
@@ -49,5 +49,6 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "offline_enabled": true
 } 
