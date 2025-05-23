@@ -59,17 +59,54 @@
       <div class="tab-content">
         <!-- Overview Tab -->
         <section id="overview-tab" class="tab-pane active">
-          <!-- SEO Score Display -->
-          <div class="score-panel">
-            <div class="score-display">
-              <div class="score-circle">
-                <div class="score-value">--</div>
+          <!-- Status Overview Display -->
+          <div class="status-overview-panel">
+            <h2 class="status-overview-title">Status Overview</h2>
+            
+            <div class="status-categories">
+              <!-- Basic Meta Tags -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Basic Meta Tags</span>
+                  <span class="category-count">0/5</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill basic-meta-progress" style="width: 0%"></div>
+                </div>
               </div>
-              <div class="score-label">SEO Score</div>
-            </div>
-            <div class="score-details">
-              <h3 class="score-title">Analyzing SEO...</h3>
-              <p class="score-description">Checking your page's SEO factors</p>
+              
+              <!-- Open Graph -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Open Graph Tags</span>
+                  <span class="category-count">0/6</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill og-progress" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <!-- Twitter Card -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Twitter Card Tags</span>
+                  <span class="category-count">0/5</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill twitter-progress" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <!-- Schema.org -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Schema.org Data</span>
+                  <span class="category-status">Not detected</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill schema-progress" style="width: 0%"></div>
+                </div>
+              </div>
             </div>
           </div>
 

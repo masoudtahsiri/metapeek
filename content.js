@@ -981,107 +981,19 @@ function isPageSchema(obj, currentUrl) {
 }
 
 /**
- * Calculate SEO health score based on metadata
- * @param {Object} metadata - The metadata to score
- * @returns {Object} SEO health score results
+ * Calculate completeness data and recommendations
+ * @param {Object} metadata - The metadata to analyze
+ * @returns {Object} Completeness data and recommendations
  */
 function calculateSEOHealthScore(metadata) {
-  // UPDATED: SEO scoring weights
-  const weights = {
-    basicMeta: 0.35,        // 35% - Basic meta tags
-    socialMeta: 0.25,       // 25% - Social media tags
-    technical: 0.25,        // 25% - Technical factors
-    structured: 0.15        // 15% - Schema.org data
-  };
-  
-  // Initialize category scores
-  let scores = {
-    basicMeta: 0,
-    socialMeta: 0,
-    technical: 0,
-    structured: 0
-  };
-  
-  // Score basic meta tags (title, description, viewport)
-  if (metadata.basicMeta && metadata.basicMeta.length > 0) {
-    const basicMetaItems = metadata.basicMeta.filter(tag => 
-      ['Title', 'Description', 'Viewport'].includes(tag.label)
-    ).length;
-    const goodBasicItems = metadata.basicMeta.filter(tag => 
-      ['Title', 'Description', 'Viewport'].includes(tag.label) && tag.status === 'good'
-    ).length;
-    scores.basicMeta = basicMetaItems > 0 ? goodBasicItems / basicMetaItems : 0;
-  }
-  
-  // Score social meta tags (OG + Twitter)
-  if (metadata.ogMeta && metadata.twitterMeta) {
-    const ogItems = metadata.ogMeta.length;
-    const twitterItems = metadata.twitterMeta.length;
-    const totalItems = ogItems + twitterItems;
-    
-    const goodOgItems = metadata.ogMeta.filter(tag => tag.status === 'good').length;
-    const goodTwitterItems = metadata.twitterMeta.filter(tag => tag.status === 'good').length;
-    
-    scores.socialMeta = totalItems > 0 ? (goodOgItems + goodTwitterItems) / totalItems : 0;
-  }
-  
-  // Score technical factors
-  let technicalScore = 0;
-  let technicalFactors = 0;
-  
-  // Check canonical URL
-  if (metadata.canonicalUrl) {
-    technicalScore += 1;
-    technicalFactors += 1;
-  }
-  
-  // Check HTTPS
-  if (window.location.protocol === 'https:') {
-    technicalScore += 1;
-    technicalFactors += 1;
-  }
-  
-  // Check mobile viewport
-  const viewport = metadata.basicMeta?.find(tag => tag.label === 'Viewport');
-  if (viewport && viewport.status === 'good') {
-    technicalScore += 1;
-    technicalFactors += 1;
-  }
-  
-  // Check robots meta
-  const robots = metadata.basicMeta?.find(tag => tag.label === 'Robots');
-  if (robots && robots.status === 'good') {
-    technicalScore += 0.5;
-    technicalFactors += 1;
-  }
-  
-  scores.technical = technicalFactors > 0 ? technicalScore / technicalFactors : 0;
-  
-  // Score structured data
-  if (metadata.schemaData && metadata.schemaData.length > 0) {
-    scores.structured = metadata.schemaData.every(s => s.valid) ? 1 : 0.5;
-  } else {
-    scores.structured = 0;
-  }
-  
-  // Calculate overall weighted score
-  const overallScore = Object.entries(weights).reduce(
-    (total, [category, weight]) => total + (scores[category] * weight),
-    0
-  );
-  
-  // Scale to 0-100
-  const scaledScore = Math.round(overallScore * 100);
-  
-  // Generate recommendations
+  // Generate recommendations (keep all the existing recommendation logic)
   const recommendations = generateRecommendations(metadata);
   
-  // Return combined score data
+  // Return simplified result without score calculation
   return {
-    score: scaledScore,
-    categoryScores: scores,
+    score: null, // No longer calculating a misleading "SEO score"
     recommendations: recommendations,
-    status: scaledScore >= 80 ? 'good' : scaledScore >= 60 ? 'warning' : 'error'
+    status: 'info' // Neutral status
   };
 }
 

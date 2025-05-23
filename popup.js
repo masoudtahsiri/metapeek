@@ -447,55 +447,99 @@ function updateMetaTagSummary(metadata) {
 }
 
 /**
- * Update SEO Score display (with new category breakdowns)
- * @param {Object} scoreData - SEO score data
+ * Update Status Overview with progress bars
+ * @param {Object} scoreData - Score data containing validation results
  */
 function updateSEOScore(scoreData) {
   if (!scoreData) return;
   
-  const scoreCircle = getCached('scoreCircle');
-  const scoreValue = getCached('scoreValue');
-  const scoreTitle = getCached('scoreTitle');
-  const scoreDescription = getCached('scoreDescription');
+  const metadata = state.metadata || {};
   
-  if (scoreValue) {
-    scoreValue.textContent = scoreData.score || '--';
-  }
+  // Basic Meta Tags
+  const basicMetaTotal = 5; // Title, Description, Keywords, Viewport, Robots
+  const basicMetaGood = (metadata.basicMeta || []).filter(tag => tag.status === 'good').length;
+  updateProgressBar('basic-meta', basicMetaGood, basicMetaTotal);
   
-  if (scoreCircle) {
-    scoreCircle.style.setProperty('--progress', `${scoreData.score || 0}%`);
+  // Open Graph Tags
+  const ogTotal = 6; // og:title, og:description, og:image, og:url, og:type, og:site_name
+  const ogGood = (metadata.ogMeta || []).filter(tag => tag.status === 'good').length;
+  updateProgressBar('og', ogGood, ogTotal);
+  
+  // Twitter Card Tags
+  const twitterTotal = 5; // twitter:card, twitter:title, twitter:description, twitter:image, twitter:site
+  const twitterGood = (metadata.twitterMeta || []).filter(tag => tag.status === 'good').length;
+  updateProgressBar('twitter', twitterGood, twitterTotal);
+  
+  // Schema.org Data
+  const hasSchema = metadata.schemaData && metadata.schemaData.length > 0;
+  const hasValidSchema = hasSchema && metadata.schemaData.every(s => s.valid);
+  updateSchemaStatus(hasSchema, hasValidSchema);
+}
+
+/**
+ * Update individual progress bar
+ * @param {string} category - Category identifier
+ * @param {number} completed - Number of completed items
+ * @param {number} total - Total number of items
+ */
+function updateProgressBar(category, completed, total) {
+  const progressBar = document.querySelector(`.${category}-progress`);
+  const countElement = progressBar?.closest('.status-category')?.querySelector('.category-count');
+  
+  if (progressBar) {
+    const percentage = (completed / total) * 100;
+    progressBar.style.width = `${percentage}%`;
     
-    // Set color based on score
-    if (scoreData.score >= 80) {
-      scoreCircle.className = 'score-circle good';
-    } else if (scoreData.score >= 60) {
-      scoreCircle.className = 'score-circle warning';
+    // Set color based on completion
+    progressBar.classList.remove('complete', 'partial', 'incomplete');
+    if (percentage === 100) {
+      progressBar.classList.add('complete');
+    } else if (percentage >= 50) {
+      progressBar.classList.add('partial');
     } else {
-      scoreCircle.className = 'score-circle error';
+      progressBar.classList.add('incomplete');
     }
   }
   
-  if (scoreTitle) {
-    if (scoreData.score >= 80) {
-      scoreTitle.textContent = 'Excellent SEO Health';
-    } else if (scoreData.score >= 60) {
-      scoreTitle.textContent = 'Good SEO Health';
+  if (countElement) {
+    countElement.textContent = `${completed}/${total}`;
+  }
+}
+
+/**
+ * Update Schema.org status
+ * @param {boolean} hasSchema - Whether schema data exists
+ * @param {boolean} isValid - Whether schema data is valid
+ */
+function updateSchemaStatus(hasSchema, isValid) {
+  const progressBar = document.querySelector('.schema-progress');
+  const statusElement = progressBar?.closest('.status-category')?.querySelector('.category-status');
+  
+  if (progressBar) {
+    progressBar.classList.remove('complete', 'partial', 'incomplete');
+    
+    if (!hasSchema) {
+      progressBar.style.width = '0%';
+      progressBar.classList.add('incomplete');
+    } else if (isValid) {
+      progressBar.style.width = '100%';
+      progressBar.classList.add('complete');
     } else {
-      scoreTitle.textContent = 'Needs Improvement';
+      progressBar.style.width = '50%';
+      progressBar.classList.add('partial');
     }
   }
   
-  if (scoreDescription) {
-    const categoryScores = scoreData.categoryScores || {};
-    const weakestCategory = Object.entries(categoryScores)
-      .sort(([,a], [,b]) => a - b)[0];
-    
-    if (scoreData.score >= 80) {
-      scoreDescription.textContent = 'Your page is well-optimized for modern SEO standards.';
-    } else if (scoreData.score >= 60) {
-      scoreDescription.textContent = `Good foundation. Focus on improving ${weakestCategory ? weakestCategory[0] : 'technical'} factors.`;
+  if (statusElement) {
+    if (!hasSchema) {
+      statusElement.textContent = 'Not detected';
+      statusElement.className = 'category-status status-none';
+    } else if (isValid) {
+      statusElement.textContent = 'Valid ✓';
+      statusElement.className = 'category-status status-valid';
     } else {
-      scoreDescription.textContent = `Significant improvements needed, especially in ${weakestCategory ? weakestCategory[0] : 'technical'} SEO.`;
+      statusElement.textContent = 'Has errors';
+      statusElement.className = 'category-status status-error';
     }
   }
 }

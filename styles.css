@@ -647,8 +647,15 @@ body {
   padding: 1rem 0.75rem;
 }
 
-#meta-tags-tab .meta-cell {
-  padding: 0.75rem;
+.meta-cell {
+  font-size: var(--font-size-sm);
+  align-content: center;
+}
+
+#meta-tags-tab .meta-cell.name {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  padding-right: 1.5rem;
 }
 
 #meta-tags-tab .meta-cell.value {
@@ -682,7 +689,7 @@ body {
 }
 
 #overview-tab .section-card {
-  margin-top: 0;
+  margin-top: 2.5rem;
   padding-top: 0;
   padding: 1.25rem;
 }
@@ -1592,7 +1599,7 @@ a:focus-visible {
 
 .meta-cell {
   font-size: var(--font-size-sm);
-  padding: 0.5rem;
+  align-content: center;
 }
 
 .meta-cell.name {
@@ -1632,6 +1639,7 @@ a:focus-visible {
 /* Preview Content Container */
 #social-preview-tab .preview-container {
   padding: 0;
+  margin-top: 2.25rem;
 }
 
 .preview-container:hover {
@@ -2598,4 +2606,184 @@ a:focus-visible {
 [data-theme="dark"] #export-excel:hover {
   background-color: var(--primary-light);
   color: #fff;
+}
+
+/* Status Overview Panel */
+.status-overview-panel {
+  margin-bottom: var(--space-8);
+  padding: 1.5rem;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 2px solid var(--border-medium);
+  border-left-width: 5px;
+  border-left-color: var(--primary);
+}
+
+.status-overview-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
+}
+
+.status-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.status-category {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.category-count {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.category-status {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.category-status.status-valid {
+  color: var(--status-good);
+}
+
+.category-status.status-error {
+  color: var(--status-error);
+}
+
+.category-status.status-none {
+  color: var(--text-tertiary);
+}
+
+/* Progress Bars */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary);
+  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: var(--radius-full);
+}
+
+.progress-fill.complete {
+  background-color: var(--status-good);
+}
+
+.progress-fill.partial {
+  background-color: var(--status-warning);
+}
+
+.progress-fill.incomplete {
+  background-color: var(--status-error);
+}
+
+/* Summary Grid */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+.summary-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  border: 1px solid var(--border-light);
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.summary-header h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.summary-content {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.summary-content.empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.summary-footer {
+  margin-top: var(--space-2);
+  display: flex;
+}
+
+.summary-footer .status-badge {
+  max-width: 100%;
+  margin-top: var(--space-1);
+}
+
+/* Dark mode support for status overview */
+[data-theme="dark"] .status-overview-panel {
+  background: linear-gradient(to bottom right, var(--bg-card), var(--color-gray-800));
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--border-medium);
+  border-left-width: 5px;
+  border-left-color: var(--primary);
+}
+
+[data-theme="dark"] .progress-bar {
+  background-color: var(--color-gray-750);
+  border-color: var(--border-medium);
+}
+
+.status-overview-panel {
+  padding: 1rem;
+}
+
+.status-overview-title {
+  font-size: 1.05rem;
+  margin-bottom: 1.25rem;
+}
+
+.status-categories {
+  gap: 0.75rem;
+}
+
+.status-category {
+  gap: 0.25rem;
+}
+
+.category-name,
+.category-count,
+.category-status {
+  font-size: 0.92rem;
 }
