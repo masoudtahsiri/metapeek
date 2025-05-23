@@ -150,7 +150,6 @@
   
   /* Layout Constants */
   --header-height: 56px;
-  --footer-height: 56px;
   --max-width: 520px;
   
   /* Low Impact Colors */
@@ -2066,7 +2065,7 @@ a:focus-visible {
 /* Toast Notification */
 .toast {
   position: fixed;
-  bottom: calc(var(--footer-height) + var(--space-4));
+  bottom: var(--space-4);
   left: 50%;
   transform: translateX(-50%) translateY(100px);
   background-color: var(--bg-card);
@@ -2538,4 +2537,59 @@ a:focus-visible {
 
 [data-theme="dark"] .google-preview .site-name {
   color: rgb(218, 220, 224);
+}
+
+#export-excel {
+  color: var(--primary);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+#export-excel:hover {
+  background-color: var(--primary-light);
+  color: var(--primary-hover);
+}
+
+#export-excel.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+#export-excel.loading svg {
+  animation: spin 1s linear infinite;
+}
+
+#export-excel::before {
+  content: 'Export Excel Report';
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-main);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+#export-excel:hover::before {
+  opacity: 1;
+}
+
+#export-excel.loading::before {
+  content: 'Generating report...';
+}
+
+/* Dark mode support */
+[data-theme="dark"] #export-excel {
+  color: var(--primary);
+}
+
+[data-theme="dark"] #export-excel:hover {
+  background-color: var(--primary-light);
+  color: #fff;
 }

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script src="popup.js"></script>
+  <script src="lib/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -20,6 +21,13 @@
         <h1>MetaPeek</h1>
       </div>
       <div class="app-actions">
+        <button id="export-excel" class="btn-icon" aria-label="Export to Excel" title="Export SEO Audit to Excel">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
         <button id="theme-toggle" class="btn-icon" aria-label="Toggle dark mode" title="Toggle dark mode">
           <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
@@ -116,15 +124,6 @@
             <div class="meta-section-content">
               <!-- Basic Meta Tags -->
               <div id="basic-meta-content" class="meta-section-pane active">
-                <div class="section-actions">
-                  <button id="copy-basic-meta" class="btn-icon-text">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
                 <div class="meta-table">
                   <div class="loading-indicator">
                     <div class="loading-spinner"></div>
@@ -135,15 +134,6 @@
               
               <!-- Open Graph Tags -->
               <div id="og-meta-content" class="meta-section-pane">
-                <div class="section-actions">
-                  <button id="copy-og-meta" class="btn-icon-text">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
                 <div class="meta-table">
                   <div class="loading-indicator">
                     <div class="loading-spinner"></div>
@@ -154,15 +144,6 @@
               
               <!-- Twitter Card Tags -->
               <div id="twitter-meta-content" class="meta-section-pane">
-                <div class="section-actions">
-                  <button id="copy-twitter-meta" class="btn-icon-text">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
                 <div class="meta-table">
                   <div class="loading-indicator">
                     <div class="loading-spinner"></div>
@@ -173,15 +154,6 @@
               
               <!-- Schema.org Data -->
               <div id="schema-content" class="meta-section-pane">
-                <div class="section-actions">
-                  <button id="copy-schema" class="btn-icon-text">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
                 <div class="meta-table">
                   <div class="loading-indicator">
                     <div class="loading-spinner"></div>

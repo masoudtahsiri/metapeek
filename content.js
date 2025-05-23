@@ -16,6 +16,38 @@ window.MetaPeek = window.MetaPeek || {
   extractionTimeout: null
 };
 
+// Add metadata caching
+const metaCache = {
+  basic: null,
+  og: null,
+  twitter: null,
+  schema: null,
+  lastUpdate: 0
+};
+
+const CACHE_TTL = 1000; // 1 second cache
+
+function getCachedMetadata(type) {
+  const now = Date.now();
+  if (metaCache[type] && (now - metaCache.lastUpdate) < CACHE_TTL) {
+    return metaCache[type];
+  }
+  return null;
+}
+
+function setCachedMetadata(type, data) {
+  metaCache[type] = data;
+  metaCache.lastUpdate = Date.now();
+}
+
+function clearMetadataCache() {
+  metaCache.basic = null;
+  metaCache.og = null;
+  metaCache.twitter = null;
+  metaCache.schema = null;
+  metaCache.lastUpdate = 0;
+}
+
 /**
  * Enhanced Meta Tag Validation for MetaPeek
  * [KEEP ALL THE META_TAG_STANDARDS DEFINITION AS-IS]
@@ -245,6 +277,9 @@ function cleanup() {
   // Clear tooltip listeners
   window.MetaPeek.tooltipListeners = new WeakMap();
   
+  // Clear metadata cache
+  clearMetadataCache();
+  
   // Reset state
   window.MetaPeek.initialized = false;
   window.MetaPeek.metadata = null;
@@ -451,9 +486,6 @@ function handleSEOHealthRequest(sendResponse) {
   sendResponse(seoHealth);
 }
 
-// [KEEP ALL OTHER FUNCTIONS AS-IS: getPageMetadata, extractBasicMetaTags, etc.]
-// Including all the extraction and validation functions unchanged
-
 /**
  * Extract metadata from the current page
  * @returns {Object} Collected metadata
@@ -510,6 +542,13 @@ function getPageMetadata() {
  * @param {Object} metadata - Metadata object to populate
  */
 function extractBasicMetaTags(metadata) {
+  // Check cache first
+  const cached = getCachedMetadata('basic');
+  if (cached) {
+    metadata.basicMeta = cached;
+    return;
+  }
+
   // Title validation
   const title = document.querySelector('title')?.textContent || '';
   let titleStatus = 'error';
@@ -642,6 +681,9 @@ function extractBasicMetaTags(metadata) {
       message: robotsMessage
     }
   ];
+
+  // Cache the results
+  setCachedMetadata('basic', metadata.basicMeta);
 }
 
 /**
@@ -649,6 +691,13 @@ function extractBasicMetaTags(metadata) {
  * @param {Object} metadata - Metadata object to populate
  */
 function extractOpenGraphTags(metadata) {
+  // Check cache first
+  const cached = getCachedMetadata('og');
+  if (cached) {
+    metadata.ogMeta = cached;
+    return;
+  }
+
   // Define required Open Graph tags with validation rules
   const ogTags = [
     {
@@ -727,6 +776,9 @@ function extractOpenGraphTags(metadata) {
       message: validation.message
     };
   });
+
+  // Cache the results
+  setCachedMetadata('og', metadata.ogMeta);
 }
 
 /**
@@ -734,6 +786,13 @@ function extractOpenGraphTags(metadata) {
  * @param {Object} metadata - Metadata object to populate
  */
 function extractTwitterCardTags(metadata) {
+  // Check cache first
+  const cached = getCachedMetadata('twitter');
+  if (cached) {
+    metadata.twitterMeta = cached;
+    return;
+  }
+
   // Define required Twitter Card tags with validation rules
   const twitterTags = [
     {
@@ -809,38 +868,9 @@ function extractTwitterCardTags(metadata) {
       message: validation.message
     };
   });
-}
 
-/**
- * Enhanced validation of canonical URL
- * @param {Object} metadata - Metadata object to populate
- */
-function validateCanonicalUrl(metadata) {
-  const canonicalLink = document.querySelector('link[rel="canonical"]');
-  const canonicalUrl = canonicalLink?.href || '';
-  
-  // Set initial values
-  metadata.canonicalMeta = {
-    value: canonicalUrl,
-    status: 'error',
-    message: META_TAG_STANDARDS.canonical.message.missing
-  };
-  
-  if (canonicalUrl) {
-    // Check if canonical URL matches the current page URL
-    const currentUrl = window.location.href.split('#')[0].split('?')[0];
-    const canonicalNormalized = canonicalUrl.split('#')[0].split('?')[0];
-    
-    if (currentUrl !== canonicalNormalized) {
-      metadata.canonicalMeta.status = 'warning';
-      metadata.canonicalMeta.message = META_TAG_STANDARDS.canonical.message.mismatch;
-    } else {
-      metadata.canonicalMeta.status = 'good';
-      metadata.canonicalMeta.message = META_TAG_STANDARDS.canonical.message.good;
-    }
-  }
-  
-  return metadata;
+  // Cache the results
+  setCachedMetadata('twitter', metadata.twitterMeta);
 }
 
 /**
@@ -848,6 +878,13 @@ function validateCanonicalUrl(metadata) {
  * @param {Object} metadata - Metadata object to update
  */
 function extractSchemaData(metadata) {
+  // Check cache first
+  const cached = getCachedMetadata('schema');
+  if (cached) {
+    metadata.schemaData = cached;
+    return;
+  }
+
   const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
   let schemas = [];
 
@@ -913,6 +950,9 @@ function extractSchemaData(metadata) {
   });
 
   metadata.schemaData = schemas;
+
+  // Cache the results
+  setCachedMetadata('schema', metadata.schemaData);
 }
 
 /**

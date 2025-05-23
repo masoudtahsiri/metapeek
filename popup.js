@@ -163,21 +163,21 @@ function cleanup() {
     
     // Remove all tracked event listeners
     if (window.MetaPeek?.listeners) {
-      window.MetaPeek.listeners.forEach((listener, element) => {
+  window.MetaPeek.listeners.forEach((listener, element) => {
         try {
           if (element?.removeEventListener && listener?.type && listener?.handler) {
-            element.removeEventListener(listener.type, listener.handler);
+      element.removeEventListener(listener.type, listener.handler);
           }
         } catch (error) {
           console.warn('Error removing event listener:', error);
-        }
-      });
-      window.MetaPeek.listeners.clear();
     }
-    
-    // Clear DOM cache
+  });
+  window.MetaPeek.listeners.clear();
+    }
+  
+  // Clear DOM cache
     if (window.MetaPeek?.domCache) {
-      window.MetaPeek.domCache.clear();
+  window.MetaPeek.domCache.clear();
     }
     
     // Clear impact containers cache
@@ -204,7 +204,7 @@ function cleanup() {
     
     // Reset initialization state
     if (window.MetaPeek) {
-      window.MetaPeek.initialized = false;
+  window.MetaPeek.initialized = false;
     }
     
   } catch (error) {
@@ -230,7 +230,7 @@ function initUI() {
     initThemeToggle();
     initTabNavigation();
     initSocialPreviews();
-    initCopyButtons();
+    initExcelExport();
     initImpactTabs();
   } catch (error) {
     console.error('Error initializing UI:', error);
@@ -597,7 +597,7 @@ function renderIssues(container, issues) {
     `;
     return;
   }
-
+  
   // Helper function to map impact to status class
   const getStatusClass = (impact) => {
     if (impact === 'High') return 'error';
@@ -614,22 +614,22 @@ function renderIssues(container, issues) {
       <svg class="info-icon" width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/><rect x="9" y="8" width="2" height="5" rx="1" fill="currentColor"/><rect x="9" y="5" width="2" height="2" rx="1" fill="currentColor"/></svg>
     </span>`;
   };
-
+  
   // Create document fragment for better performance
   const fragment = document.createDocumentFragment();
   const wrapper = document.createElement('div');
   
   // Build all HTML at once
   const html = issues.map(issue => `
-    <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
-      <div class="issue-header">
-        <h4>${issue.title}</h4>
-        ${getImpactBadge(issue.impact, issue.description)}
+      <div class="issue-item ${issue.impact.toLowerCase()}" style="position:relative;">
+        <div class="issue-header">
+          <h4>${issue.title}</h4>
+          ${getImpactBadge(issue.impact, issue.description)}
+        </div>
+        <div class="issue-category-wrapper">
+          <span class="issue-category">${issue.category}</span>
+        </div>
       </div>
-      <div class="issue-category-wrapper">
-        <span class="issue-category">${issue.category}</span>
-      </div>
-    </div>
   `).join('');
   
   wrapper.innerHTML = html;
@@ -666,9 +666,6 @@ function updateTabCounter(impactLevel, count) {
   counter.textContent = count;
 }
 
-// [KEEP ALL META TAG UPDATE FUNCTIONS AS-IS]
-// Including updateBasicMetaTags, updateOGMetaTags, updateTwitterMetaTags, etc.
-
 /**
  * Update basic meta tags in Meta Tags tab with tooltips
  * @param {Array} metaTags - Basic meta tags
@@ -677,8 +674,16 @@ function updateBasicMetaTags(metaTags) {
   const container = document.getElementById('basic-meta-content');
   if (!container) return;
   
+  // Find the meta-table div, not the entire container
+  let metaTable = container.querySelector('.meta-table');
+  if (!metaTable) {
+    metaTable = document.createElement('div');
+    metaTable.className = 'meta-table';
+    container.appendChild(metaTable);
+  }
+  
   if (!metaTags || metaTags.length === 0) {
-    container.innerHTML = `
+    metaTable.innerHTML = `
       <div class="empty-state">
         <p>No basic meta tags found on this page.</p>
       </div>
@@ -686,7 +691,7 @@ function updateBasicMetaTags(metaTags) {
     return;
   }
   
-  container.innerHTML = '';
+  metaTable.innerHTML = '';
   
   metaTags.forEach(tag => {
     const row = document.createElement('div');
@@ -709,7 +714,7 @@ function updateBasicMetaTags(metaTags) {
       </div>
     `;
     
-    container.appendChild(row);
+    metaTable.appendChild(row);
   });
   
   // Initialize tooltips after updating the badges
@@ -1397,98 +1402,28 @@ function initTabNavigation() {
 }
 
 /**
- * Initialize copy buttons functionality
+ * Initialize Excel export functionality
  */
-function initCopyButtons() {
-  // Initialize copy buttons for different meta sections
-  setupCopyButton('copy-basic-meta', () => collectMetaTagsHTML('basic-meta-content'));
-  setupCopyButton('copy-og-meta', () => collectMetaTagsHTML('og-meta-content'));
-  setupCopyButton('copy-twitter-meta', () => collectMetaTagsHTML('twitter-meta-content'));
-  setupCopyButton('copy-schema', () => collectSchemaHTML('schema-content'));
-}
-
-/**
- * Set up a copy button with click handler
- * @param {string} buttonId - ID of the copy button
- * @param {Function} getTextFn - Function to get text to copy
- */
-function setupCopyButton(buttonId, getTextFn) {
-  const button = document.getElementById(buttonId);
-  if (!button) {
-    console.warn(`Copy button with ID ${buttonId} not found`);
-    return;
-  }
-
-  addTrackedListener(button, 'click', async () => {
+function initExcelExport() {
+  const exportButton = document.getElementById('export-excel');
+  if (!exportButton) return;
+  
+  addTrackedListener(exportButton, 'click', async () => {
     try {
-      const textToCopy = getTextFn();
-      if (!textToCopy) {
-        console.warn('No text to copy');
-        return;
-      }
-
-      await navigator.clipboard.writeText(textToCopy);
-      showToast('Copied to clipboard!');
+      // Add loading state
+      exportButton.disabled = true;
+      exportButton.classList.add('loading');
+      
+      await generateExcelReport();
+      showToast('Excel report generated successfully!');
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
-      showToast('Failed to copy to clipboard');
+      console.error('Error generating Excel report:', error);
+      showToast('Failed to generate Excel report');
+    } finally {
+      // Remove loading state
+      exportButton.disabled = false;
+      exportButton.classList.remove('loading');
     }
-  });
-}
-
-/**
- * Show a toast notification
- * @param {string} message - Message to display
- */
-function showToast(message) {
-  const toast = getCached('toast');
-  if (!toast) return;
-  
-  const toastMessage = toast.querySelector('span');
-  if (toastMessage) {
-    toastMessage.textContent = message;
-  }
-  
-  toast.classList.add('show');
-  
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, CONFIG.toastDuration);
-}
-
-/**
- * Initialize meta section tabs functionality
- */
-function initMetaSectionTabs() {
-  const metaSectionTabs = document.querySelectorAll('.meta-section-tab');
-  
-  metaSectionTabs.forEach(tab => {
-    addTrackedListener(tab, 'click', () => {
-      // Get the target pane ID
-      const targetId = tab.getAttribute('data-target');
-      if (!targetId) return;
-      
-      // Remove active class from all tabs and panes
-      document.querySelectorAll('.meta-section-tab').forEach(t => {
-        t.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.meta-section-pane').forEach(pane => {
-        pane.classList.remove('active');
-      });
-      
-      // Add active class to clicked tab
-      tab.classList.add('active');
-      
-      // Add active class to corresponding pane
-      const targetPane = document.getElementById(targetId);
-      if (targetPane) {
-        targetPane.classList.add('active');
-      }
-      
-      // Initialize tooltips after meta section tab change
-      initTooltips();
-    });
   });
 }
 
@@ -1544,155 +1479,98 @@ function initTooltips() {
     if (!target) return;
 
     const tooltipText = target.getAttribute('data-tooltip');
-    if (!tooltipText) return;
+      if (!tooltipText) return;
 
-    // Always define isDark at the top
-    const isDark = document.body.getAttribute('data-theme') === 'dark';
+      // Always define isDark at the top
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
     
-    // Find the closest .meta-section-content ancestor
+      // Find the closest .meta-section-content ancestor
     let container = target.closest('.meta-section-content');
-    if (!container) {
-      container = document.body;
-    }
+      if (!container) {
+        container = document.body;
+      }
 
-    globalTooltip.textContent = tooltipText;
-    globalTooltip.style.display = 'block';
+      globalTooltip.textContent = tooltipText;
+      globalTooltip.style.display = 'block';
 
     const rect = target.getBoundingClientRect();
-    const tooltipRect = globalTooltip.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
+      const tooltipRect = globalTooltip.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
 
-    // Always open below the badge (arrow on top)
-    let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
-    let top = rect.bottom - containerRect.top + 10;
+      // Always open below the badge (arrow on top)
+      let left = rect.left - containerRect.left + (rect.width / 2) - (tooltipRect.width / 2);
+      let top = rect.bottom - containerRect.top + 10;
 
-    // Adjust if tooltip would go off screen horizontally
-    if (left < 10) {
-      left = 10;
-    } else if (left + tooltipRect.width > containerRect.width - 10) {
-      left = containerRect.width - tooltipRect.width - 10;
-    }
+      // Adjust if tooltip would go off screen horizontally
+      if (left < 10) {
+        left = 10;
+      } else if (left + tooltipRect.width > containerRect.width - 10) {
+        left = containerRect.width - tooltipRect.width - 10;
+      }
 
-    globalTooltip.style.left = `${left + containerRect.left}px`;
-    globalTooltip.style.top = `${top + containerRect.top}px`;
+      globalTooltip.style.left = `${left + containerRect.left}px`;
+      globalTooltip.style.top = `${top + containerRect.top}px`;
 
     // Add arrow
-    let arrow = document.createElement('div');
-    arrow.className = 'tooltip-arrow';
-    arrow.style.position = 'absolute';
-    const badgeCenter = rect.left + rect.width / 2;
-    const tooltipLeft = left + containerRect.left;
-    let arrowLeft = badgeCenter - tooltipLeft;
-    arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
-    arrow.style.left = `${arrowLeft}px`;
-    arrow.style.transform = 'translateX(-50%)';
-    arrow.style.width = '0';
-    arrow.style.height = '0';
-    arrow.style.zIndex = '100000';
-    arrow.style.top = '-6px';
-    arrow.style.borderLeft = '6px solid transparent';
-    arrow.style.borderRight = '6px solid transparent';
-    arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
-    arrow.style.borderTop = 'none';
-    globalTooltip.appendChild(arrow);
+      let arrow = document.createElement('div');
+      arrow.className = 'tooltip-arrow';
+      arrow.style.position = 'absolute';
+      const badgeCenter = rect.left + rect.width / 2;
+      const tooltipLeft = left + containerRect.left;
+      let arrowLeft = badgeCenter - tooltipLeft;
+      arrowLeft = Math.max(8, Math.min(arrowLeft, tooltipRect.width - 8));
+      arrow.style.left = `${arrowLeft}px`;
+      arrow.style.transform = 'translateX(-50%)';
+      arrow.style.width = '0';
+      arrow.style.height = '0';
+      arrow.style.zIndex = '100000';
+      arrow.style.top = '-6px';
+      arrow.style.borderLeft = '6px solid transparent';
+      arrow.style.borderRight = '6px solid transparent';
+      arrow.style.borderBottom = isDark ? '6px solid #fff' : '6px solid #1f2937';
+      arrow.style.borderTop = 'none';
+      globalTooltip.appendChild(arrow);
 
     // Get computed colors
-    const computedStyle = getComputedStyle(document.body);
-    const borderLight = computedStyle.getPropertyValue('--border-light').trim();
-    const statusGood = computedStyle.getPropertyValue('--status-good').trim();
-    const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
-    const statusError = computedStyle.getPropertyValue('--status-error').trim();
-    const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
-    const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
+      const computedStyle = getComputedStyle(document.body);
+      const borderLight = computedStyle.getPropertyValue('--border-light').trim();
+      const statusGood = computedStyle.getPropertyValue('--status-good').trim();
+      const statusWarning = computedStyle.getPropertyValue('--status-warning').trim();
+      const statusError = computedStyle.getPropertyValue('--status-error').trim();
+      const lowBgLight = computedStyle.getPropertyValue('--low-bg-light').trim();
+      const lowBgDark = computedStyle.getPropertyValue('--low-bg-dark').trim();
 
-    // Set left border based on status
-    globalTooltip.style.borderLeft = '';
+      // Set left border based on status
+      globalTooltip.style.borderLeft = '';
     if (target.classList.contains('good')) {
-      globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
+        globalTooltip.style.borderLeft = `7px solid ${statusGood}`;
     } else if (target.classList.contains('warning')) {
-      globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
+        globalTooltip.style.borderLeft = `7px solid ${statusWarning}`;
     } else if (target.classList.contains('error')) {
-      globalTooltip.style.borderLeft = `7px solid ${statusError}`;
+        globalTooltip.style.borderLeft = `7px solid ${statusError}`;
     } else if (target.classList.contains('low')) {
-      globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
-    }
+        globalTooltip.style.borderLeft = `7px solid ${isDark ? lowBgDark : lowBgLight}`;
+      }
 
     // Set other borders
-    globalTooltip.style.borderTop = `3px solid ${borderLight}`;
-    globalTooltip.style.borderRight = `3px solid ${borderLight}`;
-    globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
+      globalTooltip.style.borderTop = `3px solid ${borderLight}`;
+      globalTooltip.style.borderRight = `3px solid ${borderLight}`;
+      globalTooltip.style.borderBottom = `3px solid ${borderLight}`;
   };
 
   window.MetaPeek.tooltipOutHandler = function(e) {
     const target = e.target.closest('[data-tooltip]');
     if (!target) return;
     
-    globalTooltip.style.display = 'none';
-    globalTooltip.textContent = '';
+      globalTooltip.style.display = 'none';
+      globalTooltip.textContent = '';
     const arrow = globalTooltip.querySelector('.tooltip-arrow');
-    if (arrow) arrow.remove();
+      if (arrow) arrow.remove();
   };
 
   // Use event delegation on document
   addTrackedListener(document, 'mouseover', window.MetaPeek.tooltipHandler);
   addTrackedListener(document, 'mouseout', window.MetaPeek.tooltipOutHandler);
-}
-
-/**
- * Collect meta tags as HTML for copying (UPDATED)
- * @param {string} containerId - ID of the container to collect from
- * @returns {string} HTML string of meta tags
- */
-function collectMetaTagsHTML(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) {
-    console.warn(`Container with ID ${containerId} not found`);
-    return '';
-  }
-
-  const metaRows = container.querySelectorAll('.meta-row');
-  if (!metaRows.length) {
-    console.warn(`No meta rows found in container ${containerId}`);
-    return '<!-- No meta tags found -->';
-  }
-
-  const htmlTags = [];
-  
-  metaRows.forEach(row => {
-    const nameCell = row.querySelector('.meta-cell.name');
-    const valueCell = row.querySelector('.meta-cell.value:not(.empty)');
-    
-    if (!nameCell || !valueCell) return;
-    
-    const tagName = nameCell.textContent.trim();
-    const tagValue = valueCell.textContent.trim();
-    
-    if (!tagValue || tagValue === 'Not set') return;
-    
-    // Generate appropriate HTML based on tag type
-    let html = '';
-    
-    if (tagName.startsWith('og:')) {
-      html = `<meta property="${tagName}" content="${tagValue}">`;
-    } else if (tagName.startsWith('twitter:')) {
-      html = `<meta name="${tagName}" content="${tagValue}">`;
-    } else if (tagName === 'apple-touch-icon') {
-      html = `<link rel="apple-touch-icon" href="${tagValue}">`;
-    } else if (tagName === 'manifest') {
-      html = `<link rel="manifest" href="${tagValue}">`;
-    } else if (tagName === 'canonical') {
-      html = `<link rel="canonical" href="${tagValue}">`;
-    } else if (tagName === 'Title') {
-      html = `<title>${tagValue}</title>`;
-    } else {
-      // Standard meta tag
-      html = `<meta name="${tagName.toLowerCase()}" content="${tagValue}">`;
-    }
-    
-    htmlTags.push(html);
-  });
-  
-  return htmlTags.length > 0 ? htmlTags.join('\n') : '<!-- No valid meta tags found -->';
 }
 
 /**
@@ -1813,64 +1691,6 @@ function updateSchemaData(schemaData) {
 }
 
 /**
- * ALSO REPLACE the collectSchemaHTML function in popup.js (around line 500-505) with this:
- */
-function collectSchemaHTML(containerId) {
-  const container = document.getElementById(containerId);
-  if (!container) {
-    console.warn(`Container with ID ${containerId} not found`);
-    return '';
-  }
-
-  const schemaCards = container.querySelectorAll('.schema-card');
-  if (!schemaCards.length) {
-    return '<!-- No Schema.org data found -->';
-  }
-
-  const schemaObjects = [];
-  
-  schemaCards.forEach(card => {
-    const metaRows = card.querySelectorAll('.meta-row');
-    const schemaObject = {};
-    
-    metaRows.forEach(row => {
-      const nameCell = row.querySelector('.meta-cell.name');
-      const valueCell = row.querySelector('.meta-cell.value:not(.empty)');
-      
-      if (!nameCell || !valueCell) return;
-      
-      const propName = nameCell.textContent.trim();
-      const propValue = valueCell.textContent.trim();
-      
-      if (!propValue || propValue === 'Not set') return;
-      
-      // Convert display names back to schema properties
-      const schemaKey = getSchemaKey(propName);
-      schemaObject[schemaKey] = propValue;
-    });
-    
-    // Only add if we have properties
-    if (Object.keys(schemaObject).length > 0) {
-      schemaObjects.push(schemaObject);
-    }
-  });
-  
-  if (schemaObjects.length === 0) {
-    return '<!-- No valid Schema.org data found -->';
-  }
-  
-  // Format as JSON-LD
-  const jsonLD = {
-    "@context": "https://schema.org",
-    ...(schemaObjects.length === 1 ? schemaObjects[0] : schemaObjects)
-  };
-  
-  return `<script type="application/ld+json">
-${JSON.stringify(jsonLD, null, 2)}
-</script>`;
-}
-
-/**
  * Groups schema data by their @type property
  * @param {Array<Object>} schemaData - Array of schema objects to group
  * @returns {Object} Object with schema types as keys and arrays of schemas as values
@@ -1890,13 +1710,13 @@ function groupSchemasByType(schemaData) {
     if (!schema?.valid || !schema?.data?.['@type']) continue;
     
     // Get schema type, handling both array and single value cases
-    const schemaType = Array.isArray(schema.data['@type']) 
-      ? schema.data['@type'][0] 
-      : schema.data['@type'];
-    
+      const schemaType = Array.isArray(schema.data['@type']) 
+        ? schema.data['@type'][0] 
+        : schema.data['@type'];
+      
     // Initialize array if needed and push schema
     (grouped[schemaType] ||= []).push(schema);
-  }
+      }
   
   return grouped;
 }
@@ -2010,16 +1830,648 @@ function extractAuthorName(authorData) {
   return null;
 }
 
-function getSchemaKey(displayName) {
-  const mapping = {
-    '@type': '@type',
-    'url': 'url',
-    'name': 'name',
-    'description': 'description',
-    'datePublished': 'datePublished',
-    'dateModified': 'dateModified',
-    'author name': 'author'
-  };
+/**
+ * Generate comprehensive Excel report with multiple sheets
+ */
+async function generateExcelReport() {
+  // Import XLSX if not already available
+  if (typeof XLSX === 'undefined') {
+    throw new Error('XLSX library not loaded');
+  }
   
-  return mapping[displayName] || displayName;
+  // Get current tab info
+  const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+  if (!tabs || !tabs[0]) {
+    throw new Error('No active tab found');
+  }
+  
+  const currentUrl = tabs[0].url;
+  const hostname = new URL(currentUrl).hostname.replace('www.', '');
+  const timestamp = new Date().toISOString().split('T')[0];
+  
+  // Create a new workbook
+  const wb = XLSX.utils.book_new();
+  
+  // Add sheets with comprehensive data
+  addOverviewSheet(wb);
+  addAllMetaTagsSheet(wb);  // UPDATED: Combined meta tags sheet
+  addSchemaSheet(wb);       // UPDATED: Filtered schema properties
+  addIssuesSheet(wb);
+  addTechnicalDetailsSheet(wb, currentUrl);
+  
+  // Generate filename
+  const filename = `SEO_Audit_${hostname}_${timestamp}.xlsx`;
+  
+  // Write the file
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * Add All Meta Tags in one sheet with section headings
+ */
+function addAllMetaTagsSheet(wb) {
+  const data = [];
+  
+  // Main header
+  data.push(['All Meta Tags Analysis']);
+  data.push([]);
+  
+  // Headers
+  data.push(['Category', 'Tag Name', 'Value', 'Status', 'Character Count', 'Recommendation']);
+  
+  // === BASIC META TAGS SECTION ===
+  data.push([]);
+  data.push(['BASIC META TAGS', '', '', '', '', '']);
+  
+  const basicMeta = state.metadata?.basicMeta || [];
+  basicMeta.forEach(tag => {
+    const charCount = tag.value ? tag.value.length : 0;
+    data.push([
+      'Basic Meta',
+      tag.label,
+      tag.value || 'Not set',
+      tag.status || 'missing',
+      charCount,
+      tag.message || ''
+    ]);
+  });
+  
+  // === OPEN GRAPH TAGS SECTION ===
+  data.push([]);
+  data.push(['OPEN GRAPH TAGS', '', '', '', '', '']);
+  
+  const ogMeta = state.metadata?.ogMeta || [];
+  ogMeta.forEach(tag => {
+    const charCount = tag.value ? tag.value.length : 0;
+    data.push([
+      'Open Graph',
+      tag.label,
+      tag.value || 'Not set',
+      tag.status || 'missing',
+      charCount,
+      tag.message || ''
+    ]);
+  });
+  
+  // === TWITTER CARD TAGS SECTION ===
+  data.push([]);
+  data.push(['TWITTER CARD TAGS', '', '', '', '', '']);
+  
+  const twitterMeta = state.metadata?.twitterMeta || [];
+  twitterMeta.forEach(tag => {
+    const charCount = tag.value ? tag.value.length : 0;
+    data.push([
+      'Twitter Card',
+      tag.label,
+      tag.value || 'Not set',
+      tag.status || 'missing',
+      charCount,
+      tag.message || ''
+    ]);
+  });
+  
+  // Add notes
+  data.push([]);
+  data.push(['NOTES:', '', '', '', '', '']);
+  data.push(['', '• Basic Meta tags are fundamental for SEO and browser display', '', '', '', '']);
+  data.push(['', '• Open Graph tags control social media previews (Facebook, LinkedIn)', '', '', '', '']);
+  data.push(['', '• Twitter Card tags control how content appears on Twitter/X', '', '', '', '']);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 },  // Category
+    { wch: 20 },  // Tag Name
+    { wch: 50 },  // Value
+    { wch: 10 },  // Status
+    { wch: 15 },  // Character Count
+    { wch: 40 }   // Recommendation
+  ];
+  
+  // Style headers
+  // Main title
+  if (ws['A1']) {
+    ws['A1'].s = {
+      font: { bold: true, sz: 16 },
+      alignment: { horizontal: 'center' }
+    };
+  }
+  
+  // Section headers (Basic Meta Tags, Open Graph Tags, Twitter Card Tags)
+  const sectionRows = [];
+  for (let i = 0; i < data.length; i++) {
+    if (data[i][0] && data[i][0].includes('TAGS')) {
+      sectionRows.push(i);
+    }
+  }
+  
+  sectionRows.forEach(row => {
+    const cellAddress = `A${row + 1}`;
+    if (ws[cellAddress]) {
+      ws[cellAddress].s = {
+        font: { bold: true, sz: 14 },
+        fill: { fgColor: { rgb: "E0E0E0" } }
+      };
+    }
+  });
+  
+  // Merge cells for main title and section headers
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }  // Merge A1:F1 for title
+  ];
+  
+  // Merge section header rows
+  sectionRows.forEach(row => {
+    ws['!merges'].push({ s: { r: row, c: 0 }, e: { r: row, c: 5 } });
+  });
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Meta Tags');
+}
+
+/**
+ * Add filtered Schema.org Data sheet
+ */
+function addSchemaSheet(wb) {
+  const data = [];
+  
+  // Properties to exclude
+  const excludeProperties = ['isPartOf', 'about', 'description', 'breadcrumb', 'inLanguage', '@context'];
+  
+  // Headers
+  data.push(['Schema Type', 'Property', 'Value']);
+  
+  // Get schema data
+  const schemaData = state.metadata?.schemaData || [];
+  
+  if (schemaData.length === 0) {
+    data.push(['No Schema.org data found', '', '']);
+  } else {
+    schemaData.forEach((schema, index) => {
+      if (schema.valid && schema.data) {
+        const schemaType = Array.isArray(schema.data['@type']) ? 
+          schema.data['@type'].join(', ') : 
+          schema.data['@type'] || 'Unknown';
+        
+        // Add empty row between schemas
+        if (index > 0) data.push(['', '', '']);
+        
+        // Add schema type header row
+        data.push([schemaType.toUpperCase(), '', '']);
+        
+        // Add properties (filtered)
+        Object.entries(schema.data).forEach(([key, value]) => {
+          // Skip excluded properties
+          if (!excludeProperties.includes(key)) {
+            let displayValue = '';
+            
+            // Special handling for certain properties
+            if (key === 'author' && typeof value === 'object') {
+              displayValue = value.name || JSON.stringify(value);
+            } else if (typeof value === 'object') {
+              displayValue = JSON.stringify(value, null, 2);
+            } else {
+              displayValue = String(value);
+            }
+            
+            data.push(['', key, displayValue]);
+          }
+        });
+      }
+    });
+  }
+  
+  // Add note
+  data.push([]);
+  data.push(['Note: Schema.org structured data helps search engines understand your content and can enable rich results.']);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 20 },  // Schema Type
+    { wch: 25 },  // Property
+    { wch: 60 }   // Value
+  ];
+  
+  // Style schema type headers
+  for (let i = 0; i < data.length; i++) {
+    if (data[i][0] && data[i][0] === data[i][0].toUpperCase() && data[i][0].length > 1) {
+      const cellAddress = `A${i + 1}`;
+      if (ws[cellAddress]) {
+        ws[cellAddress].s = {
+          font: { bold: true, sz: 12 },
+          fill: { fgColor: { rgb: "F0F0F0" } }
+        };
+      }
+    }
+  }
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Schema.org Data');
+}
+
+/**
+ * Add Overview sheet with SEO score and summary
+ */
+function addOverviewSheet(wb) {
+  const data = [];
+  
+  // Header
+  data.push(['MetaPeek SEO Audit Report']);
+  data.push([]);
+  
+  // Get SEO score data
+  const scoreData = state.metadata?.seoScore || {};
+  const score = scoreData.score || 0;
+  const status = scoreData.status || 'error';
+  
+  // SEO Score section
+  data.push(['SEO Score', score + '/100']);
+  data.push(['Status', status.charAt(0).toUpperCase() + status.slice(1)]);
+  data.push([]);
+  
+  // Score breakdown
+  data.push(['Category', 'Score', 'Weight', 'Weighted Score']);
+  data.push(['Basic Meta Tags', Math.round((scoreData.categoryScores?.basicMeta || 0) * 100) + '%', '35%', Math.round((scoreData.categoryScores?.basicMeta || 0) * 35) + '%']);
+  data.push(['Social Media Tags', Math.round((scoreData.categoryScores?.socialMeta || 0) * 100) + '%', '25%', Math.round((scoreData.categoryScores?.socialMeta || 0) * 25) + '%']);
+  data.push(['Technical Factors', Math.round((scoreData.categoryScores?.technical || 0) * 100) + '%', '25%', Math.round((scoreData.categoryScores?.technical || 0) * 25) + '%']);
+  data.push(['Structured Data', Math.round((scoreData.categoryScores?.structured || 0) * 100) + '%', '15%', Math.round((scoreData.categoryScores?.structured || 0) * 15) + '%']);
+  data.push([]);
+  
+  // Key findings
+  data.push(['Key Findings']);
+  const recommendations = scoreData.recommendations || [];
+  let issueCount = 0;
+  recommendations.forEach(category => {
+    if (category.items) {
+      issueCount += category.items.length;
+    }
+  });
+  data.push(['Total Issues Found', issueCount]);
+  data.push(['High Impact Issues', recommendations.reduce((acc, cat) => acc + (cat.items?.filter(i => i.impact === 'High')?.length || 0), 0)]);
+  data.push(['Medium Impact Issues', recommendations.reduce((acc, cat) => acc + (cat.items?.filter(i => i.impact === 'Medium')?.length || 0), 0)]);
+  data.push(['Low Impact Issues', recommendations.reduce((acc, cat) => acc + (cat.items?.filter(i => i.impact === 'Low')?.length || 0), 0)]);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 25 },  // Category
+    { wch: 15 },  // Score
+    { wch: 15 },  // Weight
+    { wch: 20 }   // Weighted Score
+  ];
+  
+  // Style header
+  if (ws['A1']) {
+    ws['A1'].s = {
+      font: { bold: true, sz: 16 },
+      alignment: { horizontal: 'center' }
+    };
+  }
+  
+  // Merge header cells
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }  // Merge A1:D1
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Overview');
+}
+
+/**
+ * Add Basic Meta Tags sheet
+ */
+function addBasicMetaSheet(wb) {
+  const data = [];
+  
+  // Headers
+  data.push(['Tag Name', 'Value', 'Status', 'Character Count', 'Recommendation']);
+  
+  // Get basic meta tags
+  const basicMeta = state.metadata?.basicMeta || [];
+  
+  basicMeta.forEach(tag => {
+    const charCount = tag.value ? tag.value.length : 0;
+    data.push([
+      tag.label,
+      tag.value || 'Not set',
+      tag.status || 'missing',
+      charCount,
+      tag.message || ''
+    ]);
+  });
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 },  // Tag Name
+    { wch: 50 },  // Value
+    { wch: 10 },  // Status
+    { wch: 15 },  // Character Count
+    { wch: 40 }   // Recommendation
+  ];
+  
+  // Style header row
+  const headerRange = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = headerRange.s.c; C <= headerRange.e.c; ++C) {
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (!ws[cellAddress]) continue;
+    ws[cellAddress].s = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: "E0E0E0" } }
+    };
+  }
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Basic Meta Tags');
+}
+
+/**
+ * Add Open Graph Tags sheet
+ */
+function addOpenGraphSheet(wb) {
+  const data = [];
+  
+  // Headers
+  data.push(['Property', 'Value', 'Status', 'Character Count', 'Recommendation']);
+  
+  // Get OG meta tags
+  const ogMeta = state.metadata?.ogMeta || [];
+  
+  ogMeta.forEach(tag => {
+    const charCount = tag.value ? tag.value.length : 0;
+    data.push([
+      tag.label,
+      tag.value || 'Not set',
+      tag.status || 'missing',
+      charCount,
+      tag.message || ''
+    ]);
+  });
+  
+  // Add note about Open Graph
+  data.push([]);
+  data.push(['Note: Open Graph tags control how your content appears when shared on social media platforms like Facebook, LinkedIn, and others.']);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 20 },  // Property
+    { wch: 50 },  // Value
+    { wch: 10 },  // Status
+    { wch: 15 },  // Character Count
+    { wch: 40 }   // Recommendation
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Open Graph Tags');
+}
+
+/**
+ * Add Twitter Card Tags sheet
+ */
+function addTwitterCardSheet(wb) {
+  const data = [];
+  
+  // Headers
+  data.push(['Property', 'Value', 'Status', 'Character Count', 'Recommendation']);
+  
+  // Get Twitter meta tags
+  const twitterMeta = state.metadata?.twitterMeta || [];
+  
+  twitterMeta.forEach(tag => {
+    const charCount = tag.value ? tag.value.length : 0;
+    data.push([
+      tag.label,
+      tag.value || 'Not set',
+      tag.status || 'missing',
+      charCount,
+      tag.message || ''
+    ]);
+  });
+  
+  // Add note about Twitter Cards
+  data.push([]);
+  data.push(['Note: Twitter Card tags control how your content appears when shared on Twitter/X.']);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 20 },  // Property
+    { wch: 50 },  // Value
+    { wch: 10 },  // Status
+    { wch: 15 },  // Character Count
+    { wch: 40 }   // Recommendation
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Twitter Card Tags');
+}
+
+/**
+ * Add Issues & Recommendations sheet
+ */
+function addIssuesSheet(wb) {
+  const data = [];
+  
+  // Headers
+  data.push(['Category', 'Issue', 'Impact', 'Details', 'Fix Priority']);
+  
+  // Get recommendations
+  const recommendations = state.metadata?.seoScore?.recommendations || [];
+  
+  recommendations.forEach(category => {
+    if (category.items) {
+      category.items.forEach(item => {
+        // Determine fix priority based on impact
+        let priority = 'Low';
+        if (item.impact === 'High') priority = 'Urgent';
+        else if (item.impact === 'Medium') priority = 'Normal';
+        
+        data.push([
+          category.category,
+          item.issue,
+          item.impact,
+          item.details,
+          priority
+        ]);
+      });
+    }
+  });
+  
+  if (data.length === 1) {
+    data.push(['No issues found', '', '', '', '']);
+  }
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 20 },  // Category
+    { wch: 30 },  // Issue
+    { wch: 10 },  // Impact
+    { wch: 50 },  // Details
+    { wch: 12 }   // Fix Priority
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Issues & Recommendations');
+}
+
+/**
+ * Add Technical Details sheet
+ */
+function addTechnicalDetailsSheet(wb, url) {
+  const data = [];
+  
+  // Headers
+  data.push(['Technical SEO Audit Details']);
+  data.push([]);
+  
+  // Page information
+  data.push(['Page Information']);
+  data.push(['URL', url]);
+  data.push(['Audit Date', new Date().toLocaleString()]);
+  data.push(['Protocol', url.startsWith('https') ? 'HTTPS (Secure)' : 'HTTP (Not Secure)']);
+  data.push([]);
+  
+  // Canonical URL
+  data.push(['Canonical Information']);
+  const canonicalUrl = state.metadata?.canonicalUrl || '';
+  data.push(['Canonical URL', canonicalUrl || 'Not set']);
+  data.push(['Matches Current URL', canonicalUrl === url ? 'Yes' : 'No']);
+  data.push([]);
+  
+  // Character counts
+  data.push(['Content Length Analysis']);
+  const title = state.metadata?.basicMeta?.find(tag => tag.label === 'Title')?.value || '';
+  const description = state.metadata?.basicMeta?.find(tag => tag.label === 'Description')?.value || '';
+  
+  data.push(['Title Length', title.length + ' characters', title.length < 30 ? 'Too short' : title.length > 60 ? 'Too long' : 'Optimal']);
+  data.push(['Description Length', description.length + ' characters', description.length < 120 ? 'Too short' : description.length > 160 ? 'Too long' : 'Optimal']);
+  data.push([]);
+  
+  // Mobile readiness
+  const viewport = state.metadata?.basicMeta?.find(tag => tag.label === 'Viewport')?.value || '';
+  data.push(['Mobile Optimization']);
+  data.push(['Viewport Tag', viewport || 'Not set']);
+  data.push(['Mobile Ready', viewport.includes('width=device-width') ? 'Yes' : 'No']);
+  data.push([]);
+  
+  // Robots directives
+  const robots = state.metadata?.basicMeta?.find(tag => tag.label === 'Robots')?.value || '';
+  data.push(['Search Engine Directives']);
+  data.push(['Robots Meta', robots || 'Not set (defaults to index, follow)']);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 25 },  // Label
+    { wch: 50 },  // Value
+    { wch: 20 }   // Status
+  ];
+  
+  // Style section headers
+  [0, 3, 6, 10, 15, 19].forEach(row => {
+    const cellAddress = `A${row + 1}`;
+    if (ws[cellAddress]) {
+      ws[cellAddress].s = {
+        font: { bold: true, sz: 14 }
+      };
+    }
+  });
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Technical Details');
+}
+
+/**
+ * Initialize meta section tabs functionality
+ */
+function initMetaSectionTabs() {
+  const metaSectionTabs = document.querySelectorAll('.meta-section-tab');
+  
+  metaSectionTabs.forEach(tab => {
+    addTrackedListener(tab, 'click', () => {
+      // Get the target pane ID
+      const targetId = tab.getAttribute('data-target');
+      if (!targetId) return;
+      
+      // Remove active class from all tabs and panes
+      document.querySelectorAll('.meta-section-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.meta-section-pane').forEach(pane => {
+        pane.classList.remove('active');
+      });
+      
+      // Add active class to clicked tab
+      tab.classList.add('active');
+      
+      // Add active class to corresponding pane
+      const targetPane = document.getElementById(targetId);
+      if (targetPane) {
+        targetPane.classList.add('active');
+      }
+      
+      // Initialize tooltips after meta section tab change
+      initTooltips();
+    });
+  });
+}
+
+/**
+ * Show a toast notification
+ * @param {string} message - Message to display
+ */
+function showToast(message) {
+  const toast = getCached('toast');
+  if (!toast) {
+    // Create toast if it doesn't exist
+    const newToast = document.createElement('div');
+    newToast.id = 'toast';
+    newToast.className = 'toast';
+    newToast.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <span>${message}</span>
+    `;
+    document.body.appendChild(newToast);
+    
+    // Cache the new toast
+    window.MetaPeek.domCache.set('toast', newToast);
+    
+    // Show it after a brief delay
+    setTimeout(() => {
+      newToast.classList.add('show');
+    }, 100);
+    
+    // Hide after 3 seconds
+    setTimeout(() => {
+      newToast.classList.remove('show');
+    }, 3000);
+    
+    return;
+  }
+  
+  const toastMessage = toast.querySelector('span');
+  if (toastMessage) {
+    toastMessage.textContent = message;
+  }
+  
+  toast.classList.add('show');
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
 }
