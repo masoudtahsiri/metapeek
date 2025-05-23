@@ -1067,6 +1067,7 @@ function generateAllPreviews() {
   
   const metadata = socialPreviewState.originalMetadata;
   const hostname = socialPreviewState.pageHostname || 'example.com';
+  const pageUrl = metadata.canonicalUrl || metadata.url || '';
   
   // Get values with fallbacks
   const title = metadata.title || metadata.ogTitle || metadata.twitterTitle || '';
@@ -1075,7 +1076,7 @@ function generateAllPreviews() {
   const siteName = metadata.siteName || '';
 
   // Generate previews for each platform
-  generateGooglePreview(hostname, title, description, image, siteName);
+  generateGooglePreview(hostname, title, description, pageUrl, siteName);
   generateFacebookPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
   generateTwitterPreview(metadata, hostname, metadata.twitterTitle || metadata.ogTitle || title, metadata.twitterDescription || metadata.ogDescription || description, metadata.twitterImage || image);
   generateLinkedInPreview(hostname, metadata.ogTitle || title, metadata.ogDescription || description, image, siteName);
