@@ -3,8 +3,6 @@
  * Handles extension lifecycle, tab events, and message passing
  */
 
-console.log('MetaPeek background script loaded');
-
 /**
  * Constants
  */
@@ -66,7 +64,7 @@ function configurePopupForTab(tabId, url) {
   });
   
   if (isSpecialUrl(url)) {
-    console.log('Special URL detected, removing popup for tab:', tabId);
+    // Remove console.log('Special URL detected, removing popup for tab:', tabId);
   }
 }
 
@@ -74,7 +72,7 @@ function configurePopupForTab(tabId, url) {
  * Handle action icon clicks
  */
 function handleActionClick(tab) {
-  console.log('Extension icon clicked for tab:', tab.url);
+  // Remove console.log('Extension icon clicked for tab:', tab.url);
   
   if (isSpecialUrl(tab.url)) {
     // Show a notification for special URLs
@@ -100,37 +98,36 @@ function handleTabUpdate(tabId, changeInfo, tab) {
  * Handle extension installation
  */
 function handleInstall(details) {
-  console.log('Extension installed or updated:', details.reason);
-  
   if (details.reason === 'install') {
     // Open a welcome page on first install
     chrome.tabs.create({ url: WELCOME_PAGE });
   }
   
   // Clean up any existing notifications on install/update
-  chrome.notifications.getAll((notifications) => {
-    Object.keys(notifications).forEach(id => {
-      chrome.notifications.clear(id);
+  if (chrome.notifications) {
+    chrome.notifications.getAll((notifications) => {
+      if (notifications) {
+        Object.keys(notifications).forEach(id => {
+          chrome.notifications.clear(id);
+        });
+      }
     });
-  });
+  }
 }
 
 /**
  * Handle runtime messages
  */
 function handleRuntimeMessage(message, sender, sendResponse) {
-  console.log('Background script received message:', message.type);
+  // Remove console.log('Background script received message:', message.type);
   
   switch (message.type) {
     case 'metadataUpdated':
-      console.log('Metadata updated for tab:', sender.tab?.id);
-      // We could store this in extension storage for faster access
-      // when popup opens, but we'll avoid it to prevent memory issues
+      // Remove console.log('Metadata updated for tab:', sender.tab?.id);
       sendResponse({ received: true });
       break;
     
     default:
-      console.log('Unknown message type:', message.type);
       break;
   }
   
@@ -203,7 +200,7 @@ function cleanupListeners() {
  * Handle extension suspension/unload
  */
 chrome.runtime.onSuspend.addListener(() => {
-  console.log('Extension suspending, cleaning up...');
+  // Remove console.log('Extension suspending, cleaning up...');
   cleanupListeners();
   
   // Clear all notifications

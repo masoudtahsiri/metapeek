@@ -1,21 +1,19 @@
 /**
- * MetaPeek Popup - FIXED FOR MEMORY LEAKS AND PERFORMANCE
- * Displays metadata and SEO information for the current page
+ * MetaPeek Popup Script
+ * Handles UI interactions and data display
  */
 
-console.log('MetaPeek popup initialized');
+// Initialize the MetaPeek namespace
+window.MetaPeek = window.MetaPeek || {
+  initialized: false,
+  domCache: new Map(),
+  listeners: new Map()
+};
 
 // Configuration
 const CONFIG = {
   loadingTimeout: 5000,            // Timeout for loading data (ms)
   toastDuration: 3000,             // Duration to show toast messages (ms)
-};
-
-// Initialize MetaPeek namespace if it doesn't exist
-window.MetaPeek = window.MetaPeek || {
-  initialized: false,
-  listeners: new Map(),
-  domCache: new Map()
 };
 
 // State
@@ -127,8 +125,6 @@ function getCached(key) {
  * Initialize the app when the DOM is fully loaded
  */
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('Popup DOM loaded');
-  
   // Optimize font loading
   optimizeFontLoading();
   
@@ -241,15 +237,12 @@ function initUI() {
  * Load data from the active tab
  */
 function loadPageData() {
-  console.log('Loading page metadata...');
-  
   // Set loading state
   state.loading.metadata = true;
   state.errors.metadata = null;
   
   chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
     if (!tabs || !tabs[0]) {
-      console.error('No active tab found');
       showError('Unable to access current tab');
       return;
     }
@@ -349,7 +342,6 @@ function updateUrlDisplay(url) {
  * @param {Object} metadata - Metadata from content script
  */
 function populateUI(metadata) {
-  console.log('Populating UI with metadata');
   try {
     // Update SEO score
     updateSEOScore(metadata.seoScore);

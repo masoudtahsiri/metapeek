@@ -3,8 +3,6 @@
  * Extracts and analyzes metadata from web pages
  */
 
-console.log('MetaPeek content script initialized');
-
 // Initialize the MetaPeek namespace
 window.MetaPeek = window.MetaPeek || {
   initialized: false,
@@ -254,8 +252,6 @@ const EXTRACTION_DEBOUNCE = 500; // Debounce metadata extraction
  * Cleanup function to prevent memory leaks
  */
 function cleanup() {
-  console.log('Cleaning up MetaPeek resources');
-  
   // Disconnect observer
   if (window.MetaPeek.observer) {
     window.MetaPeek.observer.disconnect();
@@ -290,11 +286,8 @@ function cleanup() {
  */
 function initializeMetaPeek() {
   if (window.MetaPeek.initialized) {
-    console.log('MetaPeek already initialized');
     return;
   }
-  
-  console.log('Initializing MetaPeek');
   
   // Cleanup any existing resources first
   cleanup();
@@ -338,7 +331,6 @@ function initializeMetaPeek() {
             // Send metadata update with error handling
             sendMetadataUpdate(metadata);
           } catch (error) {
-            console.error('Error processing metadata:', error);
           }
         }
       }, EXTRACTION_DEBOUNCE);
@@ -353,21 +345,16 @@ function initializeMetaPeek() {
       characterData: false
     });
     
-    console.log('MetaPeek observer started');
-    
     // Collect initial metadata
     try {
       const metadata = getPageMetadata();
       window.MetaPeek.metadata = metadata;
-      console.log('Initial metadata collected');
       
       // Send initial metadata
       sendMetadataUpdate(metadata);
     } catch (error) {
-      console.error('Error collecting initial metadata:', error);
     }
   } catch (error) {
-    console.error('Error initializing MetaPeek:', error);
     // Reset initialization flag to allow retry
     window.MetaPeek.initialized = false;
   }
@@ -381,18 +368,12 @@ function sendMetadataUpdate(metadata) {
     chrome.runtime.sendMessage({ type: 'metadataUpdated', metadata })
       .catch(error => {
         if (error.message && error.message.includes('Extension context invalidated')) {
-          console.debug('Extension context invalidated, cleaning up...');
           cleanup();
-        } else {
-          console.error('Error sending metadata update:', error);
         }
       });
   } catch (error) {
     if (error.message && error.message.includes('Extension context invalidated')) {
-      console.debug('Extension context invalidated, cleaning up...');
       cleanup();
-    } else {
-      console.error('Runtime error sending metadata update:', error);
     }
   }
 }
@@ -408,8 +389,6 @@ function setupMessageListener() {
   
   // Create new listener
   window.MetaPeek.messageListener = (request, sender, sendResponse) => {
-    console.log('Message received in content script:', request.type);
-    
     try {
       switch (request.type) {
         case 'getMetadata':
@@ -421,13 +400,10 @@ function setupMessageListener() {
           break;
           
         default:
-          console.warn('Unknown message type received:', request.type);
           sendResponse({ error: 'Unknown message type' });
       }
     } catch (error) {
-      console.error('Error handling message:', error);
       if (error.message && error.message.includes('Extension context invalidated')) {
-        console.debug('Extension context invalidated during message handling');
         cleanup();
         sendResponse({ error: 'Extension context invalidated' });
       } else {
@@ -448,15 +424,12 @@ function setupMessageListener() {
  * @param {Function} sendResponse - Function to send response back to requester
  */
 function handleGetMetadataRequest(sendResponse) {
-  console.log('Processing getMetadata request');
-  
   // Check if we have recent cached metadata
   const now = Date.now();
   if (window.MetaPeek.metadata && 
       window.MetaPeek.lastExtractTime && 
       (now - window.MetaPeek.lastExtractTime) < 1000) {
     // Use cached metadata if it's less than 1 second old
-    console.log('Using cached metadata');
     sendResponse(window.MetaPeek.metadata);
     return;
   }
@@ -468,7 +441,6 @@ function handleGetMetadataRequest(sendResponse) {
   window.MetaPeek.metadata = metadata;
   window.MetaPeek.lastExtractTime = now;
   
-  console.log('Sending metadata response');
   sendResponse(metadata);
 }
 
@@ -477,12 +449,9 @@ function handleGetMetadataRequest(sendResponse) {
  * @param {Function} sendResponse - Function to send response back to requester
  */
 function handleSEOHealthRequest(sendResponse) {
-  console.log('Processing getSEOHealth request');
-  
   const metadata = getPageMetadata();
   const seoHealth = calculateSEOHealthScore(metadata);
   
-  console.log('Sending SEO health response');
   sendResponse(seoHealth);
 }
 
@@ -532,7 +501,6 @@ function getPageMetadata() {
 
     return metadata;
   } catch (error) {
-    console.error('Error in getPageMetadata:', error);
     return metadata;
   }
 }
