@@ -2004,13 +2004,12 @@ async function generateExcelReport() {
     throw new Error('XLSX library not loaded');
   }
   
-  // Get current tab info
-  const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-  if (!tabs || !tabs[0]) {
-    throw new Error('No active tab found');
+  // Get URL from metadata state
+  const currentUrl = state.metadata?.url;
+  if (!currentUrl) {
+    throw new Error('No URL available in metadata');
   }
   
-  const currentUrl = tabs[0].url;
   const hostname = new URL(currentUrl).hostname.replace('www.', '');
   const timestamp = new Date().toISOString().split('T')[0];
   
