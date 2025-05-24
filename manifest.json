@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MetaPeek",
   "version": "1.0.0",
-  "description": "SEO and meta tag inspection tool with social previews, structured data validation, and Excel reports. Perfect for developers and SEO specialists.",
+  "description": "SEO and meta tag inspector with social previews, structured data validation, and Excel reports. For developers and SEO specialists.",
   "author": "Refact.co",
   "homepage_url": "https://refact.co/toolkit/",
   "minimum_chrome_version": "88",
