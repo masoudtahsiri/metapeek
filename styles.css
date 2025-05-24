@@ -2839,3 +2839,55 @@ a:focus-visible {
   background-color: var(--bg-card);
   border-color: var(--border-medium);
 }
+
+/* Full page button styles */
+#open-fullpage {
+  color: var(--primary);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+#open-fullpage:hover {
+  background-color: var(--primary-light);
+  color: var(--primary-hover);
+}
+
+#open-fullpage::before {
+  content: 'Open Full Page';
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-main);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+#open-fullpage:hover::before {
+  opacity: 1;
+}
+
+/* Dark mode support */
+[data-theme="dark"] #export-excel {
+  color: var(--primary);
+}
+
+[data-theme="dark"] #export-excel:hover {
+  background-color: var(--primary-light);
+  color: #fff;
+}
+
+[data-theme="dark"] #open-fullpage {
+  color: var(--primary);
+}
+
+[data-theme="dark"] #open-fullpage:hover {
+  background-color: var(--primary-light);
+  color: #fff;
+}

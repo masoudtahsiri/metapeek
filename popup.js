@@ -276,6 +276,7 @@ function initUI() {
     initTabNavigation();
     initSocialPreviews();
     initExcelExport();
+    initFullPageButton();
     initImpactTabs();
   } catch (error) {
     console.error('Error initializing UI:', error);
@@ -290,68 +291,109 @@ function loadPageData() {
   state.loading.metadata = true;
   state.errors.metadata = null;
   
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    if (!tabs || !tabs[0]) {
-      showError('Unable to access current tab');
-      return;
+  // Check if we're in full page mode
+  const isFullPage = document.body.hasAttribute('data-fullpage');
+  
+  if (isFullPage) {
+    // In full page mode, get tab ID from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabId = parseInt(urlParams.get('tabId'));
+    
+    if (tabId) {
+      loadDataFromTab(tabId);
+    } else {
+      showError('No tab ID provided');
     }
-    
-    const activeTab = tabs[0];
-    
-    // Check for unsupported URLs
-    if (isUnsupportedUrl(activeTab.url)) {
-      showErrorOverlay('This page is not supported due to browser restrictions.');
-      return;
-    }
-    
-    updateUrlDisplay(activeTab.url);
-    // Store the real hostname for previews (for both previewState and socialPreviewState)
-    try {
-      previewState.pageHostname = new URL(activeTab.url).hostname;
-      socialPreviewState.pageHostname = new URL(activeTab.url).hostname;
-    } catch (e) {
-      previewState.pageHostname = activeTab.url;
-      socialPreviewState.pageHostname = activeTab.url;
-    }
-    console.log('Getting metadata for tab:', activeTab.id);
-    
-    // Add a timeout to prevent indefinite waiting
-    let responseReceived = false;
-    const timeoutId = setTimeout(() => {
-      if (!responseReceived) {
-        console.error('Timeout waiting for metadata response');
-        showError('Timeout getting metadata from page. Please refresh and try again.');
-      }
-    }, CONFIG.loadingTimeout);
-    
-    // Request metadata from content script
-    chrome.tabs.sendMessage(activeTab.id, { type: 'getMetadata' }, (response) => {
-      // Clear timeout
-      clearTimeout(timeoutId);
-      responseReceived = true;
-      state.loading.metadata = false;
-      
-      if (chrome.runtime.lastError) {
-        const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred';
-        
-        if (errorMessage.includes('Could not establish connection')) {
-          showErrorOverlay('Failed to connect to page. Please refresh and try again.');
-        } else {
-          showErrorOverlay('An error occurred. Please refresh and try again.');
-        }
+  } else {
+    // In popup mode, get the active tab
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (!tabs || !tabs[0]) {
+        showError('Unable to access current tab');
         return;
       }
       
-      if (!response) {
-        console.error('No response received from content script');
-        showError('No data received from page. The content script may not be loaded properly.');
-        return;
-      }
-      
-      console.log('Received metadata', response);
-      state.metadata = response;
-      populateUI(response);
+      loadDataFromTab(tabs[0].id, tabs[0].url);
     });
+  }
+}
+
+/**
+ * Load data from a specific tab
+ */
+function loadDataFromTab(tabId, tabUrl) {
+  // Get tab info if URL not provided (for full page mode)
+  if (!tabUrl) {
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError) {
+        showError('Unable to access tab');
+        return;
+      }
+      processTab(tab.id, tab.url);
+    });
+  } else {
+    processTab(tabId, tabUrl);
+  }
+}
+
+/**
+ * Process tab and load metadata
+ */
+function processTab(tabId, tabUrl) {
+  // Check for unsupported URLs
+  if (isUnsupportedUrl(tabUrl)) {
+    showErrorOverlay('This page is not supported due to browser restrictions.');
+    return;
+  }
+  
+  updateUrlDisplay(tabUrl);
+  
+  // Store the real hostname for previews
+  try {
+    previewState.pageHostname = new URL(tabUrl).hostname;
+    socialPreviewState.pageHostname = new URL(tabUrl).hostname;
+  } catch (e) {
+    previewState.pageHostname = tabUrl;
+    socialPreviewState.pageHostname = tabUrl;
+  }
+  
+  console.log('Getting metadata for tab:', tabId);
+  
+  // Add a timeout to prevent indefinite waiting
+  let responseReceived = false;
+  const timeoutId = setTimeout(() => {
+    if (!responseReceived) {
+      console.error('Timeout waiting for metadata response');
+      showError('Timeout getting metadata from page. Please refresh and try again.');
+    }
+  }, CONFIG.loadingTimeout);
+  
+  // Request metadata from content script
+  chrome.tabs.sendMessage(tabId, { type: 'getMetadata' }, (response) => {
+    // Clear timeout
+    clearTimeout(timeoutId);
+    responseReceived = true;
+    state.loading.metadata = false;
+    
+    if (chrome.runtime.lastError) {
+      const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred';
+      
+      if (errorMessage.includes('Could not establish connection')) {
+        showErrorOverlay('Failed to connect to page. Please refresh and try again.');
+      } else {
+        showErrorOverlay('An error occurred. Please refresh and try again.');
+      }
+      return;
+    }
+    
+    if (!response) {
+      console.error('No response received from content script');
+      showError('No data received from page. The content script may not be loaded properly.');
+      return;
+    }
+    
+    console.log('Received metadata', response);
+    state.metadata = response;
+    populateUI(response);
   });
 }
 
@@ -1518,6 +1560,34 @@ function initExcelExport() {
       // Remove loading state
       exportButton.disabled = false;
       exportButton.classList.remove('loading');
+    }
+  });
+}
+
+/**
+ * Initialize full page button functionality
+ */
+function initFullPageButton() {
+  const fullPageButton = document.getElementById('open-fullpage');
+  if (!fullPageButton) return;
+
+  addTrackedListener(fullPageButton, 'click', async () => {
+    try {
+      // Get the current tab URL
+      const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+      if (!tabs || !tabs[0]) return;
+      
+      // Create the full page URL with the current tab ID as a parameter
+      const fullPageUrl = chrome.runtime.getURL(`fullpage.html?tabId=${tabs[0].id}`);
+      
+      // Open in a new tab
+      chrome.tabs.create({ url: fullPageUrl });
+      
+      // Close the popup (optional)
+      window.close();
+    } catch (error) {
+      console.error('Error opening full page view:', error);
+      showToast('Failed to open full page view');
     }
   });
 }

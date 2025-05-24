@@ -43,7 +43,10 @@
     {
       "resources": [
         "icons/*",
-        "lib/*"
+        "lib/*",
+        "fullpage.html",
+        "styles.css",
+        "popup.js"
       ],
       "matches": [
         "<all_urls>"
