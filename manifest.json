@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MetaPeek",
   "version": "1.0.0",
-  "description": "Analyze and optimize your page's meta tags and SEO.",
+  "description": "Professional SEO and meta tag inspection tool that helps you optimize your web pages for search engines and social media. Features include: real-time meta tag inspection, social media preview testing (Google, Facebook, Twitter, LinkedIn), SEO scoring, structured data validation, and comprehensive Excel reports. Perfect for developers, SEO specialists, and content creators.",
   "author": "Refact.co",
   "homepage_url": "https://refact.co/toolkit/",
   "minimum_chrome_version": "88",
