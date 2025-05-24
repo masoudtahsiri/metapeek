@@ -121,6 +121,55 @@ function getCached(key) {
 }
 
 /**
+ * Check if URL is a restricted/unsupported page
+ */
+function isUnsupportedUrl(url) {
+  const unsupportedPatterns = [
+    'chrome://',
+    'chrome-extension://',
+    'edge://',
+    'about:',
+    'chrome.google.com',
+    'chromewebstore.google.com',
+    'microsoftedge.microsoft.com',
+    'addons.mozilla.org'
+  ];
+  
+  return unsupportedPatterns.some(pattern => url.includes(pattern));
+}
+
+/**
+ * Show simple error overlay
+ */
+function showErrorOverlay(message) {
+  // Remove any existing overlay
+  const existingOverlay = document.getElementById('error-overlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'error-overlay';
+  overlay.className = 'error-overlay';
+  overlay.innerHTML = `
+    <div class="error-overlay-content">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <p>${message}</p>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  // Prevent scrolling when overlay is shown
+  document.body.style.overflow = 'hidden';
+}
+
+/**
  * Document Ready Handler
  * Initialize the app when the DOM is fully loaded
  */
@@ -248,6 +297,13 @@ function loadPageData() {
     }
     
     const activeTab = tabs[0];
+    
+    // Check for unsupported URLs
+    if (isUnsupportedUrl(activeTab.url)) {
+      showErrorOverlay('This page is not supported due to browser restrictions.');
+      return;
+    }
+    
     updateUrlDisplay(activeTab.url);
     // Store the real hostname for previews (for both previewState and socialPreviewState)
     try {
@@ -276,10 +332,13 @@ function loadPageData() {
       state.loading.metadata = false;
       
       if (chrome.runtime.lastError) {
-        // Improved error handling to show the actual error message
         const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred';
-        console.error('Error getting metadata:', errorMessage);
-        showError(`Failed to connect to page: ${errorMessage}. Please refresh and try again.`);
+        
+        if (errorMessage.includes('Could not establish connection')) {
+          showErrorOverlay('Failed to connect to page. Please refresh and try again.');
+        } else {
+          showErrorOverlay('An error occurred. Please refresh and try again.');
+        }
         return;
       }
       
