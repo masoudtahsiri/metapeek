@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MetaPeek - Full View</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <style>
+    /* Override popup constraints for full page view */
+    body {
+      width: 100%;
+      max-width: 1200px;
+      height: auto;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 0;
+    }
+    
+    .app-container {
+      min-height: 100vh;
+      height: auto;
+    }
+    
+    .app-content {
+      max-height: none;
+      overflow-y: visible;
+      padding: 24px;
+    }
+    
+    .tab-content {
+      padding: 24px 32px;
+    }
+    
+    /* Wider containers in full page mode */
+    .preview-container.desktop-view {
+      width: 100%;
+      max-width: 600px;
+    }
+    
+    .meta-section-content {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    /* Better spacing for full page */
+    .section-card {
+      margin-bottom: 32px;
+    }
+    
+    /* Hide full page button in full page view */
+    #open-fullpage {
+      display: none;
+    }
+  </style>
+  <script src="popup.js"></script>
+  <script src="lib/xlsx.full.min.js"></script>
+</head>
+<body data-fullpage="true">
+  <!-- Copy entire body content from popup.html -->
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <h1>MetaPeek</h1>
+      </div>
+      <div class="app-actions">
+        <button id="export-excel" class="btn-icon" aria-label="Export to Excel" title="Export SEO Audit to Excel">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="app-content">
+      <!-- Tab Navigation -->
+      <nav class="tab-navigation">
+        <button class="tab-button active" data-tab="overview">Overview</button>
+        <button class="tab-button" data-tab="meta-tags">Meta Tags</button>
+        <button class="tab-button" data-tab="social">Social Preview</button>
+      </nav>
+      
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- Overview Tab -->
+        <section id="overview-tab" class="tab-pane active">
+          <!-- Status Overview Display -->
+          <div class="status-overview-panel">
+            <h2 class="status-overview-title">Status Overview</h2>
+            
+            <div class="status-categories">
+              <!-- Basic Meta Tags -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Basic Meta Tags</span>
+                  <span class="category-count">0/5</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill basic-meta-progress" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <!-- Open Graph -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Open Graph Tags</span>
+                  <span class="category-count">0/6</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill og-progress" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <!-- Twitter Card -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Twitter Card Tags</span>
+                  <span class="category-count">0/5</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill twitter-progress" style="width: 0%"></div>
+                </div>
+              </div>
+              
+              <!-- Schema.org -->
+              <div class="status-category">
+                <div class="category-header">
+                  <span class="category-name">Schema.org Data</span>
+                  <span class="category-status">Not detected</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill schema-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            </div>
+          </div>
+
+          <!-- Impact Level Tabs -->
+          <div class="impact-tabs">
+            <button class="impact-tab active" data-impact="all">All Issues</button>
+            <button class="impact-tab" data-impact="high">High Impact</button>
+            <button class="impact-tab" data-impact="medium">Medium Impact</button>
+            <button class="impact-tab" data-impact="low">Low Impact</button>
+          </div>
+
+          <!-- Priority Issues -->
+          <div class="section-card">
+            <!-- Issues List Container -->
+            <div class="impact-content">
+              <div id="all-issues" class="issues-list impact-pane active">
+                <div class="empty-state">
+                  <p>Checking for issues...</p>
+                </div>
+              </div>
+              <div id="high-issues" class="issues-list impact-pane">
+                <div class="empty-state">
+                  <p>No high impact issues found.</p>
+                </div>
+              </div>
+              <div id="medium-issues" class="issues-list impact-pane">
+                <div class="empty-state">
+                  <p>No medium impact issues found.</p>
+                </div>
+              </div>
+              <div id="low-issues" class="issues-list impact-pane">
+                <div class="empty-state">
+                  <p>No low impact issues found.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- Meta Tags Tab -->
+        <section id="meta-tags-tab" class="tab-pane">
+          <div class="meta-tags-container">
+            <!-- Meta Section Tabs Navigation -->
+            <div class="meta-section-tabs">
+              <button class="meta-section-tab active" data-target="basic-meta-content">Basic Meta Tags</button>
+              <button class="meta-section-tab" data-target="og-meta-content">Open Graph Tags</button>
+              <button class="meta-section-tab" data-target="twitter-meta-content">Twitter Card Tags</button>
+              <button class="meta-section-tab" data-target="schema-content">Schema.org Data</button>
+            </div>
+            
+            <!-- Meta Section Content Container -->
+            <div class="meta-section-content">
+              <!-- Basic Meta Tags -->
+              <div id="basic-meta-content" class="meta-section-pane active">
+                <div class="meta-table">
+                  <div class="loading-indicator">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading meta tags...</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Open Graph Tags -->
+              <div id="og-meta-content" class="meta-section-pane">
+                <div class="meta-table">
+                  <div class="loading-indicator">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading Open Graph tags...</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Twitter Card Tags -->
+              <div id="twitter-meta-content" class="meta-section-pane">
+                <div class="meta-table">
+                  <div class="loading-indicator">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading Twitter tags...</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Schema.org Data -->
+              <div id="schema-content" class="meta-section-pane">
+                <div class="meta-table">
+                  <div class="loading-indicator">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading Schema.org data...</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- Social Preview Tab -->
+        <section id="social-preview-tab" class="tab-pane">
+          <div class="social-tabs">
+            <button class="social-tab active" data-preview="google">Google</button>
+            <button class="social-tab" data-preview="facebook">Facebook</button>
+            <button class="social-tab" data-preview="twitter">Twitter</button>
+            <button class="social-tab" data-preview="linkedin">LinkedIn</button>
+            <button class="social-tab" data-preview="slack">Slack</button>
+          </div>
+
+          <!-- Desktop Previews -->
+          <div class="preview-container desktop-view">
+            <div id="google-preview" class="preview-content active">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Google preview...</div>
+              </div>
+            </div>
+            <div id="facebook-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Facebook preview...</div>
+              </div>
+            </div>
+            <div id="twitter-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Twitter preview...</div>
+              </div>
+            </div>
+            <div id="linkedin-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading LinkedIn preview...</div>
+              </div>
+            </div>
+            <div id="slack-preview" class="preview-content">
+              <div class="loading-indicator">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Slack preview...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div class="copyright">
+        Copyright © 2025 Refact, LLC. All rights reserved.
+      </div>
+    </footer>
+    
+    <div id="toast" class="toast">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      <span>Copied to clipboard!</span>
+    </div>
+  </div>
+  <div id="global-tooltip" style="position: fixed; pointer-events: none; z-index: 99999; display: none;"></div>
+</body>
+</html> 
